@@ -1,10 +1,14 @@
 # Unitree RL Mjlab 本地实验日志
 
-最后更新：2026-06-25
+最后更新：2026-07-10
 
 ## 当前目标
 
-在 `/home/jensen/projects/unitree_rl_mjlab` 下走 Unitree 官方路线，先让 Go2 在 MuJoCo/MJLab 里完成训练、回放和 ONNX 导出。当前策略是先跑通 `Unitree-Go2-Flat`，建立稳定 baseline，再考虑 `Unitree-Go2-Rough`、更长训练和部署。
+在 `/home/jensen/projects/unitree_rl_mjlab` 下走 Unitree 官方路线，先让 Go2 在 MuJoCo/MJLab 里完成训练、回放和 ONNX 导出。当前 `Unitree-Go2-Flat` 已经是稳定 baseline；`Unitree-Go2-Rough` 已完成多段训练，但暴露出速度课程和 rough 课程设计问题，下一步重点不是继续堆训练时长，而是调整 curriculum / warmstart / actor-critic observation 设计。
+
+## 记录约定
+
+每个阶段结束后都要把实验思路、遇到的问题、改用的新方法、关键指标和下一步建议记录到本文档；`docs/HANDOFF.md` 同步保留一份更短的新窗口交接摘要。
 
 ## 仓库与环境
 
@@ -117,13 +121,191 @@ Loss/value: 0.013
 
 评价：比 512 env 版本更好。episode length 更接近上限，reward 更高，速度跟踪更好，打滑更少，动作更平滑。当前建议把它作为新的 Go2 Flat baseline。
 
+### Go2 Flat 2048 envs resume / plus 1000 iter
+
+从 `1024env_1000iter/model_999.pt` 继续训练，环境数改为 2048。
+
+命令核心参数：
+
+```bash
+python scripts/train.py Unitree-Go2-Flat \
+  --env.scene.num-envs=2048 \
+  --agent.resume=True \
+  --agent.load-run 2026-06-25_16-35-33_go2_flat_1024env_1000iter \
+  --agent.load-checkpoint model_999.pt \
+  --agent.max-iterations=1000 \
+  --agent.run-name go2_flat_2048env_resume999_plus1000iter \
+  --agent.logger tensorboard
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-06-26_10-56-49_go2_flat_2048env_resume999_plus1000iter/model_1998.pt
+logs/rsl_rl/go2_velocity/2026-06-26_10-56-49_go2_flat_2048env_resume999_plus1000iter/policy.onnx
+```
+
+关键结果：
+
+```text
+Train/mean_reward: 54.71
+Train/mean_episode_length: 994.19
+Episode_Reward/track_linear_velocity: 0.841
+Episode_Reward/track_angular_velocity: 0.937
+Episode_Reward/pose: 0.841
+Episode_Termination/fell_over: 0
+Episode_Termination/illegal_contact: 0
+Metrics/slip_velocity_mean: 0.072
+Episode_Metrics/mean_action_acc: 0.667
+Policy/mean_std: 0.337
+Loss/value: 0.003
+```
+
+评价：这是目前最好的 Flat baseline。平地慢速/中速速度跟踪稳定，回放效果较好。高速度“跑步”仍然不应视为已经学好，因为当前课程在约 5000 PPO iterations 前主要训练较温和速度，且 gait/reward 没有为高速奔跑单独设计。
+
+### Flat capacity tests
+
+为了确认 RTX 5060 Laptop 8GB 的并行训练上限，做过 Flat 快速容量测试：
+
+```text
+4096 env: 10 iter 成功，约 48k-53k steps/s
+6144 env: 10 iter 成功，约 52k steps/s
+8192 env: 10 iter 成功，约 50k-51k steps/s，显存约 5.3GB
+10240 env: 未完成初始化/无有效 run dir
+```
+
+结论：Flat 可运行上限大约是 8192，但长训更建议 4096 或 6144；Rough 更重，初始训练仍建议 1024。
+
+### Go2 Rough 1024 envs / 3000 iter
+
+命令：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=1024 \
+  --agent.max-iterations=3000 \
+  --agent.run-name go2_rough_1024env_3000iter \
+  --agent.logger tensorboard
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-06_10-04-23_go2_rough_1024env_3000iter/model_2999.pt
+logs/rsl_rl/go2_velocity/2026-07-06_10-04-23_go2_rough_1024env_3000iter/policy.onnx
+```
+
+关键结果：
+
+```text
+Tail100 reward: 39.74
+Tail100 episode length: 943
+Tail100 terrain level: 1.11
+Tail100 track linear velocity: 0.667
+Tail100 track angular velocity: 0.818
+Tail100 fell_over: 0.007
+Tail100 illegal_contact: 0.185
+Tail100 slip velocity: 0.111
+Tail100 mean_action_acc: 1.076
+Best reward: 42.57 around iteration 2337
+```
+
+评价：能形成 low-level rough baseline，但没有学到高难度复杂地形。terrain level 长期只在约 1.1 附近。
+
+### Go2 Rough resume 2800 / plus 1500 iter
+
+命令：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=1024 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-06_10-04-23_go2_rough_1024env_3000iter \
+  --agent.load-checkpoint model_2800.pt \
+  --agent.max-iterations=1500 \
+  --agent.run-name go2_rough_resume2800_plus1500iter \
+  --agent.logger tensorboard
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-06_13-40-01_go2_rough_resume2800_plus1500iter/model_4299.pt
+```
+
+关键结果：
+
+```text
+Tail100 reward: 40.48
+Tail100 episode length: 944
+Tail100 terrain level: 1.25
+Tail100 track linear velocity: 0.684
+Tail100 track angular velocity: 0.822
+Tail100 fell_over: 0.003
+Tail100 illegal_contact: 0.181
+Tail100 slip velocity: 0.110
+Tail100 mean_action_acc: 1.066
+```
+
+评价：相比第一段 rough 有小幅提升，但仍停留在低难度 terrain。继续原配置训练的收益开始变低。
+
+### Go2 Rough resume 4299 / plus 4500 iter
+
+命令：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=1024 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-06_13-40-01_go2_rough_resume2800_plus1500iter \
+  --agent.load-checkpoint model_4299.pt \
+  --agent.max-iterations=4500 \
+  --agent.run-name go2_rough_resume4299_plus4500iter \
+  --agent.logger tensorboard
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-06_15-19-55_go2_rough_resume4299_plus4500iter/model_8798.pt
+logs/rsl_rl/go2_velocity/2026-07-06_15-19-55_go2_rough_resume4299_plus4500iter/policy.onnx
+```
+
+关键结果：
+
+```text
+Final reward: 37.84
+Tail100 reward: 38.24
+Tail100 episode length: 964.75
+Tail100 terrain level: 0.148
+Tail100 track linear velocity: 0.288
+Tail100 track angular velocity: 0.860
+Tail100 fell_over: 0.0004
+Tail100 illegal_contact: 0.116
+Tail100 slip velocity: 0.092
+Tail100 mean_action_acc: 0.949
+Best reward: 44.39 around iteration 4914
+```
+
+分段观察：
+
+```text
+4800-4999: reward 41.64, terrain 1.41, linear tracking 0.695
+5000-5199: reward 31.01, terrain 1.48, linear tracking 0.319
+5800-5999: reward 37.31, terrain 0.05, linear tracking 0.257
+7800-7999: reward 38.75, terrain 0.13, linear tracking 0.279
+8599-8798: reward 38.39, terrain 0.15, linear tracking 0.288
+```
+
+评价：5000 PPO iterations 附近发生明显退化。原因很可能是 `command_vel` curriculum 在 `5000 * 24` steps 后把速度范围从温和范围扩到更大范围，导致策略从“尝试跟踪速度和爬地形”退化为“保守存活、少动、在低 terrain level 附近打转”。最后的 `model_8798.pt` 不推荐作为 rough 最佳模型；若要回放这一条训练线，优先看 `model_4900.pt` 附近。
+
 ## 回放命令
 
-当前推荐回放最新 baseline：
+当前推荐回放最新 Flat baseline：
 
 ```bash
 python scripts/play.py Unitree-Go2-Flat \
-  --checkpoint-file logs/rsl_rl/go2_velocity/2026-06-25_16-35-33_go2_flat_1024env_1000iter/model_999.pt \
+  --checkpoint-file logs/rsl_rl/go2_velocity/2026-06-26_10-56-49_go2_flat_2048env_resume999_plus1000iter/model_1998.pt \
   --num-envs 1
 ```
 
@@ -131,31 +313,1596 @@ python scripts/play.py Unitree-Go2-Flat \
 
 ```bash
 python scripts/play.py Unitree-Go2-Flat \
-  --checkpoint-file logs/rsl_rl/go2_velocity/2026-06-25_16-35-33_go2_flat_1024env_1000iter/model_999.pt \
+  --checkpoint-file logs/rsl_rl/go2_velocity/2026-06-26_10-56-49_go2_flat_2048env_resume999_plus1000iter/model_1998.pt \
   --num-envs 1 \
+  --viewer viser
+```
+
+当前推荐 rough 回放检查点：
+
+```bash
+python scripts/play.py Unitree-Go2-Rough \
+  --checkpoint-file logs/rsl_rl/go2_velocity/2026-07-06_15-19-55_go2_rough_resume4299_plus4500iter/model_4900.pt \
+  --num-envs 1 \
+  --viewer viser
+```
+
+多个机器人同时展示：
+
+```bash
+python scripts/play.py Unitree-Go2-Rough \
+  --checkpoint-file logs/rsl_rl/go2_velocity/2026-07-06_15-19-55_go2_rough_resume4299_plus4500iter/model_4900.pt \
+  --num-envs 4 \
   --viewer viser
 ```
 
 ## 重要理解
 
-- `model_999.pt` 是训练 checkpoint，可用于回放、继续训练和调试。
+- `.pt` 文件是训练 checkpoint，可用于回放、继续训练和调试。
 - `policy.onnx` 是从当前 actor policy 导出的部署推理文件，不包含完整训练状态、critic 或 optimizer。
 - `play.py` 回放的是训练后的当前策略，不是训练过程录像。
 - `Unitree-Go2-Flat` 是平地速度跟踪任务；`Unitree-Go2-Rough` 是复杂地形任务。
 - Go2 回放时运动轨迹看起来随机，是因为 `twist` 速度命令会随机采样；它不是在跟踪固定路线。
+- Rough 的 `terrain_levels` 不是高度米数，而是地形难度等级。
+- Rough 使用 height scan/raycast 地形高度观测，不是相机视觉。
+- 当前训练动作为 12 维关节位置目标，底层是 MuJoCo 内置 position actuator/PD，而不是直接 torque policy。
+- 当前 rough 最后退化不是关节映射已经明显错了；更像是课程设计导致策略选择保守存活。
 
-## 下一步建议
+## Rough 训练诊断与下一步路线
 
-1. 用最新 `1024env_1000iter` 模型做几次回放，确认肉眼效果优于 512 env baseline。
-2. 如果继续优化 Flat，跑更长训练：
+外部论文和开源项目常见路线不是“直接把 flat 换成 rough 然后一直训”，而是：
+
+1. Flat prior / warmstart：先学会平地基础 gait，再迁移到 rough。
+2. Game-inspired terrain curriculum：像游戏闯关一样，走得好升难度，走不好降难度。
+3. Velocity curriculum：速度范围不要突然扩张，应随能力逐步扩大。
+4. Asymmetric PPO / teacher-student：actor 只看可部署观测，critic 或 teacher 训练时可看 privileged terrain/dynamics 信息。
+
+对当前项目，最优先处理：
+
+1. 调整 `command_vel` 速度课程。
+   - 现状：`src/tasks/velocity/velocity_env_cfg.py` 里 `command_vel` 在 `5000 * 24` 后扩到 `lin_vel_x=(-1.0, 2.0)`、`lin_vel_y=(-1.0, 1.0)`。
+   - 问题：实际日志显示 5000 iter 附近 linear tracking 和 terrain level 崩掉。
+   - 建议：先延后扩速，或拆成更平滑的阶段；早期只训练低速前进和小角速度。
+
+2. 做 rough-compatible flat prior。
+   - 现状：普通 Flat 删除了 `height_scan`，actor 约 47 维；Rough actor 约 234 维，不能直接 resume 普通 Flat checkpoint。
+   - 建议：新建一个“平地但保留 rough 观测结构”的训练阶段，先在 plane terrain 上训练，再切到 rough。这样 checkpoint 结构兼容，可以 warmstart。
+
+3. 重新思考 actor/critic 观测边界。
+   - 现状：Rough actor 和 critic 都有 height scan，部署时如果真机没有对应地形估计，会产生落差。
+   - 建议：后续更接近 sim2real 的路线是 asymmetric PPO：actor 用 IMU、关节、上一帧动作、命令等可部署观测；critic 在训练时用 height scan、接触、摩擦、质量扰动等 privileged 信息。
+
+4. 检查 `foot_clearance` 在 rough terrain 上是否合理。
+   - 当前实现可能使用 foot world z 与固定目标高度比较。
+   - 在台阶/高低地形上，更合理的是相对地面高度或局部 terrain height，否则可能给出误导性奖励。
+
+建议优先级：
+
+```text
+第一步：改速度课程，保留 rough 原观测结构，先让低速前进 rough 学稳。
+第二步：做 rough-compatible flat prior，再从该 prior warmstart rough。
+第三步：再考虑 asymmetric PPO / teacher-student / deployable actor 观测。
+```
+
+### Go2 Rough low-speed curriculum v1
+
+2026-07-07 已实现第一步最小改动实验：只改 Go2 Rough 的课程，不动 reward、观测结构、网络结构和其它机器人配置。
+
+代码位置：
+
+```text
+src/tasks/velocity/config/go2/env_cfgs.py
+```
+
+改动内容：
+
+```text
+max_init_terrain_level: 5 -> 2
+rel_heading_envs: 1.0 -> 0.0
+initial lin_vel_x: (0.0, 0.8)
+initial lin_vel_y: (-0.2, 0.2)
+initial ang_vel_z: (-0.5, 0.5)
+8000 iter 后扩到: lin_vel_x=(-0.2, 1.0), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-0.7, 0.7)
+12000 iter 后扩到: lin_vel_x=(-0.5, 1.2), lin_vel_y=(-0.4, 0.4), ang_vel_z=(-0.8, 0.8)
+```
+
+注意：`Unitree-Go2-Flat` 因为继承自 rough cfg，已经额外恢复为原来的 Flat 速度课程，避免被这次 rough v1 实验误伤。
+
+验证：
 
 ```bash
-python scripts/train.py Unitree-Go2-Flat \
-  --env.scene.num-envs=1024 \
-  --agent.max-iterations=3000 \
-  --agent.run-name go2_flat_1024env_3000iter \
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=128 \
+  --agent.max-iterations=2 \
+  --agent.run-name go2_rough_low_speed_curriculum_smoke \
   --agent.logger tensorboard
 ```
 
-3. Flat 稳定后，再开始尝试 `Unitree-Go2-Rough`。
-4. 后续如果要控制固定速度，可优先研究 `--viewer viser` 里的 joystick 面板，或修改 play 模式的 command 采样逻辑。
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-07_10-01-31_go2_rough_low_speed_curriculum_smoke
+```
+
+结果：smoke 训练跑通，Rough actor/critic 维度保持 `234/261`，说明观测结构未变。
+
+建议正式训练命令：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=1024 \
+  --agent.max-iterations=3000 \
+  --agent.run-name go2_rough_low_speed_curriculum_v1_1024env_3000iter \
+  --agent.logger tensorboard
+```
+
+本轮重点观察：
+
+```text
+Curriculum/terrain_levels 是否能稳定上升
+Episode_Reward/track_linear_velocity 是否能维持在 0.6 以上
+Episode_Termination/fell_over 是否接近 0
+Episode_Termination/illegal_contact 是否比前几次更低
+Metrics/slip_velocity_mean 与 Episode_Metrics/mean_action_acc 是否不要明显恶化
+```
+
+正式训练结果：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-07_10-11-16_go2_rough_low_speed_curriculum_v1_1024env_3000iter/model_2999.pt
+logs/rsl_rl/go2_velocity/2026-07-07_10-11-16_go2_rough_low_speed_curriculum_v1_1024env_3000iter/policy.onnx
+```
+
+Tail100 结果：
+
+```text
+Train/mean_reward: 40.71
+Train/mean_episode_length: 926.86
+Curriculum/terrain_levels: 2.82
+Episode_Reward/track_linear_velocity: 0.740
+Episode_Reward/track_angular_velocity: 0.806
+Episode_Termination/fell_over: 0.015
+Episode_Termination/illegal_contact: 0.226
+Metrics/slip_velocity_mean: 0.103
+Episode_Metrics/mean_action_acc: 1.054
+```
+
+对比原始 rough：
+
+```text
+原始 rough 3000 iter tail100: reward 39.74, terrain 1.11, linear tracking 0.667, illegal 0.185
+低速 v1 3000 iter tail100: reward 40.71, terrain 2.82, linear tracking 0.740, illegal 0.226
+```
+
+结论：v1 方向有效。它明显提升了 terrain level 和线速度跟踪，说明“降低速度课程难度、限制随机 heading”确实让 Go2 更愿意往前走 rough 地形。代价是 illegal contact 和 fell_over 略高，说明它更敢走之后，身体/非足端接触还需要进一步压住。
+
+建议回放 checkpoint：
+
+```text
+model_2000.pt: reward/illegal contact 比较好，适合看稳定性
+model_2999.pt: terrain level 更高，适合看最终策略
+```
+
+### Go2 Rough low-speed curriculum v1 resume / plus 3000 iter
+
+在用户回放 `model_2000.pt` / `model_2999.pt` 后，肉眼观察“看着还行”，因此继续沿 v1 路线巩固低速 rough，不急着扩速。
+
+命令：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=1024 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-07_10-11-16_go2_rough_low_speed_curriculum_v1_1024env_3000iter \
+  --agent.load-checkpoint model_2999.pt \
+  --agent.max-iterations=3000 \
+  --agent.run-name go2_rough_low_speed_curriculum_v1_resume2999_plus3000iter \
+  --agent.logger tensorboard
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-07_13-55-40_go2_rough_low_speed_curriculum_v1_resume2999_plus3000iter/model_5998.pt
+logs/rsl_rl/go2_velocity/2026-07-07_13-55-40_go2_rough_low_speed_curriculum_v1_resume2999_plus3000iter/policy.onnx
+```
+
+Tail100 结果：
+
+```text
+Train/mean_reward: 43.76
+Train/mean_episode_length: 942.84
+Curriculum/terrain_levels: 2.97
+Episode_Reward/track_linear_velocity: 0.765
+Episode_Reward/track_angular_velocity: 0.839
+Episode_Termination/fell_over: 0.002
+Episode_Termination/illegal_contact: 0.182
+Metrics/slip_velocity_mean: 0.094
+Episode_Metrics/mean_action_acc: 0.982
+```
+
+对比上一段 v1：
+
+```text
+v1 0-2999 tail100: reward 40.71, terrain 2.82, linear tracking 0.740, illegal 0.226, fell_over 0.015
+v1 2999-5998 tail100: reward 43.76, terrain 2.97, linear tracking 0.765, illegal 0.182, fell_over 0.002
+```
+
+结论：继续低速 v1 是有效的。terrain level 没有大幅继续冲高，但保持在约 3；线速度跟踪、跌倒率、illegal contact、slip 和动作平滑度都有改善。当前策略比第一段 v1 更稳。
+
+建议回放 checkpoint：
+
+```text
+model_5800.pt: 近邻窗口 reward 高、illegal contact 低，适合看稳定表现
+model_5998.pt: 最终 checkpoint，适合代表当前训练结果
+```
+
+### Go2 Rough forward curriculum v2
+
+用户判断：v1 resume 已经接近 terrain level 3，但还没有明显突破 3，说明低速课程有效，但继续原样硬训可能遇到新瓶颈。下一步应调整方法，集中训练“向前通过 rough 地形”。
+
+参考思路：
+
+```text
+legged_gym / Learning to Walk in Minutes: 使用地形课程和命令课程，让机器人逐步进入更难 terrain。
+Go2 rough 开源路线: 常见做法是先用更可学的 locomotion prior / focused curriculum，再进入更复杂 rough 策略。
+```
+
+改动位置：
+
+```text
+src/tasks/velocity/config/go2/env_cfgs.py
+```
+
+v2 改动：
+
+```text
+max_init_terrain_level: 保持 2
+rel_standing_envs: 0.05 -> 0.02
+rel_heading_envs: 保持 0.0
+initial lin_vel_x: (0.2, 0.8)
+initial lin_vel_y: (-0.1, 0.1)
+initial ang_vel_z: (-0.3, 0.3)
+10000 iter 后扩到: lin_vel_x=(-0.2, 1.0), lin_vel_y=(-0.2, 0.2), ang_vel_z=(-0.5, 0.5)
+14000 iter 后扩到: lin_vel_x=(-0.5, 1.2), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-0.7, 0.7)
+```
+
+设计目的：
+
+```text
+少站立
+少横移
+少随机转向
+更多练向前通过 rough
+尝试让 terrain level 从约 3 突破到 3.2/3.5 以上
+```
+
+注意：由于 `Unitree-Go2-Flat` 是从 rough cfg 派生出来再删地形，因此 Flat 分支中已显式恢复原来的 `rel_standing_envs=0.05`、`rel_heading_envs=1.0` 和原速度课程，避免被 v2 误伤。
+
+验证：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=128 \
+  --agent.max-iterations=2 \
+  --agent.run-name go2_rough_forward_curriculum_v2_smoke \
+  --agent.logger tensorboard
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-09_10-20-43_go2_rough_forward_curriculum_v2_smoke
+```
+
+结果：smoke 训练跑通，Rough actor/critic 维度保持 `234/261`，说明网络输入未变。
+
+建议正式训练命令：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=1024 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-07_13-55-40_go2_rough_low_speed_curriculum_v1_resume2999_plus3000iter \
+  --agent.load-checkpoint model_5998.pt \
+  --agent.max-iterations=2000 \
+  --agent.run-name go2_rough_forward_curriculum_v2_resume5998_plus2000iter \
+  --agent.logger tensorboard
+```
+
+本轮重点观察：
+
+```text
+Curriculum/terrain_levels 是否突破 3.2/3.5
+Episode_Reward/track_linear_velocity 是否保持 0.75 左右或更高
+Episode_Termination/illegal_contact 是否不反弹
+Episode_Termination/fell_over 是否保持接近 0
+Metrics/slip_velocity_mean 与 Episode_Metrics/mean_action_acc 是否保持稳定
+```
+
+正式训练结果：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-09_10-32-58_go2_rough_forward_curriculum_v2_resume5998_plus2000iter/model_7997.pt
+logs/rsl_rl/go2_velocity/2026-07-09_10-32-58_go2_rough_forward_curriculum_v2_resume5998_plus2000iter/policy.onnx
+```
+
+Tail100 结果：
+
+```text
+Train/mean_reward: 35.30
+Train/mean_episode_length: 890.51
+Curriculum/terrain_levels: 4.76
+Episode_Reward/track_linear_velocity: 0.644
+Episode_Reward/track_angular_velocity: 0.778
+Episode_Termination/fell_over: 0.0025
+Episode_Termination/illegal_contact: 0.304
+Metrics/slip_velocity_mean: 0.110
+Episode_Metrics/mean_action_acc: 1.103
+```
+
+对比 v1 resume：
+
+```text
+v1 resume tail100: reward 43.76, terrain 2.97, linear tracking 0.765, illegal 0.182, slip 0.094
+v2 forward tail100: reward 35.30, terrain 4.76, linear tracking 0.644, illegal 0.304, slip 0.110
+```
+
+结论：v2 成功突破 terrain level 3，说明“更强制向前通过地形”的课程确实能把 terrain curriculum 推上去；但它不是更好的最终策略。代价是速度跟踪下降、非足端接触增加、打滑和动作加速度变差。当前 v2 更像是“高地形探索策略”，不是展示或部署候选。
+
+建议回放 checkpoint：
+
+```text
+model_7000.pt: illegal contact 相对低一些，适合看 v2 中段表现
+model_7997.pt: 最终 checkpoint，适合看高 terrain level 策略
+```
+
+下一步判断：
+
+```text
+如果目标是展示当前最好效果：优先使用 v1 resume 的 model_5800.pt 或 model_5998.pt。
+如果目标是继续研究突破 terrain：从 v2 学到的经验是，terrain 能上去，但需要 v3 加强接触/抬脚/稳定性约束。
+```
+
+### Go2 Rough contact-clean curriculum v3
+
+用户确认继续做 v3。v3 的目标不是继续硬冲 terrain level，而是在 v2 已经能到高地形的基础上，让动作更干净：
+
+```text
+保留 v2 的高地形/前进通过能力
+降低非足端接触
+稍微鼓励更高脚 clearance
+增强姿态和动作平滑约束
+```
+
+改动位置：
+
+```text
+src/tasks/velocity/config/go2/env_cfgs.py
+```
+
+v3 改动：
+
+```text
+initial lin_vel_x: (0.2, 0.8) -> (0.15, 0.8)
+initial lin_vel_y: 保持 (-0.1, 0.1)
+initial ang_vel_z: 保持 (-0.3, 0.3)
+body_orientation_l2 weight: -1.0 -> -1.2
+action_rate_l2 weight: -0.05 -> -0.07
+foot_clearance weight: -1.0 -> -1.2
+foot_clearance target_height: 0.10 -> 0.12
+新增 nonfoot_contact reward: weight=-2.0, force_threshold=5.0
+```
+
+`nonfoot_contact` 使用已有的 `mdp.self_collision_cost` 函数，但传入的是 `nonfoot_ground_touch` 传感器；实际作用是惩罚身体/大腿/小腿等非足端碰地。Flat 分支已恢复默认 reward 权重并移除 `nonfoot_contact`，避免被 rough v3 误伤。
+
+验证：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=128 \
+  --agent.max-iterations=2 \
+  --agent.run-name go2_rough_contact_clean_v3_smoke \
+  --agent.logger tensorboard
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-09_13-04-58_go2_rough_contact_clean_v3_smoke
+```
+
+结果：smoke 训练跑通，Rough actor/critic 维度保持 `234/261`；RewardManager 中出现 `nonfoot_contact`，说明 v3 接触惩罚已生效。
+
+建议正式训练命令：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=1024 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-09_10-32-58_go2_rough_forward_curriculum_v2_resume5998_plus2000iter \
+  --agent.load-checkpoint model_7997.pt \
+  --agent.max-iterations=2000 \
+  --agent.run-name go2_rough_contact_clean_v3_resume7997_plus2000iter \
+  --agent.logger tensorboard
+```
+
+本轮重点观察：
+
+```text
+Curriculum/terrain_levels 是否仍能保持 > 4
+Episode_Termination/illegal_contact 是否从 0.304 降到 0.20 附近或以下
+Episode_Reward/track_linear_velocity 是否从 0.644 回升到 0.70 左右
+Metrics/slip_velocity_mean 是否从 0.110 降回 0.10 附近
+Episode_Metrics/mean_action_acc 是否不要继续升高
+```
+
+正式训练结果：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-09_14-36-38_go2_rough_contact_clean_v3_resume7997_plus2000iter/model_9996.pt
+logs/rsl_rl/go2_velocity/2026-07-09_14-36-38_go2_rough_contact_clean_v3_resume7997_plus2000iter/policy.onnx
+```
+
+Tail100 结果：
+
+```text
+Train/mean_reward: 39.45
+Train/mean_episode_length: 918.85
+Curriculum/terrain_levels: 4.36
+Episode_Reward/track_linear_velocity: 0.667
+Episode_Reward/track_angular_velocity: 0.826
+Episode_Termination/fell_over: 0.0004
+Episode_Termination/illegal_contact: 0.204
+Metrics/slip_velocity_mean: 0.086
+Episode_Metrics/mean_action_acc: 0.881
+```
+
+对比 v2：
+
+```text
+v2 forward tail100: reward 35.30, terrain 4.76, linear tracking 0.644, illegal 0.304, slip 0.110, action_acc 1.103
+v3 contact tail100: reward 39.45, terrain 4.36, linear tracking 0.667, illegal 0.204, slip 0.086, action_acc 0.881
+```
+
+结论：v3 有用，但不是肉眼质变。它明显降低了 illegal contact、slip 和动作加速度，并让 reward 回升；代价是 terrain level 从 v2 的约 4.76 降到约 4.36，线速度跟踪只小幅改善，仍没有回到 v1 resume 的 0.765。v3 适合继续作为“高 terrain、更干净”的研究分支，但继续硬训 v3 预计边际收益不高。
+
+建议优先回放 checkpoint：
+
+```text
+model_9000.pt: 窗口表现较平衡，reward 40.43, terrain 4.45, linear tracking 0.680, illegal 0.188
+model_9400.pt: 中后段稳定性较好
+model_9996.pt: 最终 checkpoint
+```
+
+### Go2 Flat-RoughObs prior
+
+用户确认按下一阶段方案调整，并要求记录每一步计划。当前新增任务：
+
+```text
+Unitree-Go2-Flat-RoughObs
+```
+
+设计目的：
+
+```text
+训练一个“平地但保留 rough 观测结构”的 gait prior
+actor/critic 输入维度保持和 Unitree-Go2-Rough 一致
+后续可从该 prior checkpoint warmstart rough，避免普通 Flat actor 约 47 维、Rough actor 约 234 维不兼容的问题
+```
+
+代码改动：
+
+```text
+src/tasks/velocity/config/go2/env_cfgs.py
+  新增 unitree_go2_flat_rough_obs_env_cfg()
+src/tasks/velocity/config/go2/__init__.py
+  注册 Unitree-Go2-Flat-RoughObs
+```
+
+配置要点：
+
+```text
+terrain_type="plane"
+terrain_generator=None
+保留 terrain_scan sensor
+保留 actor/critic 的 height_scan
+保留 feet_ground_contact / nonfoot_ground_touch
+移除 terrain_levels curriculum
+保留 command_vel curriculum
+初始速度课程: lin_vel_x=(0.0, 0.9), lin_vel_y=(-0.25, 0.25), ang_vel_z=(-0.5, 0.5)
+5000 iter 后扩到: lin_vel_x=(-0.3, 1.2), lin_vel_y=(-0.4, 0.4), ang_vel_z=(-0.8, 0.8)
+```
+
+验证：
+
+```bash
+python scripts/list_envs.py
+python scripts/train.py Unitree-Go2-Flat-RoughObs \
+  --env.scene.num-envs=128 \
+  --agent.max-iterations=2 \
+  --agent.run-name go2_flat_roughobs_prior_smoke \
+  --agent.logger tensorboard
+```
+
+结果：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-09_15-52-41_go2_flat_roughobs_prior_smoke
+actor shape: 234
+critic shape: 261
+```
+
+结论：任务注册成功，plane + height_scan 组合能训练，actor/critic 形状与 Rough 一致。smoke 初期 illegal_contact 高是随机初始策略现象，不作为性能判断。
+
+建议正式训练命令：
+
+```bash
+python scripts/train.py Unitree-Go2-Flat-RoughObs \
+  --env.scene.num-envs=2048 \
+  --agent.max-iterations=3000 \
+  --agent.run-name go2_flat_roughobs_prior_2048env_3000iter \
+  --agent.logger tensorboard
+```
+
+本轮重点观察：
+
+```text
+Train/mean_reward 是否接近或超过普通 Flat 早期水平
+Episode_Reward/track_linear_velocity 是否稳步上升
+Episode_Termination/fell_over 是否接近 0
+Episode_Termination/illegal_contact 是否明显下降
+Metrics/slip_velocity_mean 是否接近 Flat baseline
+Episode_Metrics/mean_action_acc 是否不要明显高于 v1/v3 rough
+```
+
+正式训练结果：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-09_16-04-12_go2_flat_roughobs_prior_2048env_3000iter/model_2999.pt
+logs/rsl_rl/go2_velocity/2026-07-09_16-04-12_go2_flat_roughobs_prior_2048env_3000iter/policy.onnx
+```
+
+Tail100 结果：
+
+```text
+Train/mean_reward: 55.96
+Train/mean_episode_length: 997.37
+Episode_Reward/track_linear_velocity: 0.884
+Episode_Reward/track_angular_velocity: 0.946
+Episode_Termination/fell_over: 0.0075
+Episode_Termination/illegal_contact: 0.0079
+Metrics/slip_velocity_mean: 0.057
+Episode_Metrics/mean_action_acc: 0.563
+Policy/mean_std: 0.287
+Perf/total_fps: 35509
+```
+
+对比普通 Flat 2048 baseline：
+
+```text
+普通 Flat tail100: reward 54.76, linear tracking 0.836, angular tracking 0.933, slip 0.071, action_acc 0.671
+Flat-RoughObs prior tail100: reward 55.96, linear tracking 0.884, angular tracking 0.946, slip 0.057, action_acc 0.563
+```
+
+结论：`Unitree-Go2-Flat-RoughObs` 训练成功，而且不仅 shape 兼容 Rough，平地指标也优于当前普通 Flat baseline。它是当前最合适的 rough warmstart prior。
+
+### Go2 Rough from Flat-RoughObs prior / 2048 envs
+
+从 `Unitree-Go2-Flat-RoughObs` 的 `model_2999.pt` warmstart 到 `Unitree-Go2-Rough`，环境数使用 2048。
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --env.scene.num-envs=2048 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-09_16-04-12_go2_flat_roughobs_prior_2048env_3000iter \
+  --agent.load-checkpoint model_2999.pt \
+  --agent.max-iterations=3000 \
+  --agent.run-name go2_rough_from_flat_roughobs_prior_2048env_plus3000iter \
+  --agent.logger tensorboard
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-10_11-56-36_go2_rough_from_flat_roughobs_prior_2048env_plus3000iter/model_5998.pt
+logs/rsl_rl/go2_velocity/2026-07-10_11-56-36_go2_rough_from_flat_roughobs_prior_2048env_plus3000iter/policy.onnx
+```
+
+Tail100 结果：
+
+```text
+Train/mean_reward: 39.39
+Train/mean_episode_length: 918.23
+Curriculum/terrain_levels: 4.37
+Episode_Reward/track_linear_velocity: 0.666
+Episode_Reward/track_angular_velocity: 0.822
+Episode_Termination/fell_over: 0.0096
+Episode_Termination/illegal_contact: 0.317
+Metrics/slip_velocity_mean: 0.0866
+Episode_Metrics/mean_action_acc: 0.874
+Policy/mean_std: 0.453
+```
+
+对比：
+
+```text
+v1 resume tail100: reward 43.76, terrain 2.97, linear 0.765, illegal 0.182, slip 0.094, action_acc 0.982
+v3 contact tail100: reward 39.45, terrain 4.36, linear 0.667, illegal 0.204, slip 0.086, action_acc 0.881
+prior warmstart tail100: reward 39.39, terrain 4.37, linear 0.666, illegal 0.317, slip 0.087, action_acc 0.874
+```
+
+结论：prior warmstart 能直接把 terrain level 推到 v3 同档，并保持较好的 slip 和动作平滑度，但没有带来预期的 contact 改善；`illegal_contact` 明显高于 v3。它不是新的最佳 rough 策略，更像是 v3 同类的高地形分支。继续沿这条线硬训的优先级不高。
+
+中间 checkpoint 观察：
+
+```text
+model_5600.pt: reward 39.59, terrain 4.47, linear 0.685, illegal 0.270, slip 0.088, action_acc 0.892
+model_5998.pt: reward 39.49, terrain 4.36, linear 0.668, illegal 0.349, slip 0.086, action_acc 0.861
+```
+
+建议回放优先级：
+
+```text
+model_5600.pt: 这轮中相对最平衡，适合先看肉眼效果
+model_5998.pt: 最终 checkpoint，适合和 v3 final 对比
+v1 model_5998.pt: 仍是低 terrain 下最稳的展示候选
+v3 model_9000.pt / model_9996.pt: 仍是高 terrain、较干净接触的主要候选
+```
+
+### Go2 Rough V4: terrain-relative clearance / graded contact
+
+本轮新增独立任务：
+
+```text
+Unitree-Go2-Rough-V4
+```
+
+V4 从现有 v3 配置派生，不覆盖 `Unitree-Go2-Rough`，以便继续复现已有
+checkpoint。actor/critic 观测维度保持 `234/261`，可直接 warmstart v3 或
+Flat-RoughObs checkpoint。
+
+实现内容：
+
+```text
+foot_clearance:
+  改为脚端世界高度减去脚下最近有效 terrain-scan 点高度
+  仅使用水平距离 0.2 m 内的有效地形点
+
+nonfoot_contact:
+  5 N 以下不惩罚
+  超过 5 N 后按接触力连续增加，force_scale=20 N
+  每个仿真子步只取所有非足端 geom 中的最大接触力
+  单子步 cost 截断到 2.0，reward weight=-1.5
+
+illegal_contact termination:
+  force_threshold=35 N
+  必须连续至少 2 个仿真子步超过阈值
+```
+
+排查相对地形高度时发现：原 `terrain_scan.include_geom_groups=(0, 1, 2)`，
+而 Go2 visual mesh 使用 group 2。脚附近的 ray 会命中机器人脚部 visual mesh，
+实测得到约 `-0.221 m` 的错误 clearance。V4 将 terrain scan 限制为 group 0；
+修正后相同初始状态的脚端中心相对地形高度为约 `+0.047 m`，最近采样点水平
+距离约 `0.0165 m`。旧任务保持原配置，以免破坏既有实验的可复现性。
+
+同时恢复了曾被注册但在当前工作区中缺失的
+`unitree_go2_flat_rough_obs_env_cfg()`；恢复内容来自已完成训练 run 保存的 git
+diff。修复前 `scripts/list_envs.py` 会因 import error 退出。
+
+验证：
+
+```text
+python scripts/list_envs.py: Unitree-Go2-Rough-V4 和 Flat-RoughObs 均注册成功
+数值回归: terrain-relative clearance、graded force cost、连续接触终止通过
+随机策略 smoke: 128 env / 2 iter 通过
+v3 model_9996 warmstart smoke: 128 env / 2 iter 通过
+actor shape: 234
+critic shape: 261
+```
+
+有效 warmstart smoke run：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-10_14-48-57_go2_rough_v4_from_v3_9996_smoke
+```
+
+该 smoke 只验证接线和 checkpoint 兼容性，窗口过短，不能用于判断 V4 性能。
+建议下一段正式实验从 contact-clean v3 final 开始：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough-V4 \
+  --env.scene.num-envs=1024 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-09_14-36-38_go2_rough_contact_clean_v3_resume7997_plus2000iter \
+  --agent.load-checkpoint model_9996.pt \
+  --agent.max-iterations=2000 \
+  --agent.run-name go2_rough_v4_relative_clearance_contact_from_v3_9996_plus2000iter \
+  --agent.logger tensorboard
+```
+
+重点比较 v3 tail100 的 terrain `4.36`、linear `0.667`、illegal contact
+`0.204`、slip `0.086` 和 action acceleration `0.881`，并新增观察
+`Metrics/nonfoot_contact_force_mean`。由于 V4 同时修正了 height scan 内容，加载
+v3 observation normalizer 后前期可能有短暂适应过程，不应只看最初几十次迭代。
+
+正式训练已于 2026-07-13 完成，实际使用 2048 env：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-13_11-14-09_go2_rough_v4_relative_clearance_contact_2048env_plus2000iter/model_11995.pt
+训练耗时约 1.47 小时
+```
+
+V4 tail100：
+
+```text
+Train/mean_reward: 40.61
+Train/mean_episode_length: 938.18
+Curriculum/terrain_levels: 4.15
+Episode_Reward/track_linear_velocity: 0.731
+Episode_Reward/track_angular_velocity: 0.819
+Episode_Termination/fell_over: 0.0079
+Episode_Termination/illegal_contact: 0.301
+Metrics/slip_velocity_mean: 0.100
+Episode_Metrics/mean_action_acc: 0.971
+Metrics/nonfoot_contact_force_mean: 0.0287
+```
+
+与 v3 tail100 对比：
+
+```text
+v3: terrain 4.36, linear 0.667, angular 0.826, fell 0.0004, illegal 0.204, slip 0.086, action_acc 0.881
+v4: terrain 4.15, linear 0.731, angular 0.819, fell 0.0079, illegal 0.301, slip 0.100, action_acc 0.971
+```
+
+V4 的 reward 定义与 v3 不同，因此 mean reward 不能直接横向比较。illegal contact
+定义也不同：v3 是任一子步超过 10 N，V4 是连续两个子步超过 35 N。V4 使用了
+明显更宽松的终止条件，数值却从 `0.204` 上升到 `0.301`，说明高 terrain 下的
+严重、持续非足端接触实际增加了，不是单纯统计口径造成的表面变化。
+
+分段结果：
+
+```text
+model_10200 附近 tail100: terrain 2.31, linear 0.770, illegal 0.197, slip 0.0865, action_acc 0.834
+model_10800 附近 tail100: terrain 3.87, linear 0.736, illegal 0.294, slip 0.100, action_acc 0.962
+model_11995 tail100: terrain 4.15, linear 0.731, illegal 0.301, slip 0.100, action_acc 0.971
+```
+
+结论：V4 明显改善了线速度跟踪，但没有成为新的综合 best。随着 terrain level
+上升，illegal contact、slip 和动作粗糙度同步恶化，最终 terrain 还略低于 v3。
+这说明修正 height scan 和相对地形 clearance 是正确的基础修复，但当前 contact
+reward/termination 组合没有让策略在高难度地形上学会更干净的跨越动作。高 terrain
+展示仍优先使用 v3；V4 回放主要看 `model_10200.pt` 和 `model_11995.pt`，分别代表
+低中 terrain 的平滑快速策略和最终高 terrain 策略。不建议原样继续 V4 硬训。
+
+### Go2 Rough V5 设计：按身体部位拆分接触
+
+V4 结果说明统一的 `nonfoot_contact` 仍然不能区分“机身砸地”和“小腿擦台阶”。
+因此 V5 不再使用单一 `nonfoot_ground_touch`，改为三个接触传感器：
+
+```text
+base_ground_contact:
+  base1/base2/base3 collision geoms
+  强惩罚，20 N 且连续 2 个子步终止
+
+upper_leg_ground_contact:
+  所有 hip/thigh collision geoms
+  中等偏强惩罚，35 N 且连续 2 个子步终止
+
+calf_ground_contact:
+  所有 calf1/calf2 collision geoms
+  较弱连续惩罚，60 N 且连续 3 个子步才终止
+```
+
+这样设计的理由：base/hip/thigh 触地通常表示姿态或落差处理失败；calf 在 rough
+台阶边缘出现短暂擦碰是可恢复事件，不应与机身撞地同样处理。每类 reward 都记录
+三项独立指标：`contact_rate`、`force_mean` 和 `force_when_active`，避免当前 V4
+总平均力包含大量零值、难以解释的问题。
+
+V5 还把 terrain-relative foot clearance 限制到摆动脚（`feet_ground_contact`
+显示离地）上，支撑脚不再被要求达到摆动高度。V4 已修正的 terrain group 0 scan
+保持不变，actor/critic 维度仍为 `234/261`。
+
+探针训练计划：从 V4 的 `model_10200.pt` 开始，用 2048 env 运行 500 iter：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough-V5 \
+  --env.scene.num-envs=2048 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-13_11-14-09_go2_rough_v4_relative_clearance_contact_2048env_plus2000iter \
+  --agent.load-checkpoint model_10200.pt \
+  --agent.max-iterations=500 \
+  --agent.run-name go2_rough_v5_bodypart_contact_probe_2048env_500iter \
+  --agent.logger tensorboard
+```
+
+判断标准不是只看 mean reward：若 terrain level 持续上升，同时 linear tracking
+保持约 `0.72` 以上、slip 不超过 `0.09`、action acceleration 不超过 `0.90`，
+且 base/upper-leg 的 contact rate 或 force_when_active 下降，则继续扩展到 2000
+iter；若接触分部指标没有改善，停止训练并重新调整部位阈值，不再盲目加 iteration。
+
+V5 smoke 和正式探针均已完成：
+
+```text
+smoke:
+logs/rsl_rl/go2_velocity/2026-07-13_13-16-45_go2_rough_v5_bodypart_contact_smoke
+
+2048 env / 500 iter probe:
+logs/rsl_rl/go2_velocity/2026-07-13_13-17-21_go2_rough_v5_bodypart_contact_probe_2048env_500iter/model_10699.pt
+训练耗时约 0.376 小时（22.6 分钟）
+```
+
+V5 tail100：
+
+```text
+Train/mean_reward: 44.53
+Train/mean_episode_length: 951.54
+Curriculum/terrain_levels: 3.558
+Episode_Reward/track_linear_velocity: 0.758
+Episode_Reward/track_angular_velocity: 0.847
+Episode_Termination/fell_over: 0.0142
+Episode_Termination/illegal_base_contact: 0.0142
+Episode_Termination/illegal_upper_leg_contact: 0.0158
+Episode_Termination/illegal_calf_contact: 0.1817
+Metrics/slip_velocity_mean: 0.0950
+Episode_Metrics/mean_action_acc: 0.884
+```
+
+分部接触 tail100：
+
+```text
+base:  threshold-exceedance rate 0.000006, force_when_active 12.0 N
+upper: threshold-exceedance rate 0.000008, force_when_active 7.6 N
+calf:  threshold-exceedance rate 0.000480, force_when_active 50.0 N
+```
+
+与 V4 在相近 terrain 阶段比较：
+
+```text
+V4 model_10600 窗口: terrain 3.51, linear 0.734, illegal 0.300, slip 0.101, action_acc 0.971
+V5 model_10699 窗口: terrain 3.56, linear 0.758, 分部 illegal 合计约 0.212, slip 0.095, action_acc 0.884
+```
+
+两个版本的 termination 定义不同，因此 illegal 数值不是严格等口径；但 V5 在几乎
+相同 terrain 下同时改善了 linear、slip 和 action acceleration，说明按部位拆分
+接触和摆动脚 clearance 是有效方向。V5 没有完全达到预设继续条件：linear 和
+action 达标，terrain 正常上升，但 slip `0.095` 高于目标 `0.09`；同时 calf
+termination 随 terrain 上升并占绝大多数，base/upper-leg 已经很少。
+
+因此按预先约定停止在 500 iter，不自动追加 1500 iter。下一步先回放
+`model_10400.pt`（其前一完整窗口 terrain 2.31、linear 0.792、slip 0.0837、action 0.787）和
+`model_10699.pt`，确认 calf contact 是可恢复的台阶擦碰还是影响稳定性的撞击。
+若主要是可恢复擦碰，V5.1 可适度放宽 calf termination，同时保留 calf soft
+penalty；若是明显失稳，则不放宽终止，改进摆动轨迹或 clearance 目标。
+
+### V5 calf contact 自动事件诊断
+
+为避免完全依赖肉眼回放，新增：
+
+```text
+scripts/diagnose_calf_contacts.py
+```
+
+诊断使用 512 个并行环境、固定 `0.6 m/s` 前进指令、相同 seed 和相同 play
+terrain。关闭内置 termination 后，每个环境记录第一次超过 10 N 的 calf contact，
+继续模拟 0.5 s，并统计：触发 calf geom、峰值力、持续子步、接触前/后的机身倾角、
+速度误差增量和随后是否达到 70° fall angle。每个环境只取第一次事件，避免不同
+checkpoint 因 reset 时刻不同而进一步分叉。
+
+同时精确模拟 V5 当前 `60 N + 连续 3 子步` 的 calf termination，并单独分析
+“事件发生前机身倾角不超过 35°”的稳定起始子集，避免把已经失稳后才出现的 calf
+接触误判为跌倒原因。完整 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-13_13-17-21_go2_rough_v5_bodypart_contact_probe_2048env_500iter/calf_diagnostics_512env_1500steps.json
+```
+
+结果：
+
+```text
+model_10400:
+  completed events 146, coverage 28.5%
+  stable-at-onset events 125
+  stable + current termination trigger events 51
+  其中 recoverable 92.2%, destabilizing 5.9%, fall 2.0%
+
+model_10699:
+  completed events 188, coverage 36.7%
+  stable-at-onset events 153
+  stable + current termination trigger events 50
+  其中 recoverable 66.0%, destabilizing 16.0%, fall 18.0%
+```
+
+这说明完全删除 calf termination 不安全，但当前无条件 `60 N × 3 substeps`
+会截断大量本来可以恢复的事件，尤其是较早的 `model_10400`。进一步比较触发瞬间
+姿态门控：对稳定起始事件，只有在当前 force/duration 条件满足且机身倾角超过
+15° 时终止：
+
+```text
+model_10400: terminated 2，bad-event precision 50%，recoverable false positive 1
+model_10699: terminated 10，bad-event precision 100%，recoverable false positive 0
+```
+
+25° 门控虽然在本批样本中 precision 也是 100%，但只保留 2 个终止事件，bad-event
+recall 太低；35°/45° 几乎不再触发。因此 V5.1 推荐保留 calf soft penalty，并把
+calf termination 改为复合条件：`>60 N` 连续 3 个仿真子步，且触发瞬间机身倾角
+`>15°`。该结果来自单一 seed、固定 0.6 m/s 和一套 play terrain，正式训练前应先
+实现 V5.1 并用短探针验证，不能把这次诊断当作跨所有速度/地形的最终定论。
+
+### Go2 Rough V5.1 训练计划
+
+新增独立任务 `Unitree-Go2-Rough-V5.1`，V5 保持不变。V5.1 只修改 calf
+termination：保留 `60 N × 连续 3 子步`，并增加触发瞬间机身倾角必须超过 15°。
+base/upper-leg termination、三类 soft contact penalty、terrain-relative swing-foot
+clearance 和观测维度均不变。
+
+从 V5 `model_10699.pt` 运行 2048 env / 500 iter 探针：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough-V5.1 \
+  --env.scene.num-envs=2048 \
+  --agent.resume=True \
+  --agent.load-run 2026-07-13_13-17-21_go2_rough_v5_bodypart_contact_probe_2048env_500iter \
+  --agent.load-checkpoint model_10699.pt \
+  --agent.max-iterations=500 \
+  --agent.run-name go2_rough_v5_1_orientation_gated_calf_probe_2048env_500iter \
+  --agent.logger tensorboard
+```
+
+继续标准：terrain 目标超过 `3.8`，linear tracking 至少 `0.74`，slip 不超过
+`0.095`，action acceleration 不超过 `0.90`，calf termination 明显下降且
+fell-over 不明显增加。未达到则停在 500 iter，不自动追加训练。
+
+### Go2 Rough V5.1 训练结果
+
+2048 env / 500 iter 探针已完成，耗时约 22 分 10 秒：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-13_15-06-34_go2_rough_v5_1_orientation_gated_calf_probe_2048env_500iter/model_11198.pt
+```
+
+V5.1 tail100：
+
+```text
+Train/mean_reward: 48.921
+Train/mean_episode_length: 976.36
+Curriculum/terrain_levels: 3.766
+Episode_Reward/track_linear_velocity: 0.799
+Episode_Reward/track_angular_velocity: 0.888
+Metrics/slip_velocity_mean: 0.0845
+Episode_Metrics/mean_action_acc: 0.774
+Episode_Termination/fell_over: 0.0333
+Episode_Termination/illegal_base_contact: 0.0229
+Episode_Termination/illegal_upper_leg_contact: 0.0308
+Episode_Termination/illegal_calf_contact: 0.0367
+```
+
+tail100 的 calf threshold-exceedance rate 为 `0.001539`，active force 为
+`64.1 N`。与 V5 相比，calf 接触事件更常被策略经历并恢复，但真正触发 calf
+termination 的比例从 `0.1817` 降到 `0.0367`，约下降 80%。linear、angular、
+slip 和 action acceleration 也都优于 V5 tail100。
+
+为了排除 terrain 难度差异，另取 V5.1 中 terrain 均值最接近 V5 tail100
+`3.558` 的连续 100 iter 窗口（`11037..11136`）：
+
+```text
+terrain 3.560, reward 49.34, linear 0.801, angular 0.892
+slip 0.0838, action_acc 0.765
+fell_over 0.0167, base termination 0.0275
+upper-leg termination 0.0333, calf termination 0.0354
+```
+
+该窗口的 fell-over 与 V5 的 `0.0142` 接近，说明姿态门控没有在相同难度下明显
+增加直接跌倒；V5.1 尾段 `0.0333` 的 fell-over 增长主要出现在 curriculum 推进
+到更难地形后。最后 50 iter 的 terrain 均值为 `3.842`，最终点为 `3.922`，但
+最后 50 iter 的 fell-over 也升到 `0.0458`。
+
+结论：`15°` 姿态门控的机制验证通过，V5.1 是当前 V5 分支中更好的综合策略。
+不过 tail100 terrain `3.766` 略低于预设 `3.8`，且高 terrain 尾段跌倒率仍在
+上升，因此本次按计划停在 500 iter，不自动追加 1500 iter。若继续，应从
+`model_11198.pt` 只增加 500 iter，并持续观察 rolling-100 terrain、fell-over、
+base/upper-leg termination；如果 terrain 不再上升或 fell-over 持续高于 `0.04`，
+停止续训并调整高难 terrain 课程，而不是继续放宽 calf 条件。
+
+### Go2 Rough V5.1 受控 +500 与 curriculum resume 限制
+
+按上述计划，在完全冻结 V5.1 配置的前提下，从 `model_11198.pt` 继续运行 2048
+env / 500 iter，耗时约 22 分 17 秒：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-13_15-36-37_go2_rough_v5_1_orientation_gated_calf_controlled_2048env_plus500iter/model_11697.pt
+```
+
+本次 tail100：
+
+```text
+Train/mean_reward: 48.094
+Train/mean_episode_length: 981.09
+Curriculum/terrain_levels: 3.788
+Episode_Reward/track_linear_velocity: 0.795
+Episode_Reward/track_angular_velocity: 0.887
+Metrics/slip_velocity_mean: 0.0858
+Episode_Metrics/mean_action_acc: 0.817
+Episode_Termination/fell_over: 0.0075
+Episode_Termination/illegal_base_contact: 0.0146
+Episode_Termination/illegal_upper_leg_contact: 0.0329
+Episode_Termination/illegal_calf_contact: 0.0346
+```
+
+与上一轮 V5.1 tail100（terrain `3.766`）几乎等难度，可直接比较：fell-over 从
+`0.0333` 降到 `0.0075`，base termination 从 `0.0229` 降到 `0.0146`，calf
+termination 基本持平；linear/ angular 基本持平，slip 从 `0.0845` 略升到
+`0.0858`，action acceleration 从 `0.774` 升到 `0.817`。续训主要改善了稳定性，
+没有明显提高跟踪或地形能力，且动作平滑度有所回退，已出现平台期信号。
+
+本次还确认了一个此前评估需要修正的限制：训练 checkpoint 会恢复 policy、critic、
+optimizer 等学习状态，但不会恢复各并行环境的 terrain level。新进程首个记录点
+terrain 为 `1.969`，随后最低到 `1.563`，再自动爬升到最终点 `3.910`；它没有从
+上一进程最终的 `3.922` 接着训练。因此：
+
+1. 单次 run 内 terrain level 确实由表现自动控制：走过半张地形升级，未达到指令
+   距离则降级；不是人工逐级切换。
+2. V1 到 V5.1 的 reward、termination 和课程范围修改属于人工训练问题设计。
+3. 多次短 resume 会反复经历低 level，不能等同于一段不中断的长训练；前 300 多
+   iter 主要是在重新爬已经掌握的课程。
+
+因此停止继续追加 PPO。若目标是验证真正的自主持续学习，下一步应先解决 terrain
+curriculum 跨进程持久化，或直接做一次不中断长训练；随后冻结奖励和终止条件，使用
+多个 seed 对照。当前 checkpoint 选择：优先稳定性用 `model_11697.pt`，优先动作
+平滑度用 `model_11198.pt`。
+
+### Go2 Rough V6：可恢复 curriculum 与固定评估
+
+新增独立任务 `Unitree-Go2-Rough-V6`，V5.1 保持不变。V6 不修改网络、观测、
+reward 或 termination，只修改训练分布和训练基础设施：
+
+1. `VelocityOnPolicyRunner` 在 checkpoint 中保存每个环境的 `terrain_levels`、
+   `terrain_types` 和 `common_step_counter`。相同环境数恢复时同步 env origin，并
+   平移机器人到恢复后的 terrain patch；actor-only play/evaluation 不恢复训练状态。
+2. 新增 `scripts/evaluate_go2_rough.py`：固定 seed、速度、terrain level/column，
+   输出按 level、column 和 terrain type 聚合的 JSON 指标。
+3. terrain 配比为 15% flat、30% 上下楼梯、20% 上下坡、15% random rough、
+   20% heightfield discrete obstacles。rough 高度 `1–6 cm`，离散障碍 `2–10 cm`，
+   坡度范围 `0–0.4`。
+4. 增加 base payload `-1..+3 kg` 和 actuator effort capacity `0.9..1.1` 随机化；
+   push 从每 `5–6 s` 的 3D/旋转扰动改成每 `10–15 s` 的水平 `±0.5 m/s`。
+5. V6 初次从旧 checkpoint 加载时没有可恢复的 terrain 数组，因此
+   `max_init_terrain_level=7`；V6 产生的后续 checkpoint 均可精确恢复课程分布。
+
+curriculum persistence 往返 smoke：32 env checkpoint 保存的平均 level 为 `4.469`，
+再次启动后打印并恢复为 `4.469`。2048 env 性能测试中，primitive boxes/stepping
+stones 只有约 `1760 FPS`，因此放弃该 MuJoCo Warp 下的高开销表达；改为 heightfield
+discrete obstacles 后恢复到约 `17.5–18k FPS`。
+
+固定评估基线使用 V5.1 `model_11697.pt`、320 env、levels `3/5/7/9`、固定
+`0.6 m/s`、1000 steps：
+
+```text
+overall: linear error 0.146, yaw error 0.056, slip 0.049, action_acc 0.100
+overall term/env: fell 0.0063, base 0.0031, upper 0.0031, calf 0.0250
+up stairs: linear error 0.238, calf term/env 0.0208
+down stairs: linear error 0.193, calf term/env 0.1250
+down slope: linear error 0.153, fell/env 0.0625
+random rough: linear error 0.135, no failure termination
+discrete obstacles: linear error 0.101, no failure termination
+```
+
+完整基线：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-13_15-36-37_go2_rough_v5_1_orientation_gated_calf_controlled_2048env_plus500iter/v6_hfield_fixed_eval_baseline_320env_1000steps.json
+```
+
+正式训练已从 V5.1 `model_11697.pt` 启动，2048 env / 2000 iter，不中途修改配置：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-13_16-56-07_go2_rough_v6_curriculum_persistent_hfield_dr_2048env_2000iter
+```
+
+用户下班前要求在阶段点停止，因此训练在完整的 `model_13000.pt` checkpoint 后安全
+终止，实际完成约 1303/2000 iter，耗时约 57 分钟。checkpoint 内保存的 2048 个
+terrain level 平均为 `5.306`，后续可直接恢复，不会重新从低 level 开始。
+
+`model_13000.pt` 前一完整 tail100：
+
+```text
+reward 50.884, episode length 990.01, terrain 5.326
+linear 0.837, angular 0.911, slip 0.0775, action_acc 0.741
+fell_over 0.0079, base term 0.0058, upper term 0.0204, calf term 0.0271
+```
+
+使用与训练前完全相同的 320 env / levels `3/5/7/9` / 0.6 m/s / 1000 steps
+矩阵复评：
+
+```text
+overall linear error: 0.146 -> 0.127
+overall yaw error: 0.056 -> 0.053
+overall slip: 0.0492 -> 0.0470
+overall action_acc: 0.100 -> 0.104
+overall fell/env: 0.0063 -> 0.0031
+overall base term/env: 0.0031 -> 0.0000
+overall upper term/env: 0.0031 -> 0.0094
+overall calf term/env: 0.0250 -> 0.0031
+
+up stairs linear error: 0.238 -> 0.142, calf term/env: 0.0208 -> 0
+down stairs linear error: 0.193 -> 0.123, calf term/env: 0.125 -> 0
+down slope linear error: 0.153 -> 0.121, fell/env: 0.0625 -> 0.0312
+flat linear error: 0.092 -> 0.116
+random rough linear error: 0.135 -> 0.147
+discrete obstacles linear error: 0.101 -> 0.124
+```
+
+阶段结论：V6 显著改善楼梯、下坡和总体接触稳定性，代价是 flat、random rough、
+discrete obstacles 的线速度误差小幅增加，以及 overall action acceleration 从
+`0.100` 升到 `0.104`。`model_13000.pt` 是目前更适合复杂地形的 checkpoint，但
+不是所有地形上的全面支配策略。完整复评：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-13_16-56-07_go2_rough_v6_curriculum_persistent_hfield_dr_2048env_2000iter/fixed_eval_model_13000_320env_1000steps.json
+```
+
+原计划剩余 697 iter 已于 2026-07-14 完成。续训时日志明确显示
+`Restored terrain curriculum: mean level 5.306`，并从 iteration `13000/13697`
+开始，证明没有重置课程。续训耗时约 30 分 18 秒，最终 checkpoint 为：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/model_13696.pt
+```
+
+`model_13696.pt` checkpoint 内 2048 个 terrain level 平均为 `5.240`。最终
+tail100：
+
+```text
+reward 49.473, terrain 5.240, linear 0.829, angular 0.900
+slip 0.0806, action_acc 0.788, fell_over 0.0058
+base term 0.0075, upper term 0.0138, calf term 0.0458
+```
+
+与 `model_13000.pt` 的训练 tail100 相比，最终模型的跟踪、动作平滑度和
+calf termination 有所回退。固定 seed 42 评估也显示 `model_13696.pt`
+的 overall linear error 从 `0.127` 升到 `0.134`，697 iter 的最终点不是
+最佳 checkpoint。
+
+为避免只比较起点和终点，对 `model_13100.pt` 到 `model_13600.pt`
+的每个 100-iter checkpoint 都运行了相同的 320-env 固定矩阵。
+`model_13500.pt` 是 seed 42 上的最佳综合点：
+
+```text
+model_13000: linear 0.1268, yaw 0.0528, slip 0.0470, action_acc 0.1041
+model_13500: linear 0.1058, yaw 0.0474, slip 0.0485, action_acc 0.1011
+model_13696: linear 0.1342, yaw 0.0546, slip 0.0459, action_acc 0.0978
+
+model_13500 term/env: fell 0.0031, base 0, upper 0, calf 0
+```
+
+再用 seed `42/43/44` 对 `model_13000.pt` 和 `model_13500.pt` 做三组复评，
+每组均为 320 env / levels `3/5/7/9` / 0.6 m/s / 1000 steps。三 seed
+平均：
+
+```text
+                         model_13000  model_13500
+linear error                0.1270       0.1062
+yaw error                   0.0527       0.0474
+slip                        0.0469       0.0485
+action_acc                  0.1043       0.1015
+fell/env                    0.0063       0.0010
+base term/env               0.0000       0.0000
+upper term/env              0.0083       0.0010
+calf term/env               0.0063       0.0052
+```
+
+960 个环境合计，跌倒从 `6` 次降到 `1` 次，upper-leg termination 从
+`8` 次降到 `1` 次，calf termination 从 `6` 次降到 `5` 次。linear
+error 平均改善约 16.4%，各 terrain type 的三 seed 平均 linear error 也全部
+优于 `model_13000.pt`。代价是 slip 从 `0.0469` 升到 `0.0485`，约增加
+3.5%。
+
+结论：V6 推荐 checkpoint 为 `model_13500.pt`。`model_13696.pt` 作为完整
+训练终点保留，但不作为当前最佳策略。继续原样追加 PPO 已出现跟踪回退，因此在此
+停止 V6 续训。评估 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/fixed_eval_intermediate_13100_to_13600_320env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/fixed_eval_model_13696_320env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/fixed_eval_finalists_seed43_320env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/fixed_eval_finalists_seed44_320env_1000steps.json
+```
+
+### Go2 Rough V6：多命令鲁棒性矩阵
+
+固定 `0.6 m/s` 的 clean 评估只能证明单一工况。为检查命令泛化和训练随机化下的
+表现，扩展 `scripts/evaluate_go2_rough.py`：
+
+1. `--command-cases` 可在同一批环境中并行评估 `forward_0.3/0.6/0.9`、
+   `lateral_left/right` 和 `yaw_left/right`。
+2. `--profile clean` 关闭观测噪声、startup randomization 和 push；
+   `--profile dynamics` 只保留物理随机化；`--profile randomized` 使用训练时的
+   观测噪声、摩擦、encoder bias、COM、payload、电机强度以及 10–15 s 水平 push。
+3. JSON 新增按 command、command × level、command × terrain type 的交叉汇总；
+   旧的 `--command-x/y/yaw` 单命令接口保持兼容。
+
+正式矩阵比较 `model_13000.pt` 和 `model_13500.pt`，profile 为 clean/randomized，
+seed 为 `42/43/44`。每次 checkpoint 评估包含：
+
+```text
+7 commands × 4 levels × 20 terrain columns × 2 repeats = 1120 env
+1000 steps = 20 s，randomized profile 中每个环境至少经历一次 interval push
+总计 2 checkpoints × 2 profiles × 3 seeds × 1120 = 13440 env instances
+```
+
+三 seed 的全命令平均如下。termination 是 3360 个环境中的 term flag 总数；同一
+episode 可能同时满足多个 term，因此这些计数不能直接相加为唯一失败数。
+
+```text
+profile     model   linear    yaw     slip   action_acc   fell base upper calf
+clean       13000   0.1215  0.0568  0.0366    0.0797       5    1     9    9
+clean       13500   0.1101  0.0508  0.0367    0.0784       5    0     6   19
+randomized  13000   0.1411  0.0755  0.0459    0.2373       9    5    22   27
+randomized  13500   0.1373  0.0758  0.0458    0.2390       4    3    19   32
+```
+
+`model_13500.pt` 从 clean 到 randomized 的 linear error 增加 24.7%，yaw error
+增加 49.1%，slip 增加 24.9%，action acceleration 约变为 3.05 倍。后者包含策略
+响应 push 的动作变化，不能与无 push 的 clean 数值等价解释。randomized 下与
+`model_13000.pt` 相比，`model_13500.pt` 的 linear error 仍低 2.7%、跌倒和
+upper-leg termination 更少，但 yaw/action_acc 基本相同，calf termination 从
+`27` 增至 `32`。
+
+`model_13500.pt` 的分命令结果：
+
+```text
+command          clean primary error   randomized primary error   randomized terms
+forward_0.3             0.0816                  0.1096             0/0/1/12
+forward_0.6             0.1060                  0.1365             1/2/3/11
+forward_0.9             0.1355                  0.1752             2/1/13/8
+lateral_left            0.2009                  0.2113             0/0/2/0
+lateral_right           0.1974                  0.2142             1/0/0/1
+yaw_left                0.0527                  0.0893             0/0/0/0
+yaw_right               0.0469                  0.0767             0/0/0/0
+termination order: fell/base/upper/calf
+```
+
+主要薄弱项：
+
+1. 横移是最明显的能力缺口。目标为 `±0.3 m/s`，randomized linear error 仍为
+   `0.211–0.214 m/s`；策略大体保持稳定，但没有充分执行横向指令。当前 checkpoint
+   尚未进入 `±0.3 m/s` lateral curriculum，且 uniform command 很少产生纯横移。
+2. `0.9 m/s` 的高难 inverted slope 是主要严重失稳组合：randomized 三 seed 中
+   primary error `0.224`，出现 `1/0/9/3` 个 fell/base/upper/calf term flag。
+   上楼梯在 `0.3/0.6 m/s` 下分别出现 `11/7` 个 calf term flag。
+3. 失败几乎集中在 level 9。`model_13500.pt` randomized 的 level 9 有
+   `4/2/14/27` 个 fell/base/upper/calf flag；level 3/5 基本稳定。
+4. random rough 的横移误差最高，左右分别约 `0.243/0.242`，但很少终止，属于
+   “走不准而不是直接摔倒”。
+
+结论：`model_13500.pt` 仍作为默认综合 checkpoint；如果只重视 `0.9 m/s` 高速
+复杂地形，`model_13000.pt` 是更保守的备选。下一步建立独立 V7，V6 保持不变：
+
+1. 从 `model_13500.pt` warm start，先冻结 reward 和 termination。
+2. command sampler 显式分配纯前进、纯横移、纯 yaw 和高速前进模式，而不是只用
+   连续 uniform box；横移从 `±0.1` 逐步扩到 `±0.3 m/s`。
+3. 增加 `0.8–1.0 m/s` 与 level 7–9 上楼梯、下坡组合的采样，但不整体抬高所有
+   terrain 难度。
+4. 保留 V6 的 dynamics randomization 和 push，先跑 500 iter 探针。继续标准：
+   randomized lateral error 至少降低 15%，`0.9 m/s` inverted-slope upper-leg
+   term 明显下降，且 overall fell/calf 不高于 V6 基线。
+5. 只有在命令/地形分布修正后 randomized 与 clean 的差距仍很大，再引入
+   asymmetric adaptation / RMA，避免同时改变数据分布和网络后无法归因。
+
+完整结果：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/robustness_clean_seed42_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/robustness_clean_seed43_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/robustness_clean_seed44_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/robustness_randomized_seed42_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/robustness_randomized_seed43_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_09-34-39_go2_rough_v6_resume13000_remaining697iter/robustness_randomized_seed44_1120env_1000steps.json
+```
+
+### Go2 Rough V7：显式命令模式 500 iter 探针
+
+V7 保持 V6 的 terrain、reward、termination、观测维度和 dynamics randomization
+不变，只把 Uniform command 替换为显式模式采样，并移除旧的 uniform
+command_vel curriculum：
+
+~~~text
+general forward: 40%
+pure lateral: 25%, |v_y| = 0.1..0.3 m/s
+pure yaw: 15%, |w_z| = 0.2..0.7 rad/s
+high-speed forward: 20%, v_x = 0.8..1.0 m/s
+~~~
+
+当 terrain level >= 7 且 terrain 为 pyramid_stairs 或 hf_pyramid_slope_inv
+时，high-speed mode 概率提升到 45%。512-env 分布 smoke 实测普通/focus terrain
+的 mode 比例分别为：
+
+~~~text
+普通: 40.1% / 25.0% / 15.0% / 19.8%
+focus: 27.7% / 17.3% / 10.3% / 44.7%
+~~~
+
+横移模式的 x/yaw 指令严格为零，yaw 模式的线速度严格为零。任务注册为
+Unitree-Go2-Rough-V7，actor/critic shape 仍为 234/261。
+
+从 V6 model_13500.pt warm start，2048 env / 500 iter 已完成，耗时约 22 分
+28 秒：
+
+~~~text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13999.pt
+~~~
+
+最终 checkpoint 的 terrain level 平均为 5.648。训练 tail100：
+
+~~~text
+reward 50.071, terrain 5.650, linear 0.829, angular 0.901
+slip 0.0795, action_acc 0.766, fell_over 0.0054
+base term 0.0071, upper term 0.0142, calf term 0.0554
+mode general/lateral/yaw/high-speed/standing:
+0.386 / 0.230 / 0.143 / 0.224 / 0.018
+~~~
+
+对 V7 model_13500.pt 和阶段点 model_13600.pt 做了 clean/randomized、
+seed 42/43/44 的相同 1120-env 矩阵复评。三 seed 全命令平均如下，termination
+是 3360 个环境中的 term flag 总数：
+
+~~~text
+profile     model   linear    yaw     slip   action_acc   fell/base/upper/calf
+clean       13500   0.1159  0.0555  0.0375    0.0799       1/1/26/38
+clean       13600   0.1173  0.0500  0.0347    0.0783       2/1/6/10
+randomized  13500   0.1410  0.0813  0.0465    0.2424       4/1/58/53
+randomized  13600   0.1392  0.0754  0.0440    0.2411       0/5/19/24
+~~~
+
+model_13600.pt 的稳定性改善明确：randomized 下 fell 4 -> 0、upper
+termination 58 -> 19、calf termination 53 -> 24，yaw/slip/action_acc
+也改善。主要命令结果：
+
+~~~text
+randomized primary error       model_13500  model_13600
+forward_0.3 (linear)              0.1177       0.1191
+forward_0.6 (linear)              0.1492       0.1415
+forward_0.9 (linear)              0.1845       0.1776
+lateral_left (linear)             0.2039       0.2138
+lateral_right (linear)            0.2145       0.2098
+yaw_left (yaw)                    0.0832       0.0845
+yaw_right (yaw)                   0.0836       0.0839
+~~~
+
+V7 没有达到原定横移目标：左右横移平均约 0.212 m/s，相比 baseline 没有
+改善 15%。0.9 m/s + hf_pyramid_slope_inv 的 error 也从 0.2104 变为
+0.2156，但该组合的 upper/calf term flag 从 5/3 降为 2/4；上楼梯
+0.6 m/s 的 error 从 0.2056 降到 0.1513，calf flag 从 11 降到 2。
+
+阶段结论：V7 证明显式模式采样能明显降低复杂地形接触失稳，但单纯增加横移
+样本仍不足以学会横向跟踪。推荐保留 model_13600.pt 作为随机扰动下更稳的
+V7 候选，同时保留 V6 model_13500.pt 作为固定 forward benchmark。停止继续
+追加当前 V7 配置；下一轮应把 lateral mode 提高到约 40–50%，做相对
+±0.1 -> ±0.3 m/s 的阶段 curriculum，再重新评估，暂不同时修改 reward 或
+引入 RMA。
+
+V7 评估结果：
+
+~~~text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/robustness_stage_randomized_seed42_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/robustness_finalists_randomized_seed43_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/robustness_finalists_randomized_seed44_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/robustness_finalists_clean_seed42_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/robustness_finalists_clean_seed43_1120env_1000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/robustness_finalists_clean_seed44_1120env_1000steps.json
+~~~
+
+### Go2 Rough V7.1：lateral-heavy 两阶段探针
+
+V7.1 从 V7 model_13600.pt warm start，继续冻结 reward、termination、terrain
+和 dynamics randomization。只修改 command 分布：
+
+~~~text
+general / lateral / yaw / high-speed = 30% / 45% / 10% / 15%
+前 250 iter lateral |v_y| = 0.10..0.20 m/s
+后 250 iter lateral |v_y| = 0.10..0.30 m/s
+~~~
+
+model_13600.pt 保存的 common_step_counter 为 326664，阶段切换使用相对偏移
+6000 steps，即 250 × 24。smoke 验证 offset 5999 仍使用 0.20 上限，offset
+6000 精确切换到 0.30。普通 terrain 的实测 mode 比例为
+29.9% / 45.2% / 9.9% / 14.9%，focus terrain 的 high-speed 比例为 44.6%。
+
+2048 env / 500 iter 正式训练已完成，耗时约 22 分钟：
+
+~~~text
+logs/rsl_rl/go2_velocity/2026-07-14_13-45-50_go2_rough_v7_1_lateral45_staged_probe_2048env_500iter/model_14099.pt
+~~~
+
+最终 checkpoint terrain level 平均为 4.803。tail100：
+
+~~~text
+reward 52.621, terrain 4.798, linear 0.844, angular 0.918
+slip 0.0708, action_acc 0.722
+fell 0.0058, base 0.0046, upper 0.0192, calf 0.0271
+mode general/lateral/yaw/high-speed/standing:
+0.288 / 0.438 / 0.096 / 0.168 / 0.018
+~~~
+
+训练指标改善，但 terrain 从 warm-start checkpoint 的 5.275 降到 4.80，因此
+不能只按 reward 选模型。使用 randomized seed42 的 1120-env 矩阵筛选
+model_13700 到 model_14099，横移最好的点是最终 model_14099：
+
+~~~text
+                           model_13600  model_14099
+overall linear                0.1382       0.1408
+overall yaw                   0.0749       0.0744
+slip                          0.0442       0.0451
+action_acc                    0.2403       0.2371
+fell/base/upper/calf          0/4/8/6      3/2/5/9
+forward_0.3 error             0.1167       0.1328
+forward_0.6 error             0.1408       0.1533
+forward_0.9 error             0.1739       0.1795
+lateral_left error            0.2134       0.2039
+lateral_right error           0.2108       0.2039
+~~~
+
+左右横移平均从 0.2121 降到 0.2039，只改善约 3.9%，没有达到 15% gate。
+forward_0.6 退化约 8.9%，超过允许的 5%；fell 从 0 增至 3，calf flag 从
+6 增至 9，terrain 也低于 5.5。多个停止条件同时失败，因此不再运行 seed43/44，
+也不继续追加 V7.1。
+
+横移按地形拆分后呈现小幅但一致的学习：
+
+~~~text
+flat: 约改善 5%
+hf_pyramid_slope: 约改善 9–11%
+random rough: 约改善 4–5%
+stairs / discrete obstacles: 多数改善 2–5%
+inverted slope: 左侧约改善 1%，右侧退化约 2%
+各 level: 约改善 3–6%
+~~~
+
+结论：增加 lateral 样本有边际效果，但收益不足，并开始牺牲 forward 和 terrain
+能力。默认模型仍为 V7 model_13600.pt，拒绝 V7.1 model_14099.pt。下一步不应
+继续提高 lateral 概率，而应先扩展诊断指标：
+
+1. 将线速度误差拆成 x/y 分量和 lateral response gain，判断是单纯欠跟踪还是
+   出现错误方向运动。
+2. 在 flat、stairs、inverted slope 上记录 lateral 模式的足端轨迹、接触相位和
+   12 关节动作。
+3. 检查固定 trot gait reward 是否阻碍横向步态；确认后再做 command-conditioned
+   gait/foot-placement 修改。
+4. 在诊断前不修改 reward，不引入 RMA，也不继续追加 PPO。
+
+完整 seed42 阶段结果：
+
+~~~text
+logs/rsl_rl/go2_velocity/2026-07-14_13-45-50_go2_rough_v7_1_lateral45_staged_probe_2048env_500iter/robustness_stage_randomized_seed42_1120env_1000steps.json
+~~~
+
+### 固定 terrain 重定位修复与 lateral gait 诊断
+
+在实现横移足端诊断时发现固定评估器存在 terrain assignment 缺陷：脚本更新了
+terrain_levels、terrain_types 和 env_origins，但没有把已经初始化的 robot root
+平移到新 patch。最小验证显示 env_origins 改变后 root position 的变化为零。
+
+修复方式与 VelocityOnPolicyRunner 的 curriculum restore 相同：
+
+1. 保存旧 env origin 和 root pose。
+2. 设置目标 level/type/origin。
+3. 将 root position 平移 new_origin - old_origin。
+4. 写回仿真并 forward/sense。
+5. 验证 root 相对 patch 的偏移保持不变；正式结果误差约 1.2e-7 m。
+
+影响说明：旧 JSON 的 overall 同模型相对比较仍有参考价值，因为模型经历相同的
+初始化分布；但旧 by_level/by_terrain_type 标签与实际 patch 不一致，之前所有
+按楼梯、坡道等类型作出的定量归因应视为已废弃。评估器现在输出
+terrain_assignment_position_error_max，并新增：
+
+~~~text
+x/y absolute velocity error
+actual vx/vy
+linear command response gain
+cross-axis velocity
+~~~
+
+使用修复后的 randomized seed42 矩阵重跑三个关键模型：
+
+~~~text
+model       linear   yaw     slip   action_acc   fell/base/upper/calf
+13500       0.1398  0.0815  0.0466    0.2425       1/1/12/15
+13600       0.1393  0.0755  0.0443    0.2412       0/1/4/6
+14099       0.1410  0.0743  0.0451    0.2371       0/1/1/9
+~~~
+
+修复后仍支持原结论：V7 model_13600.pt 是默认稳定模型，V7.1 model_14099.pt
+横移小幅改善但 overall/forward 回退，不采用。修正结果：
+
+~~~text
+logs/rsl_rl/go2_velocity/2026-07-14_13-45-50_go2_rough_v7_1_lateral45_staged_probe_2048env_500iter/robustness_key_models_relocated_randomized_seed42_1120env_1000steps.json
+~~~
+
+新增 scripts/diagnose_go2_lateral.py，使用正确重定位后的 clean 固定 patch，
+对 model_13600.pt 和 model_14099.pt 运行：
+
+~~~text
+3 commands × 2 levels × 3 terrain types × 8 repeats = 144 env
+100 warmup steps + 800 sample steps
+terrain: flat / pyramid_stairs / hf_pyramid_slope_inv
+~~~
+
+诊断输出速度分量、response gain、方向正确率、cross-axis drift、固定 trot
+匹配率、四足接触 pattern、12-bin 足端相位轨迹、12 关节动作和 termination。
+完整结果：
+
+~~~text
+logs/rsl_rl/go2_velocity/2026-07-14_13-45-50_go2_rough_v7_1_lateral45_staged_probe_2048env_500iter/lateral_gait_diagnostics_clean_seed42_144env_900steps.json
+~~~
+
+V7 model_13600.pt 的核心证据：
+
+~~~text
+command          response gain   direction correct   fixed-trot match
+forward_0.6          0.818             99.1%              95.3%
+lateral_left         0.349             95.7%              94.0%
+lateral_right        0.366             94.2%              91.0%
+
+flat lateral gain: 0.45–0.50
+level-9 stairs lateral gain: 0.25–0.26
+level-9 inverted-slope lateral gain: 0.28–0.30
+~~~
+
+横移不是方向控制错误，而是幅度严重不足。动作/步态证据：
+
+~~~text
+                                  forward      lateral
+phase foot-path main-axis range   15–16 cm      3–4 cm
+all-four-feet contact fraction       5%        13–14%
+thigh action std                    0.652       0.225
+calf action std                     1.195       0.75–0.79
+hip action std                      0.407       0.42
+~~~
+
+横移仍主要使用正确的 diagonal trot pattern，但增加了多足同时着地，腿部屈伸
+明显不足；它是在小幅摆髋并侧向挪动，不是充分侧步。V7.1 model_14099.pt 将
+lateral-left gain 提到约 0.401，但 forward gain 从 0.818 降到 0.761，说明增加
+横移样本只是沿同一 reward trade-off 移动，没有消除它。
+
+根因位于 reward trade-off。pose reward 与 tracking reward 权重均为 +1，
+walking hip tolerance 只有 0.15 rad。使用记录的 joint RMS 和速度误差近似重建
+两项 reward：
+
+~~~text
+command          approximate pose   approximate tracking   sum
+forward_0.6            0.861               0.938           1.799
+lateral_left           0.949               0.854           1.802
+lateral_right          0.947               0.860           1.807
+~~~
+
+策略通过减少 thigh/calf motion、保持默认姿态并欠跟踪横移，获得了与正常前进
+几乎相同的 pose+tracking 总收益。foot_gait 只奖励固定接触时序，不奖励步长或
+命令方向；横移已经能得到较高 gait reward，因此它强化了低幅度 shuffle，但没有
+证据表明 diagonal trot 相位本身错误。
+
+下一步应做单变量 reward probe，而不是继续改采样或立刻改 gait：
+
+1. 从 V7 model_13600.pt warm start，恢复 V7 的 25% lateral 分布。
+2. 只对 lateral-dominant command 放宽 hip pose tolerance，例如从 0.15 插值到
+   0.30 rad；forward/yaw 的 pose tolerance 保持原值。
+3. foot_gait、其他 reward、termination、terrain 和 randomization 全部冻结。
+4. 先跑 300–500 iter，使用修复后的 evaluator 验收 response gain、forward
+   regression、terrain 和 contact stability。
+5. 若 hip tolerance probe 仍不能增加足端横向摆幅，再引入
+   command-conditioned foot-placement；暂不改 trot phase，不引入 RMA。
+
+## 下一步建议
+
+1. 如果要展示 Flat，优先用 `2026-06-26_10-56-49_go2_flat_2048env_resume999_plus1000iter/model_1998.pt`。
+2. 如果要展示 Rough v1，优先回放 `2026-07-07_13-55-40_go2_rough_low_speed_curriculum_v1_resume2999_plus3000iter/model_5800.pt` 和 `model_5998.pt` 做肉眼对比。
+3. 如果要展示 Rough 高 terrain 分支，优先对比 v3 的 `model_9000.pt`、`model_9400.pt`、`model_9996.pt`。
+4. 新的 prior warmstart 2048 env 结果不优于 v3；可回放 `model_5600.pt` 做肉眼确认，但不建议继续原样硬训。
+5. V4 正式训练已完成：linear tracking 提升，但 terrain、illegal contact、slip 和 action acceleration 不如 v3；不建议原样继续训练。
+6. V5 的 2048 env / 500 iter 探针已完成：相同 terrain 下优于 V4，但 slip 未达到预设线，且 calf termination 占主要部分，因此已按计划停止，没有自动追加训练。
+7. V5.1 受控 +500 已完成：稳定性改善，但跟踪/terrain 基本持平且动作平滑度回退，停止继续追加 PPO。
+8. V6 原计划剩余 697 iter 已完成，curriculum 从平均 `5.306` 正确恢复，最终点为 `model_13696.pt`。
+9. 全部阶段点固定评估和 seed `42/43/44` 复评后，V6 推荐使用 `model_13500.pt`；它相对 `model_13000.pt` 的三 seed 平均 linear error 改善约 16.4%，跌倒从 6/960 降到 1/960，但 slip 增加约 3.5%。
+10. `model_13696.pt` 跟踪回退，不是新的 best；停止原样追加 V6 PPO。
+11. V7.1 lateral-heavy 500 iter 已完成：横移只改善约 3.9%，forward_0.6 退化约 8.9%，terrain 降到 4.80，拒绝 model_14099 并停止续训。
+12. 横移诊断已完成：方向正确但 response gain 只有约 0.35，策略以 3–4 cm 足端横摆和多足接触侧挪；pose+tracking reward trade-off 使欠跟踪成为局部最优。下一步从 V7 model_13600 做单变量 lateral-conditioned hip pose tolerance 探针，其他配置冻结。
+13. 如果想控制固定速度，优先研究 `--viewer viser` 的 joystick 面板，或修改 Go2 play 模式的 command 采样逻辑。

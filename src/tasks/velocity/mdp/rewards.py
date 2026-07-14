@@ -7,7 +7,7 @@ import torch
 from mjlab.entity import Entity
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.sensor import BuiltinSensor, ContactSensor
+from mjlab.sensor import BuiltinSensor, ContactSensor, RayCastSensor
 from mjlab.utils.lab_api.math import quat_apply_inverse
 from mjlab.utils.lab_api.string import (
   resolve_matching_names_values,
@@ -106,6 +106,54 @@ def self_collision_cost(
   return data.found.squeeze(-1)
 
 
+def contact_force_cost(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  soft_threshold: float = 5.0,
+  force_scale: float = 20.0,
+  max_cost_per_substep: float = 2.0,
+  metric_prefix: str | None = None,
+) -> torch.Tensor:
+  """Penalize non-foot contact force above a soft threshold.
+
+  The strongest contact is used for each stored simulation substep so the
+  value is not inflated by the number of collision geoms. The clipped linear
+  excess keeps brief brushes cheap while preserving pressure against loading
+  the body or legs on the terrain.
+  """
+  if force_scale <= 0.0:
+    raise ValueError("force_scale must be positive")
+  if max_cost_per_substep <= 0.0:
+    raise ValueError("max_cost_per_substep must be positive")
+
+  sensor: ContactSensor = env.scene[sensor_name]
+  data = sensor.data
+  if data.force_history is not None:
+    force_mag = torch.norm(data.force_history, dim=-1)  # [B, N, H]
+    peak_force = force_mag.amax(dim=1)  # [B, H]
+  else:
+    assert data.force is not None
+    force_mag = torch.norm(data.force, dim=-1)  # [B, N]
+    peak_force = force_mag.amax(dim=1, keepdim=True)  # [B, 1]
+
+  cost = torch.clamp(
+    (peak_force - soft_threshold).clamp_min(0.0) / force_scale,
+    max=max_cost_per_substep,
+  ).sum(dim=-1)
+  metric_prefix = metric_prefix or "nonfoot_contact"
+  active = peak_force > soft_threshold
+  active_count = active.float().sum()
+  env.extras["log"][f"Metrics/{metric_prefix}_force_mean"] = peak_force.mean()
+  env.extras["log"][f"Metrics/{metric_prefix}_contact_rate"] = active.float().mean()
+  env.extras["log"][f"Metrics/{metric_prefix}_force_when_active"] = (
+    (peak_force * active.float()).sum() / torch.clamp(active_count, min=1.0)
+  )
+  # Keep the original key for V4 log compatibility.
+  if metric_prefix == "nonfoot_contact":
+    env.extras["log"]["Metrics/nonfoot_contact_force_mean"] = peak_force.mean()
+  return cost
+
+
 def body_angular_velocity_penalty(
   env: ManagerBasedRlEnv,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
@@ -182,6 +230,61 @@ def feet_clearance(
       total_command = linear_norm + angular_norm
       active = (total_command > command_threshold).float()
       cost = cost * active
+  return cost
+
+
+def feet_clearance_terrain_relative(
+  env: ManagerBasedRlEnv,
+  target_height: float,
+  terrain_sensor_name: str,
+  command_name: str | None = None,
+  command_threshold: float = 0.1,
+  max_horizontal_distance: float = 0.2,
+  contact_sensor_name: str | None = None,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize foot clearance relative to the terrain below each foot.
+
+  Each foot uses the closest valid point in the yaw-aligned terrain scan.
+  Samples farther than ``max_horizontal_distance`` are ignored, which avoids
+  applying a misleading target when a foot leaves the scan footprint.
+  """
+  if max_horizontal_distance <= 0.0:
+    raise ValueError("max_horizontal_distance must be positive")
+
+  asset: Entity = env.scene[asset_cfg.name]
+  terrain_sensor: RayCastSensor = env.scene[terrain_sensor_name]
+
+  foot_pos_w = asset.data.site_pos_w[:, asset_cfg.site_ids, :]  # [B, F, 3]
+  foot_vel_xy = asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2]  # [B, F, 2]
+  hit_pos_w = terrain_sensor.data.hit_pos_w  # [B, R, 3]
+  valid_hits = terrain_sensor.data.distances >= 0.0  # [B, R]
+
+  horizontal_error = foot_pos_w[:, :, None, :2] - hit_pos_w[:, None, :, :2]
+  horizontal_distance_sq = torch.sum(torch.square(horizontal_error), dim=-1)
+  horizontal_distance_sq = horizontal_distance_sq.masked_fill(
+    ~valid_hits[:, None, :], torch.inf
+  )
+  nearest_distance_sq, nearest_ids = horizontal_distance_sq.min(dim=-1)
+  terrain_z = torch.gather(hit_pos_w[..., 2], dim=1, index=nearest_ids)
+
+  valid_terrain = nearest_distance_sq <= max_horizontal_distance**2
+  clearance = foot_pos_w[..., 2] - terrain_z
+  delta = torch.abs(clearance - target_height)
+  vel_norm = torch.norm(foot_vel_xy, dim=-1)
+  cost = torch.sum(delta * vel_norm * valid_terrain.float(), dim=1)
+
+  if contact_sensor_name is not None:
+    contact_sensor: ContactSensor = env.scene[contact_sensor_name]
+    assert contact_sensor.data.found is not None
+    in_air = (contact_sensor.data.found <= 0).float()
+    cost = torch.sum(delta * vel_norm * valid_terrain.float() * in_air, dim=1)
+
+  if command_name is not None:
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+      total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+      cost *= (total_command > command_threshold).float()
   return cost
 
 
@@ -425,4 +528,3 @@ def stand_still(
             scale = (total_command <= command_threshold).float()
             reward *= scale
     return reward
-
