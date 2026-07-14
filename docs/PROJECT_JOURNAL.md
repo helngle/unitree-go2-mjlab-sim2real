@@ -1,10 +1,10 @@
 # Unitree RL Mjlab 本地实验日志
 
-最后更新：2026-07-10
+最后更新：2026-07-14
 
 ## 当前目标
 
-在 `/home/jensen/projects/unitree_rl_mjlab` 下走 Unitree 官方路线，先让 Go2 在 MuJoCo/MJLab 里完成训练、回放和 ONNX 导出。当前 `Unitree-Go2-Flat` 已经是稳定 baseline；`Unitree-Go2-Rough` 已完成多段训练，但暴露出速度课程和 rough 课程设计问题，下一步重点不是继续堆训练时长，而是调整 curriculum / warmstart / actor-critic observation 设计。
+在 `/home/jensen/projects/unitree_rl_mjlab` 下沿 Unitree 官方路线优化 Go2 rough-terrain locomotion。当前默认 rough 模型为 V7 `model_13600.pt`；lateral-conditioned hip pose tolerance 单变量探针已完成，横移有小幅改善但仍未形成充分侧步。下一步重点是 command-conditioned foot-placement/step-length reward，而不是继续增加 lateral 采样或修改 trot phase。
 
 ## 记录约定
 
@@ -1891,6 +1891,217 @@ lateral_right          0.947               0.860           1.807
 5. 若 hip tolerance probe 仍不能增加足端横向摆幅，再引入
    command-conditioned foot-placement；暂不改 trot phase，不引入 RMA。
 
+### Go2 Rough V7 lateral-conditioned hip pose tolerance 单变量探针
+
+本轮按 1 个主 Agent + 3 个子 Agent、独立 Git worktree 执行。开始前将原 dirty
+工作区完整固化为 baseline commit：
+
+```text
+branch: exp/lateral-pose-integration
+baseline commit: e8a7eee chore: checkpoint rough terrain v7 baseline
+reward Agent commits: e7009c1, bd85bcd
+analysis Agent commit: f3342b4
+test Agent rebased/final integration HEAD before experiment: 5071764
+```
+
+worktree：
+
+```text
+/home/jensen/projects/worktrees/go2-reward
+/home/jensen/projects/worktrees/go2-analysis
+/home/jensen/projects/worktrees/go2-test
+```
+
+#### 实验目的与唯一变量
+
+任务注册为 `Unitree-Go2-Rough-V7-LateralPose`，直接从 V7 派生。V7 的普通
+terrain 模式概率保持 general/lateral/yaw/high-speed=`40/25/15/20%`，pure
+lateral 仍为 `|vy|=0.1..0.3 m/s`，没有 V7.1 的 45% lateral 或 staged range。
+focus terrain 原有 high-speed 重加权、terrain、随机化、termination、foot gait、
+其他 reward 权重、观测、动作和 PPO 配置全部冻结。
+
+唯一行为变化为 `variable_posture` 的 hip std。先按原逻辑由
+`||command_xy|| + |wz|` 选择 standing/walking/running std，再计算：
+
+```text
+dominance_margin = |vy| - max(|vx|, yaw_scale * |wz|)
+alpha = clamp(dominance_margin / full_lateral_command, 0, 1)
+effective_hip_std = base_hip_std + alpha * (max_hip_std - base_hip_std)
+
+yaw_scale = 1.0
+full_lateral_command = 0.30
+max_hip_std = 0.30 rad
+```
+
+只有四个 hip joint 使用插值；thigh/calf 不变。pure lateral
+`0.1/0.2/0.3 m/s` 对应 walking hip std `0.20/0.25/0.30 rad`；pure forward、
+pure yaw 不变，zero standing command 继续使用 standing hip std `0.05 rad`。
+公式在 dominance 边界连续，固定正分母避免除零；helper 还验证 command 最后一维
+严格为 3、full scale 为正、yaw scale 非负。`yaw_scale=1.0` 是显式的数值换算
+系数，因为 `vy` 和 `wz` 的物理单位不同。
+
+#### 训练前验收
+
+Reward Agent 的 7 项 unit test 和 Test Agent 的 9 项独立 acceptance test 共 16 项
+全部通过，同时通过 Python 编译、`git diff --check`、任务注册和语义配置 diff。
+Test Agent 确认新任务相对 V7 恰好只增加四个 pose 参数；actor/critic shape 仍为
+`234/261`。
+
+smoke：
+
+```text
+32-env random / 2 iter:
+logs/rsl_rl/go2_velocity/2026-07-14_15-52-07_go2_v7_lateral_pose_32env_random_2iter_integration_acceptance/model_1.pt
+
+128-env V7 model_13600 warm-start / 2 iter:
+logs/rsl_rl/go2_velocity/2026-07-14_15-54-53_go2_v7_lateral_pose_128env_warmstart13600_2iter_integration_acceptance/model_13601.pt
+```
+
+两次 smoke 均无 traceback、missing/unexpected key，TensorBoard 的 56 个 scalar
+tags / 112 values 全部有限。128 env 因环境数与 checkpoint 的 2048 不同，按预期
+只跳过 terrain 数组恢复；正式 2048-env run 随后成功将保存的 terrain mean
+`5.275` 精确恢复。
+
+#### 正式训练
+
+实验名称和目的：V7 lateral-conditioned hip pose tolerance probe；验证放宽横向
+主导命令下的 hip pose tolerance 能否消除低幅度侧挪，同时保持 forward 和 rough
+terrain 能力。
+
+唯一变量：上述 command-conditioned hip std；其余配置冻结。
+
+```bash
+python scripts/train.py Unitree-Go2-Rough-V7-LateralPose \
+  --env.scene.num-envs=2048 \
+  --env.seed=42 \
+  --agent.seed=42 \
+  --agent.resume=True \
+  --agent.load-run=2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter \
+  --agent.load-checkpoint=model_13600.pt \
+  --agent.max-iterations=500 \
+  --agent.save-interval=100 \
+  --agent.logger=tensorboard \
+  --agent.run-name=go2_rough_v7_lateral_pose_tolerance_probe_2048env_500iter
+```
+
+输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_15-58-33_go2_rough_v7_lateral_pose_tolerance_probe_2048env_500iter
+warm start: V7 model_13600.pt
+num_envs: 2048
+iterations: 500
+seed: 42
+耗时: 约 22 分钟
+final checkpoint: model_14099.pt
+stage checkpoints: model_13700.pt / model_13800.pt / model_13900.pt / model_14000.pt
+```
+
+正式 run tail100：
+
+```text
+Train/mean_reward: 50.912
+Train/mean_episode_length: 987.681
+Curriculum/terrain_levels: 5.479
+Episode_Reward/track_linear_velocity: 0.8352
+Episode_Reward/track_angular_velocity: 0.9086
+Episode_Reward/pose: 0.8605
+Metrics/slip_velocity_mean: 0.07735
+Episode_Metrics/mean_action_acc: 0.74996
+Episode_Termination/fell_over: 0.00667
+Episode_Termination/illegal_base_contact: 0.00833
+Episode_Termination/illegal_upper_leg_contact: 0.01792
+Episode_Termination/illegal_calf_contact: 0.03417
+mode general/lateral/yaw/high-speed/standing:
+0.3882 / 0.2357 / 0.1455 / 0.2187 / 0.02135
+```
+
+训练课程没有退化：baseline checkpoint 保存 mean level `5.275`，横移最佳阶段
+`model_13900.pt` 保存 `5.516`，final 保存约 `5.498`。
+
+#### 修正 evaluator 阶段筛选
+
+使用修复 terrain relocation 后的 evaluator，对原始 V7 baseline 和
+`13700/13800/13900/14000/14099` 全部运行 randomized seed42、1000 steps、
+7 commands、levels `3/5/7/9`。当前 terrain generator 有 20 columns，因此
+`4 repeats` 的实际规模是：
+
+```text
+7 commands x 4 levels x 20 columns x 4 repeats = 2240 env
+terrain_assignment_position_error_max = 1.19e-7 m
+```
+
+阶段总结果：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_15-58-33_go2_rough_v7_lateral_pose_tolerance_probe_2048env_500iter/robustness_stage_randomized_seed42_2240env_1000steps.json
+```
+
+横移最佳点为 `model_13900.pt`：
+
+```text
+metric                              model_13600   model_13900
+overall linear error                   0.1390        0.1352
+overall yaw error                      0.0753        0.0754
+forward_0.6 gain                       0.8068        0.8054
+forward_0.6 error                      0.1435        0.1440
+lateral left/right gain             0.309/0.326   0.363/0.390
+lateral mean gain                      0.3171        0.3766
+lateral mean error                     0.2132        0.1984
+slip                                   0.0434        0.0453
+action acceleration                    0.2412        0.2414
+fell/base/upper/calf flags            1/1/15/9      4/2/22/16
+```
+
+randomized mean lateral gain 改善约 18.8%，mean lateral error 改善约 6.9%；
+forward 基本不变，overall linear error 小幅改善。代价是 slip 增加约 4.3%，
+action acceleration 基本持平，四类 failure/contact flags 均有增加。
+
+final `model_14099.pt` 的 lateral mean gain 为 `0.3451`，低于阶段最佳；尽管
+overall linear error `0.1357`、slip `0.0442`、action acceleration `0.2374`，
+仍不作为横移 probe 候选。
+
+#### Lateral gait diagnostic 与最终验收
+
+对 baseline 和 `model_13900.pt` 运行 clean、144 env、900 steps 诊断：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_15-58-33_go2_rough_v7_lateral_pose_tolerance_probe_2048env_500iter/lateral_gait_diagnostics_clean_seed42_144env_900steps.json
+```
+
+```text
+metric                              model_13600   model_13900
+forward gain                            0.8272        0.8273
+lateral left/right gain             0.349/0.366   0.383/0.399
+lateral mean gain                       0.3573        0.3913
+forward phase foot range                15.90 cm      15.65 cm
+lateral left/right phase range        3.14/3.34 cm  3.43/3.85 cm
+lateral mean phase range                 3.24 cm       3.64 cm
+all-four contact left/right          12.7/14.4%    10.2/13.0%
+left action std hip/thigh/calf       .418/.224/.787 .401/.295/.822
+right action std hip/thigh/calf      .425/.226/.746 .393/.292/.815
+```
+
+forward gain 和 forward 足端摆幅保持不变；横移 thigh/calf motion 增加，四足同时
+接触比例下降，说明 tolerance probe 确实推动了更积极的横移动作。但 clean mean
+lateral gain 只有 `0.391`，未达到预设 `>=0.40`；横向相位足端摆幅仍只有
+`3.64 cm`，未达到 `>=5 cm`，没有形成充分横向跨步。左右 lateral diagnostic
+没有 termination；forward fell fraction 从 `0.0417` 降到 0，upper-leg fraction
+保持 `0.0208`，但 randomized 大矩阵 failure flags 增加。
+
+Test/Acceptance Agent 最终判定：**FAIL**。拒绝 `model_13900.pt` 和 final
+`model_14099.pt` 作为部署模型，继续默认使用：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+实验结论：command-conditioned hip tolerance 有可测的横移收益，且没有破坏
+forward/terrain，但不足以把 shuffle 变成充分侧步，并带来 randomized contact/
+failure 增加。下一步进入先前约定的 command-conditioned foot-placement/
+step-length reward 单变量设计；不继续放宽 pose tolerance，不增加 lateral 采样，
+不先改 trot phase，也不引入 RMA/深度图/Transformer。
+
 ## 下一步建议
 
 1. 如果要展示 Flat，优先用 `2026-06-26_10-56-49_go2_flat_2048env_resume999_plus1000iter/model_1998.pt`。
@@ -1904,5 +2115,6 @@ lateral_right          0.947               0.860           1.807
 9. 全部阶段点固定评估和 seed `42/43/44` 复评后，V6 推荐使用 `model_13500.pt`；它相对 `model_13000.pt` 的三 seed 平均 linear error 改善约 16.4%，跌倒从 6/960 降到 1/960，但 slip 增加约 3.5%。
 10. `model_13696.pt` 跟踪回退，不是新的 best；停止原样追加 V6 PPO。
 11. V7.1 lateral-heavy 500 iter 已完成：横移只改善约 3.9%，forward_0.6 退化约 8.9%，terrain 降到 4.80，拒绝 model_14099 并停止续训。
-12. 横移诊断已完成：方向正确但 response gain 只有约 0.35，策略以 3–4 cm 足端横摆和多足接触侧挪；pose+tracking reward trade-off 使欠跟踪成为局部最优。下一步从 V7 model_13600 做单变量 lateral-conditioned hip pose tolerance 探针，其他配置冻结。
-13. 如果想控制固定速度，优先研究 `--viewer viser` 的 joystick 面板，或修改 Go2 play 模式的 command 采样逻辑。
+12. Lateral-conditioned hip pose tolerance 单变量探针已完成：`model_13900.pt` 的横移 gain 有改善，但 clean mean 仅 `0.391`，横向足端摆幅仅 `3.64 cm`，且 randomized failure/contact flags 增加；Test Agent 判定 FAIL，继续默认使用 V7 `model_13600.pt`。
+13. 下一步设计 command-conditioned foot-placement/step-length reward 单变量探针；保持 V7 25% lateral、terrain、randomization、termination 和 trot phase 不变，不继续放宽 pose tolerance。
+14. 如果想控制固定速度，优先研究 `--viewer viser` 的 joystick 面板，或修改 Go2 play 模式的 command 采样逻辑。

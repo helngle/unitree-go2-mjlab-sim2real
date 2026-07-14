@@ -2,7 +2,7 @@
 
 当前项目：`/home/jensen/projects/unitree_rl_mjlab`
 
-目标：沿 Unitree 官方 `unitree_rl_mjlab` 路线，在 MuJoCo/MJLab 里训练和回放 Go2。现在 `Unitree-Go2-Flat` 已经训练通并有稳定 baseline；`Unitree-Go2-Rough` 已做多段训练，但暴露出 curriculum 问题，下一步应先调整课程/预训练路线，而不是继续原配置硬训。
+目标：沿 Unitree 官方 `unitree_rl_mjlab` 路线优化 Go2 rough-terrain locomotion。当前默认模型是 V7 `model_13600.pt`；lateral-conditioned hip pose tolerance 单变量探针已完成但未通过足端摆幅/稳定性 gate，下一步应研究 command-conditioned foot-placement/step-length reward。
 
 ## 已完成
 
@@ -486,3 +486,41 @@ trot match 仍很高，说明相位本身没有明显错误，但 foot_gait 不�
 分布，其他 reward、gait、termination、terrain 和 randomization 全冻结。若仍
 不能增加足端横摆，再考虑 command-conditioned foot placement；暂不改 trot
 phase，不引入 RMA。
+56. 已按多 Agent + 独立 worktree 流程完成实现和验收。dirty 工作区先固化为
+baseline commit `e8a7eee`，integration 分支为 `exp/lateral-pose-integration`；
+Reward/Analysis/Test Agent 分别提交并报告 commit。最终训练前 HEAD `5071764`
+通过 16 项 unittest、编译、diff、任务注册、配置单变量审查、32-env 随机 smoke
+和 128-env V7 model_13600 strict warm-start smoke。
+57. 新任务 `Unitree-Go2-Rough-V7-LateralPose` 直接继承 V7，保留普通 terrain
+的 general/lateral/yaw/high-speed=`40/25/15/20%`、lateral `0.1..0.3 m/s` 和
+全部 terrain/randomization/termination/gait。唯一行为变化是 hip pose std：
+`alpha=clamp((|vy|-max(|vx|,|wz|))/0.30,0,1)`，有效 std 从当前速度 regime
+基线连续插值到 `0.30 rad`；standing 仍为 `0.05`，forward/yaw 不变。
+58. 2048 env / 500 iter / seed 42 正式 probe 已完成，warm start 为 V7
+`model_13600.pt`：
+
+~~~text
+logs/rsl_rl/go2_velocity/2026-07-14_15-58-33_go2_rough_v7_lateral_pose_tolerance_probe_2048env_500iter/model_14099.pt
+tail100: reward 50.912, terrain 5.479, linear 0.835, angular 0.909
+tail100: slip 0.07735, action_acc 0.74996
+tail100 termination: fell/base/upper/calf 0.00667/0.00833/0.01792/0.03417
+~~~
+
+59. 修正 evaluator 的 randomized seed42 阶段筛选实际为 2240 env（7 commands x
+4 levels x 20 columns x 4 repeats）。横移最佳阶段是 `model_13900.pt`：平均
+lateral gain `0.317 -> 0.377`，平均 lateral error `0.213 -> 0.198`；
+forward_0.6 gain `0.807 -> 0.805`，overall linear error `0.1390 -> 0.1352`。
+代价是 slip `0.0434 -> 0.0453`，fell/base/upper/calf flags
+`1/1/15/9 -> 4/2/22/16`。JSON：
+
+~~~text
+logs/rsl_rl/go2_velocity/2026-07-14_15-58-33_go2_rough_v7_lateral_pose_tolerance_probe_2048env_500iter/robustness_stage_randomized_seed42_2240env_1000steps.json
+~~~
+
+60. clean lateral diagnostic 对 `model_13900.pt` 的结论：forward gain 保持
+`0.827`；左右 lateral gain `0.349/0.366 -> 0.383/0.399`，但平均仅 `0.391`，
+未达到 `0.40` gate。横向相位足端摆幅仅 `3.14/3.34 cm -> 3.44/3.85 cm`，
+平均 `3.64 cm`，未达到 `5 cm` gate。测试 Agent 最终判定 FAIL，拒绝
+`model_13900.pt` 和 final `model_14099.pt` 作为部署模型；默认继续使用 V7
+`model_13600.pt`。下一步考虑 command-conditioned foot-placement/step-length
+reward，仍不先改 trot phase、不增加 lateral 采样、不引入 RMA。
