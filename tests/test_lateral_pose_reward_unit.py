@@ -56,6 +56,20 @@ class LateralConditionedJointStdTest(unittest.TestCase):
           full_lateral_command=value,
         )
 
+  def test_command_must_have_exactly_three_components(self) -> None:
+    for command in (torch.zeros(2, 2), torch.zeros(2, 4)):
+      with self.subTest(shape=command.shape), self.assertRaises(ValueError):
+        lateral_conditioned_joint_std(command, self.base_std, self.hip_mask)
+
+  def test_negative_yaw_scale_is_rejected(self) -> None:
+    with self.assertRaises(ValueError):
+      lateral_conditioned_joint_std(
+        torch.zeros(1, 3),
+        self.base_std,
+        self.hip_mask,
+        yaw_scale=-1.0,
+      )
+
 
 if __name__ == "__main__":
   unittest.main()

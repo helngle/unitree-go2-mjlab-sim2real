@@ -33,8 +33,10 @@ def lateral_conditioned_joint_std(
   """Relax hip tolerance continuously for lateral-dominant commands."""
   if full_lateral_command <= 0.0:
     raise ValueError("full_lateral_command must be positive.")
-  if command.ndim == 0 or command.shape[-1] < 3:
-    raise ValueError("command must have at least three components on its last axis.")
+  if yaw_scale < 0.0:
+    raise ValueError("yaw_scale must be non-negative.")
+  if command.ndim == 0 or command.shape[-1] != 3:
+    raise ValueError("command must have exactly three components on its last axis.")
 
   lateral_dominance = torch.abs(command[..., 1]) - torch.maximum(
     torch.abs(command[..., 0]), yaw_scale * torch.abs(command[..., 2])
