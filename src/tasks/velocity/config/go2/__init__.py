@@ -11,6 +11,7 @@ from .env_cfgs import (
   unitree_go2_rough_v6_env_cfg,
   unitree_go2_rough_v7_1_env_cfg,
   unitree_go2_rough_v7_env_cfg,
+  unitree_go2_rough_v7_lateral_pose_env_cfg,
 )
 from .rl_cfg import unitree_go2_ppo_runner_cfg
 
@@ -82,6 +83,14 @@ register_mjlab_task(
   task_id="Unitree-Go2-Rough-V7.1",
   env_cfg=unitree_go2_rough_v7_1_env_cfg(),
   play_env_cfg=unitree_go2_rough_v7_1_env_cfg(play=True),
+  rl_cfg=unitree_go2_ppo_runner_cfg(),
+  runner_cls=VelocityOnPolicyRunner,
+)
+
+register_mjlab_task(
+  task_id="Unitree-Go2-Rough-V7-LateralPose",
+  env_cfg=unitree_go2_rough_v7_lateral_pose_env_cfg(),
+  play_env_cfg=unitree_go2_rough_v7_lateral_pose_env_cfg(play=True),
   rl_cfg=unitree_go2_ppo_runner_cfg(),
   runner_cls=VelocityOnPolicyRunner,
 )

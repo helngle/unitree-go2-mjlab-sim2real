@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 import torch
@@ -18,6 +19,31 @@ if TYPE_CHECKING:
 
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
+
+
+def lateral_conditioned_joint_std(
+  command: torch.Tensor,
+  base_std: torch.Tensor,
+  hip_mask: torch.Tensor,
+  *,
+  max_hip_std: float = 0.30,
+  full_lateral_command: float = 0.30,
+  yaw_scale: float = 1.0,
+) -> torch.Tensor:
+  """Relax hip tolerance continuously for lateral-dominant commands."""
+  if full_lateral_command <= 0.0:
+    raise ValueError("full_lateral_command must be positive.")
+  if command.ndim == 0 or command.shape[-1] < 3:
+    raise ValueError("command must have at least three components on its last axis.")
+
+  lateral_dominance = torch.abs(command[..., 1]) - torch.maximum(
+    torch.abs(command[..., 0]), yaw_scale * torch.abs(command[..., 2])
+  )
+  alpha = torch.clamp(lateral_dominance / full_lateral_command, 0.0, 1.0)
+  alpha = alpha.to(device=base_std.device, dtype=base_std.dtype).unsqueeze(-1)
+  hip_mask = hip_mask.to(device=base_std.device, dtype=torch.bool)
+  relaxed_std = base_std + alpha * (max_hip_std - base_std)
+  return torch.where(hip_mask, relaxed_std, base_std)
 
 
 def track_linear_velocity(
@@ -470,6 +496,25 @@ class variable_posture:
     )
     self.std_running = torch.tensor(std_running, device=env.device, dtype=torch.float32)
 
+    lateral_hip_joint_pattern = cfg.params.get("lateral_hip_joint_pattern")
+    self.lateral_hip_mask: torch.Tensor | None = None
+    if lateral_hip_joint_pattern is not None:
+      if cfg.params.get("full_lateral_command", 0.30) <= 0.0:
+        raise ValueError("full_lateral_command must be positive.")
+
+      self.lateral_hip_mask = torch.tensor(
+        [
+          re.fullmatch(lateral_hip_joint_pattern, joint_name) is not None
+          for joint_name in joint_names
+        ],
+        device=env.device,
+        dtype=torch.bool,
+      )
+      if not torch.any(self.lateral_hip_mask):
+        raise ValueError(
+          "lateral_hip_joint_pattern must match at least one configured joint."
+        )
+
   def __call__(
     self,
     env: ManagerBasedRlEnv,
@@ -480,8 +525,13 @@ class variable_posture:
     command_name: str,
     walking_threshold: float = 0.5,
     running_threshold: float = 1.5,
+    lateral_hip_joint_pattern: str | None = None,
+    lateral_hip_std: float = 0.30,
+    full_lateral_command: float = 0.30,
+    lateral_yaw_scale: float = 1.0,
   ) -> torch.Tensor:
-    del std_standing, std_walking, std_running  # Unused.
+    del std_standing, std_walking, std_running  # Resolved during initialization.
+    del lateral_hip_joint_pattern  # Used to build the joint mask at initialization.
 
     asset: Entity = env.scene[asset_cfg.name]
     command = env.command_manager.get_command(command_name)
@@ -502,6 +552,15 @@ class variable_posture:
       + self.std_walking * walking_mask.unsqueeze(1)
       + self.std_running * running_mask.unsqueeze(1)
     )
+    if self.lateral_hip_mask is not None:
+      std = lateral_conditioned_joint_std(
+        command,
+        std,
+        self.lateral_hip_mask,
+        max_hip_std=lateral_hip_std,
+        full_lateral_command=full_lateral_command,
+        yaw_scale=lateral_yaw_scale,
+      )
 
     current_joint_pos = asset.data.joint_pos[:, asset_cfg.joint_ids]
     desired_joint_pos = self.default_joint_pos[:, asset_cfg.joint_ids]

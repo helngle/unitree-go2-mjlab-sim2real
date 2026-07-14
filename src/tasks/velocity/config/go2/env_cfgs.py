@@ -498,6 +498,22 @@ def unitree_go2_rough_v7_env_cfg(
   return cfg
 
 
+def unitree_go2_rough_v7_lateral_pose_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create the V7 single-variable lateral hip pose tolerance probe."""
+  cfg = unitree_go2_rough_v7_env_cfg(play=play)
+  cfg.rewards["pose"].params.update(
+    {
+      "lateral_hip_joint_pattern": r".*(FR|FL|RR|RL)_hip_joint.*",
+      "lateral_hip_std": 0.30,
+      "full_lateral_command": 0.30,
+      "lateral_yaw_scale": 1.0,
+    }
+  )
+  return cfg
+
+
 def unitree_go2_rough_v7_1_env_cfg(
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
