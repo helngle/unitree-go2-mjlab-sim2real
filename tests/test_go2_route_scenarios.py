@@ -12,6 +12,7 @@ from src.tasks.velocity.evaluation.routes import (
   straight_route_initial_positions,
   straight_line_controller,
   update_attempt_status,
+  validate_initial_route_state,
   world_to_body_velocity,
   wrap_to_pi,
 )
@@ -68,6 +69,33 @@ class RouteGeometryTest(unittest.TestCase):
       state.cross_track, requested_cross, atol=1e-6, rtol=0
     )
     self.assertFalse(torch.allclose(route_start, torch.zeros_like(route_start)))
+
+  def test_realized_initial_pose_validation_includes_heading(self) -> None:
+    nominal = torch.tensor([[11.0, -4.0], [3.0, 8.0]])
+    route_heading = torch.tensor([0.2, -1.0])
+    requested_cross = torch.tensor([0.25, -0.4])
+    requested_yaw = torch.tensor([0.3, -0.2])
+    route_start, robot_start = straight_route_initial_positions(
+      nominal, route_heading, 0.7, requested_cross
+    )
+    state = validate_initial_route_state(
+      robot_start,
+      route_heading + requested_yaw,
+      route_start,
+      route_heading,
+      requested_cross,
+      requested_yaw,
+    )
+    torch.testing.assert_close(state.progress, torch.zeros(2), atol=1e-6, rtol=0)
+    with self.assertRaises(RuntimeError):
+      validate_initial_route_state(
+        robot_start,
+        route_heading,
+        route_start,
+        route_heading,
+        requested_cross,
+        requested_yaw,
+      )
 
   def test_bad_shapes_are_rejected(self) -> None:
     with self.assertRaises(ValueError):

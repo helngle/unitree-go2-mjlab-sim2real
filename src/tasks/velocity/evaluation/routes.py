@@ -105,6 +105,43 @@ def route_frame_errors(
   return RouteFrameState(progress, cross_track, wrap_to_pi(heading_w - route_heading))
 
 
+def validate_initial_route_state(
+  position_w_xy: torch.Tensor,
+  heading_w: torch.Tensor,
+  route_start_w_xy: torch.Tensor,
+  route_heading_w: torch.Tensor | float,
+  expected_cross_track: torch.Tensor | float,
+  expected_heading_error: torch.Tensor | float,
+  *,
+  atol: float = 1.0e-4,
+) -> RouteFrameState:
+  """Validate the realized pose immediately before a route rollout."""
+  if not math.isfinite(atol) or atol <= 0.0:
+    raise ValueError("atol must be finite and positive")
+  state = route_frame_errors(
+    position_w_xy, heading_w, route_start_w_xy, route_heading_w
+  )
+  batch = position_w_xy.shape[0]
+  expected_cross = _batch_vector(
+    expected_cross_track, batch, name="expected_cross_track"
+  ).to(position_w_xy)
+  expected_heading = _batch_vector(
+    expected_heading_error, batch, name="expected_heading_error"
+  ).to(position_w_xy)
+  errors = {
+    "progress": state.progress.abs().amax(),
+    "cross_track": (state.cross_track - expected_cross).abs().amax(),
+    "heading_error": wrap_to_pi(
+      state.heading_error - expected_heading
+    ).abs().amax(),
+  }
+  failed = {name: float(error) for name, error in errors.items() if error > atol}
+  if failed:
+    detail = ", ".join(f"{name}={error:.6f}" for name, error in failed.items())
+    raise RuntimeError(f"initial route pose does not match requested offsets: {detail}")
+  return state
+
+
 def world_to_body_velocity(linear_velocity_w: torch.Tensor, heading_w: torch.Tensor) -> torch.Tensor:
   """Rotate world XY velocities into each robot's body frame."""
   _validate_xy(linear_velocity_w, name="linear_velocity_w")

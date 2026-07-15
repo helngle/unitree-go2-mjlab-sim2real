@@ -32,6 +32,7 @@ from src.tasks.velocity.evaluation.routes import (
   straight_route_initial_positions,
   straight_line_controller,
   update_attempt_status,
+  validate_initial_route_state,
   validate_route_parameters,
 )
 
@@ -160,20 +161,17 @@ def _set_terrain_and_route(env: ManagerBasedRlEnv, scenarios: list[dict[str, Any
   env.scene.write_data_to_sim()
   env.sim.forward()
   env.sim.sense()
-  initial_route_state = route_frame_errors(
+  yaw_offsets = torch.tensor(
+    [item["yaw_offset"] for item in scenarios], device=device
+  )
+  validate_initial_route_state(
     robot.data.root_link_pos_w[:, :2],
     robot.data.heading_w,
     route_start,
     route_headings,
+    cross_offsets,
+    yaw_offsets,
   )
-  cross_offset_error = torch.max(
-    torch.abs(initial_route_state.cross_track - cross_offsets)
-  )
-  if cross_offset_error > 1e-4:
-    raise RuntimeError(
-      "initial route cross-track offset was not preserved: "
-      f"{cross_offset_error.item():.6f}"
-    )
   return route_start, route_headings, terrain.env_origins.clone(), float(placement_error)
 
 
@@ -211,12 +209,19 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   terrain = env.scene.terrain
   assert terrain is not None
   robot = env.scene["robot"]
-  route_start, route_headings, terrain_origins, placement_error = _set_terrain_and_route(env, scenarios, cfg.route_heading, cfg.start_forward_offset)
   wrapped_env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
   runner_cls = load_runner_cls(cfg.task_id) or MjlabOnPolicyRunner
   runner = runner_cls(wrapped_env, asdict(agent_cfg), device="cuda:0")
   runner.load(str(checkpoint), load_cfg={"actor": True}, strict=True, map_location="cuda:0")
   policy = runner.get_inference_policy(device="cuda:0")
+  # RslRlVecEnvWrapper construction resets the environment. Place routes only
+  # after wrapper/runner initialization so the measured initial pose is the
+  # pose used by the first rollout observation.
+  route_start, route_headings, terrain_origins, placement_error = (
+    _set_terrain_and_route(
+      env, scenarios, cfg.route_heading, cfg.start_forward_offset
+    )
+  )
   command_term = env.command_manager.get_term("twist")
   if not isinstance(command_term, UniformVelocityCommand):
     raise TypeError("twist command term is not UniformVelocityCommand-compatible")
