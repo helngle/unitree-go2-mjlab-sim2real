@@ -27,6 +27,7 @@ from src.tasks.velocity.evaluation.routes import update_attempt_status
 
 
 KINDS = tuple(TERRAIN_KIND_TO_KEY)
+SCAN_HALF_EXTENT_X = 0.8
 
 
 def _compile_profile(kind: str, difficulty: float) -> tuple[mujoco.MjModel, np.ndarray]:
@@ -61,20 +62,48 @@ class ContinuousHeightProfileAcceptanceTest(unittest.TestCase):
     bounds = route_terrain_bounds()
     self.assertEqual(bounds["patch_x"], (0.0, 8.0))
     self.assertEqual(bounds["patch_y"], (0.0, 4.0))
-    self.assertEqual(bounds["route_x"], (0.75, 7.25))
+    self.assertEqual(bounds["route_x"], (1.0, 7.0))
     self.assertEqual(bounds["feature_x"], (2.0, 4.4))
-    self.assertAlmostEqual(ROUTE_LENGTH, 6.5)
+    self.assertAlmostEqual(ROUTE_LENGTH, 6.0)
 
-    # A 0.5 m footprint/corridor margin fits around the whole centerline.
-    corridor_margin = 0.5
-    self.assertGreaterEqual(ROUTE_START_X, corridor_margin)
-    self.assertLessEqual(ROUTE_END_X, PATCH_SIZE[0] - corridor_margin)
+    self.assertGreaterEqual(ROUTE_START_X, SCAN_HALF_EXTENT_X)
+    self.assertLessEqual(ROUTE_END_X, PATCH_SIZE[0] - SCAN_HALF_EXTENT_X)
     route_y = PATCH_SIZE[1] / 2.0
-    self.assertGreaterEqual(route_y, corridor_margin)
-    self.assertLessEqual(route_y, PATCH_SIZE[1] - corridor_margin)
+    self.assertGreaterEqual(route_y, SCAN_HALF_EXTENT_X)
+    self.assertLessEqual(route_y, PATCH_SIZE[1] - SCAN_HALF_EXTENT_X)
     self.assertLess(ROUTE_START_X, FEATURE_START_X)
     self.assertLess(FEATURE_START_X, FEATURE_END_X)
     self.assertLess(FEATURE_END_X, ROUTE_END_X)
+
+  def test_height_scan_footprint_stays_in_patch_and_on_endpoint_flats(self) -> None:
+    start_scan = (
+      ROUTE_START_X - SCAN_HALF_EXTENT_X,
+      ROUTE_START_X + SCAN_HALF_EXTENT_X,
+    )
+    end_scan = (
+      ROUTE_END_X - SCAN_HALF_EXTENT_X,
+      ROUTE_END_X + SCAN_HALF_EXTENT_X,
+    )
+
+    self.assertGreaterEqual(start_scan[0], 0.0)
+    self.assertLessEqual(start_scan[1], FEATURE_START_X)
+    self.assertGreaterEqual(end_scan[0], FEATURE_END_X)
+    self.assertLessEqual(end_scan[1], PATCH_SIZE[0])
+    for kind in KINDS:
+      with self.subTest(kind=kind):
+        metadata = route_terrain_metadata(kind, 0.8)
+        start_heights = route_surface_height(
+          kind, 0.8, np.linspace(*start_scan, 33)
+        )
+        end_heights = route_surface_height(
+          kind, 0.8, np.linspace(*end_scan, 33)
+        )
+        np.testing.assert_allclose(
+          start_heights, metadata.entry_surface_z, rtol=0.0, atol=1.0e-10
+        )
+        np.testing.assert_allclose(
+          end_heights, metadata.exit_surface_z, rtol=0.0, atol=1.0e-10
+        )
 
   def test_stair_risers_are_bounded_quantized_and_directional(self) -> None:
     difficulty = 0.73
@@ -160,7 +189,7 @@ class ContinuousHeightProfileAcceptanceTest(unittest.TestCase):
 class ContinuousTerrainSpecAcceptanceTest(unittest.TestCase):
   def test_mujoco_surface_matches_profile_and_entry_origin(self) -> None:
     difficulty = 0.6
-    safe_samples = (0.75, 1.5, 2.15, 2.75, 3.65, 4.55, 6.5, 7.25)
+    safe_samples = (1.0, 1.5, 2.15, 2.75, 3.65, 4.55, 6.5, 7.0)
     for kind in KINDS:
       with self.subTest(kind=kind):
         model, origin = _compile_profile(kind, difficulty)
