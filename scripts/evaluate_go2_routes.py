@@ -259,7 +259,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   foot_site_ids, _ = robot.find_sites(("FR", "FL", "RR", "RL"))
   observation = wrapped_env.get_observations()
   command_values = torch.zeros(num_envs, 3, device=device)
-  for _ in range(cfg.steps):
+  for step_index in range(cfg.steps):
     if not active.any():
       break
     pre_pos = robot.data.root_link_pos_w[:, :2].clone()
@@ -278,7 +278,8 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
     observation = wrapped_env.get_observations()
     with torch.inference_mode():
       action = policy(observation)
-    _, _, dones, _ = wrapped_env.step(action)
+    step_observation, reward, dones, extras = wrapped_env.step(action)
+    del step_observation, reward, extras
     command_term.vel_command_b[:] = command_values
     observation = wrapped_env.get_observations()
     failure_terms = [name for name in env.termination_manager.active_terms if not env.termination_manager.get_term_cfg(name).time_out]
@@ -339,7 +340,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
     for index in torch.where(lifecycle.completed_now | lifecycle.failed_now)[0].tolist():
       if first_reason[index] is None:
         if bool(lifecycle.completed_now[index]):
-          completion_steps[index] = _ + 1
+          completion_steps[index] = step_index + 1
         else:
           names = [name for name in env.termination_manager.active_terms if bool(env.termination_manager.get_term(name)[index])]
           first_reason[index] = names[0] if names else "reset"
