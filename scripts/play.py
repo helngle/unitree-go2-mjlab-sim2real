@@ -83,6 +83,15 @@ def _configure_fixed_velocity_command(env_cfg, command: tuple[float, float, floa
     command_cfg.general_lin_vel_x = (vx, vx)
     command_cfg.general_lin_vel_y = (vy, vy)
     command_cfg.general_ang_vel_z = (yaw_rate, yaw_rate)
+    # Viser builds joystick sliders from the superclass ranges and requires
+    # every positive maximum to be at least 0.1. Mode sampling still uses the
+    # fixed general_* ranges above while the joystick remains disabled.
+    command_cfg.ranges.lin_vel_x = (-max(abs(vx), 0.1), max(abs(vx), 0.1))
+    command_cfg.ranges.lin_vel_y = (-max(abs(vy), 0.1), max(abs(vy), 0.1))
+    command_cfg.ranges.ang_vel_z = (
+      -max(abs(yaw_rate), 0.1),
+      max(abs(yaw_rate), 0.1),
+    )
 
 
 def _configure_terrain_demo(env_cfg, terrain_demo: str, terrain_level: int) -> int:

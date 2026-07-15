@@ -33,6 +33,9 @@ class FixedVelocityDemoTest(unittest.TestCase):
     self.assertEqual(command.general_lin_vel_x, (0.4, 0.4))
     self.assertEqual(command.general_lin_vel_y, (0.0, 0.0))
     self.assertEqual(command.general_ang_vel_z, (0.0, 0.0))
+    self.assertEqual(command.ranges.lin_vel_x, (-0.4, 0.4))
+    self.assertEqual(command.ranges.lin_vel_y, (-0.1, 0.1))
+    self.assertEqual(command.ranges.ang_vel_z, (-0.1, 0.1))
 
   def test_stairs_demo_uses_clean_single_env_and_fixed_spawn(self) -> None:
     env_cfg = load_env_cfg("Unitree-Go2-Rough-V7", play=True)
