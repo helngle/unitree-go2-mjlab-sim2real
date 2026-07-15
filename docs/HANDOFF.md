@@ -73,7 +73,9 @@ python scripts/play.py Unitree-Go2-Rough-V7 \
   --checkpoint-file logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt \
   --terrain-demo stairs_up \
   --terrain-level 5 \
-  --fixed-command 0.4 0.0 0.0 \
+  --fixed-vx 0.4 \
+  --fixed-vy 0.0 \
+  --fixed-yaw-rate 0.0 \
   --viewer viser
 ```
 

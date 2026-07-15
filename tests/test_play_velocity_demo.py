@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import unittest
 
+import mjlab
 import mjlab.tasks  # noqa: F401
 import src.tasks  # noqa: F401
+import tyro
 from mjlab.tasks.registry import load_env_cfg
 
-from scripts.play import _configure_fixed_velocity_command, _configure_terrain_demo
+from scripts.play import (
+  PlayConfig,
+  _configure_fixed_velocity_command,
+  _configure_terrain_demo,
+)
 from src.tasks.velocity.mdp.mode_velocity_command import ModeVelocityCommandCfg
 
 
@@ -48,6 +54,24 @@ class FixedVelocityDemoTest(unittest.TestCase):
       _configure_fixed_velocity_command(env_cfg, (float("nan"), 0.0, 0.0))
     with self.assertRaises(ValueError):
       _configure_terrain_demo(env_cfg, "stairs_up", 10)
+
+  def test_main_cli_flags_parse_fixed_velocity_components(self) -> None:
+    cfg = tyro.cli(
+      PlayConfig,
+      args=[
+        "--terrain-demo", "stairs_up",
+        "--terrain-level", "5",
+        "--fixed-vx", "0.4",
+        "--fixed-vy", "0.0",
+        "--fixed-yaw-rate", "0.0",
+        "--viewer", "viser",
+      ],
+      default=PlayConfig(),
+      config=mjlab.TYRO_FLAGS,
+    )
+    self.assertEqual(cfg.fixed_vx, 0.4)
+    self.assertEqual(cfg.fixed_vy, 0.0)
+    self.assertEqual(cfg.fixed_yaw_rate, 0.0)
 
 
 if __name__ == "__main__":

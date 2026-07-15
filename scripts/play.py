@@ -33,8 +33,12 @@ class PlayConfig:
   video_width: int | None = None
   camera: int | str | None = None
   viewer: Literal["auto", "native", "viser"] = "auto"
-  fixed_command: tuple[float, float, float] | None = None
-  """Optional fixed body-frame ``(vx, vy, yaw_rate)`` command."""
+  fixed_vx: float | None = None
+  """Optional fixed body-frame forward velocity in m/s."""
+  fixed_vy: float = 0.0
+  """Body-frame lateral velocity used with ``fixed_vx``."""
+  fixed_yaw_rate: float = 0.0
+  """Yaw rate used with ``fixed_vx``."""
   terrain_demo: Literal[
     "default", "stairs_up", "stairs_down", "slope_up", "slope_down"
   ] = "default"
@@ -173,7 +177,11 @@ def run_play(task_id: str, cfg: PlayConfig):
   agent_cfg = load_rl_cfg(task_id)
 
   terrain_column: int | None = None
-  fixed_command = cfg.fixed_command
+  fixed_command = (
+    None
+    if cfg.fixed_vx is None
+    else (cfg.fixed_vx, cfg.fixed_vy, cfg.fixed_yaw_rate)
+  )
   if cfg.terrain_demo != "default":
     if cfg.num_envs not in (None, 1):
       raise ValueError("terrain_demo supports exactly one environment")

@@ -2403,7 +2403,7 @@ stop-and-go 和急转恢复 evaluator；先评估，再决定是否存在训练�
 为解决原 `play.py` 随机采样 `vx/vy/yaw` 且随机选择 terrain 的问题，新增回放参数：
 
 ```text
---fixed-command vx vy yaw_rate
+--fixed-vx VX --fixed-vy VY --fixed-yaw-rate YAW_RATE
 --terrain-demo default|stairs_up|stairs_down|slope_up|slope_down
 --terrain-level 0..9
 ```
