@@ -79,8 +79,11 @@ python scripts/play.py Unitree-Go2-Rough-V7 \
   --viewer viser
 ```
 
-`terrain-demo` 还支持 `stairs_down`、`slope_up`、`slope_down`。Demo 会自动使用单
+`terrain-demo` 还支持 `stairs_down`、`stairs_up_down`、`slope_up`、`slope_down`。Demo 会自动使用单
 环境、固定入口/yaw、clean profile、固定 body command，并关闭 terrain 随机重选。
+
+连续上楼再下楼使用 `--terrain-demo stairs_up_down`。该 demo 是 12 m x 4 m 单
+patch：8 级上楼梯、顶部平台、8 级下楼梯和出口平地。
 
 当前项目：`/home/jensen/projects/unitree_rl_mjlab`
 

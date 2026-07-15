@@ -28,6 +28,13 @@ from src.tasks.velocity.evaluation.route_terrains import (
   route_terrain_bounds,
   route_terrain_metadata,
   validate_route_terrain_parameters,
+  STAIRS_UP_DOWN_ASCENT_X,
+  STAIRS_UP_DOWN_DESCENT_END_X,
+  STAIRS_UP_DOWN_END_X,
+  STAIRS_UP_DOWN_START_X,
+  STAIRS_UP_DOWN_TOP_END_X,
+  StairsUpDownDemoTerrainCfg,
+  stairs_up_down_surface_height,
 )
 
 
@@ -203,6 +210,44 @@ class RouteTerrainSpecTest(unittest.TestCase):
         float(generator.terrain_origins[row, 1, 2]), expected.entry_surface_z
       )
     spec.compile()
+
+  def test_stairs_up_down_demo_has_two_full_staircases(self) -> None:
+    difficulty = 0.5
+    step_height = 0.07
+    self.assertAlmostEqual(
+      stairs_up_down_surface_height(difficulty, STAIRS_UP_DOWN_START_X), 0.0
+    )
+    self.assertAlmostEqual(
+      stairs_up_down_surface_height(difficulty, STAIRS_UP_DOWN_ASCENT_X[1]),
+      STEP_COUNT * step_height,
+    )
+    self.assertAlmostEqual(
+      stairs_up_down_surface_height(difficulty, STAIRS_UP_DOWN_TOP_END_X - 0.01),
+      STEP_COUNT * step_height,
+    )
+    self.assertAlmostEqual(
+      stairs_up_down_surface_height(
+        difficulty, STAIRS_UP_DOWN_DESCENT_END_X + 0.01
+      ),
+      0.0,
+    )
+    self.assertAlmostEqual(
+      stairs_up_down_surface_height(difficulty, STAIRS_UP_DOWN_END_X), 0.0
+    )
+
+    spec = mujoco.MjSpec()
+    spec.worldbody.add_body(name="terrain")
+    output = StairsUpDownDemoTerrainCfg().function(
+      difficulty, spec, np.random.default_rng(0)
+    )
+    model = spec.compile()
+    self.assertEqual(output.origin.tolist(), [1.0, 2.0, 0.0])
+    for x in (1.0, 2.15, 4.5, 7.75, 10.1, 11.0):
+      self.assertAlmostEqual(
+        _ray_height(model, x),
+        stairs_up_down_surface_height(difficulty, x),
+        delta=1.0e-5,
+      )
 
 
 if __name__ == "__main__":

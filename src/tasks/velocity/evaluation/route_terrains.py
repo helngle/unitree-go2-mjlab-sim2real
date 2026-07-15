@@ -37,6 +37,13 @@ STEP_COUNT = int(round((FEATURE_END_X - FEATURE_START_X) / STEP_WIDTH))
 GENERATOR_NUM_ROWS = 10
 GENERATOR_NUM_COLS = 4
 
+STAIRS_UP_DOWN_PATCH_SIZE = (12.0, 4.0)
+STAIRS_UP_DOWN_START_X = 1.0
+STAIRS_UP_DOWN_ASCENT_X = (2.0, 4.4)
+STAIRS_UP_DOWN_TOP_END_X = 7.6
+STAIRS_UP_DOWN_DESCENT_END_X = 10.0
+STAIRS_UP_DOWN_END_X = 11.0
+
 RouteTerrainKind = Literal[
   "stairs_up",
   "stairs_down",
@@ -261,6 +268,129 @@ def _add_box(
   return geom
 
 
+def stairs_up_down_surface_height(
+  difficulty: float, x: float | np.ndarray
+) -> float | np.ndarray:
+  """Evaluate the playback-only stairs-up/platform/stairs-down profile."""
+  if not math.isfinite(difficulty) or not 0.0 <= difficulty <= 1.0:
+    raise ValueError(f"difficulty must be finite and in [0, 1], got {difficulty}")
+  values = np.asarray(x, dtype=np.float64)
+  if not np.isfinite(values).all():
+    raise ValueError("x must contain only finite values")
+  if (values < 0.0).any() or (values > STAIRS_UP_DOWN_PATCH_SIZE[0]).any():
+    raise ValueError(f"x must lie in [0, {STAIRS_UP_DOWN_PATCH_SIZE[0]}]")
+
+  step_height = 0.02 + difficulty * (0.12 - 0.02)
+  result = np.zeros_like(values)
+  up_start, up_end = STAIRS_UP_DOWN_ASCENT_X
+  ascending = (values >= up_start) & (values < up_end)
+  up_index = np.floor((values[ascending] - up_start) / STEP_WIDTH).astype(int)
+  result[ascending] = (up_index + 1) * step_height
+  top_height = STEP_COUNT * step_height
+  top = (values >= up_end) & (values < STAIRS_UP_DOWN_TOP_END_X)
+  result[top] = top_height
+  descending = (
+    (values >= STAIRS_UP_DOWN_TOP_END_X)
+    & (values < STAIRS_UP_DOWN_DESCENT_END_X)
+  )
+  down_index = np.floor(
+    (values[descending] - STAIRS_UP_DOWN_TOP_END_X) / STEP_WIDTH
+  ).astype(int)
+  result[descending] = np.maximum(STEP_COUNT - down_index - 1, 0) * step_height
+  return float(result) if values.ndim == 0 else result
+
+
+@dataclass(kw_only=True)
+class StairsUpDownDemoTerrainCfg(SubTerrainCfg):
+  """Playback-only route with full ascent, top platform, and descent."""
+
+  size: tuple[float, float] = STAIRS_UP_DOWN_PATCH_SIZE
+
+  def function(
+    self,
+    difficulty: float,
+    spec: mujoco.MjSpec,
+    rng: np.random.Generator,
+  ) -> TerrainOutput:
+    del rng
+    if self.size != STAIRS_UP_DOWN_PATCH_SIZE:
+      raise ValueError(
+        f"stairs up/down demo size must be {STAIRS_UP_DOWN_PATCH_SIZE}"
+      )
+    step_height = 0.02 + difficulty * (0.12 - 0.02)
+    body = spec.body("terrain")
+    geometries = [
+      TerrainGeometry(
+        geom=make_plane(body, STAIRS_UP_DOWN_PATCH_SIZE, 0.0, center_zero=False)[0]
+      )
+    ]
+    up_start, up_end = STAIRS_UP_DOWN_ASCENT_X
+    for index in range(STEP_COUNT):
+      geometries.append(
+        TerrainGeometry(
+          geom=_add_box(
+            body,
+            up_start + index * STEP_WIDTH,
+            up_start + (index + 1) * STEP_WIDTH,
+            (index + 1) * step_height,
+            STAIRS_UP_DOWN_PATCH_SIZE[1],
+          )
+        )
+      )
+    top_height = STEP_COUNT * step_height
+    geometries.append(
+      TerrainGeometry(
+        geom=_add_box(
+          body,
+          up_end,
+          STAIRS_UP_DOWN_TOP_END_X,
+          top_height,
+          STAIRS_UP_DOWN_PATCH_SIZE[1],
+        )
+      )
+    )
+    for index in range(STEP_COUNT):
+      height = max(STEP_COUNT - index - 1, 0) * step_height
+      if height > 0.0:
+        geometries.append(
+          TerrainGeometry(
+            geom=_add_box(
+              body,
+              STAIRS_UP_DOWN_TOP_END_X + index * STEP_WIDTH,
+              STAIRS_UP_DOWN_TOP_END_X + (index + 1) * STEP_WIDTH,
+              height,
+              STAIRS_UP_DOWN_PATCH_SIZE[1],
+            )
+          )
+        )
+    return TerrainOutput(
+      origin=np.array(
+        [STAIRS_UP_DOWN_START_X, STAIRS_UP_DOWN_PATCH_SIZE[1] / 2.0, 0.0],
+        dtype=np.float64,
+      ),
+      geometries=geometries,
+    )
+
+
+def make_stairs_up_down_demo_terrain_generator(
+  *, seed: int | None = 42
+) -> TerrainGeneratorCfg:
+  """Build a deterministic playback generator for an up/down stair route."""
+  return TerrainGeneratorCfg(
+    seed=seed,
+    size=STAIRS_UP_DOWN_PATCH_SIZE,
+    border_width=20.0,
+    num_rows=GENERATOR_NUM_ROWS,
+    num_cols=1,
+    curriculum=True,
+    difficulty_range=(0.0, 1.0),
+    add_lights=True,
+    sub_terrains={
+      "pyramid_stairs": StairsUpDownDemoTerrainCfg(proportion=1.0),
+    },
+  )
+
+
 def _stairs_output(
   kind: RouteTerrainKind,
   difficulty: float,
@@ -428,14 +558,23 @@ __all__ = [
   "RouteTerrainMetadata",
   "STEP_COUNT",
   "STEP_WIDTH",
+  "STAIRS_UP_DOWN_ASCENT_X",
+  "STAIRS_UP_DOWN_DESCENT_END_X",
+  "STAIRS_UP_DOWN_END_X",
+  "STAIRS_UP_DOWN_PATCH_SIZE",
+  "STAIRS_UP_DOWN_START_X",
+  "STAIRS_UP_DOWN_TOP_END_X",
+  "StairsUpDownDemoTerrainCfg",
   "TERRAIN_SCAN_HALF_X",
   "TERRAIN_SCAN_SIZE_X",
   "TERRAIN_KEY_TO_KIND",
   "TERRAIN_KIND_TO_KEY",
   "continuous_route_difficulty_matrix",
   "make_continuous_route_terrain_generator",
+  "make_stairs_up_down_demo_terrain_generator",
   "route_surface_height",
   "route_terrain_bounds",
   "route_terrain_metadata",
+  "stairs_up_down_surface_height",
   "validate_route_terrain_parameters",
 ]

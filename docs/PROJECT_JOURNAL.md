@@ -2415,5 +2415,12 @@ stop-and-go 和急转恢复 evaluator；先评估，再决定是否存在训练�
 
 GPU strict-load 50-step smoke：stairs_up level 5、command `(0.4,0,0)`，terrain
 column/level/origin 保持不变，placement error `0`，初始 root clearance `0.32 m`，
-无 reset，actor observation `(1,234)`，action 全部有限。3 项配置 unittest、CLI
-tuple 解析、py_compile 和 diff-check 通过。
+无 reset，actor observation `(1,234)`，action 全部有限。4 项配置 unittest、CLI
+显式速度参数解析、py_compile 和 diff-check 通过。
+
+新增 `stairs_up_down` 网页 demo：12 m x 4 m 单 patch，start `x=1`，8 级上楼
+`x=2.0..4.4`，顶部平台 `x=4.4..7.6`，8 级下楼至 `x=10`，出口平地至
+`x=11`。level 5、固定 `(0.4,0,0)` 的完整 GPU rollout 在 1473 steps 到达下楼
+出口，progress `9.20 m`，base relative z 从 `0.32 m` 上升到最高 `0.955 m` 后
+回到 `0.319 m`；无 reset/termination，lateral final `0.097 m`。几何 ray、CLI、
+配置和完整 policy rollout 均通过。

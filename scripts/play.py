@@ -40,7 +40,12 @@ class PlayConfig:
   fixed_yaw_rate: float = 0.0
   """Yaw rate used with ``fixed_vx``."""
   terrain_demo: Literal[
-    "default", "stairs_up", "stairs_down", "slope_up", "slope_down"
+    "default",
+    "stairs_up",
+    "stairs_down",
+    "stairs_up_down",
+    "slope_up",
+    "slope_down",
   ] = "default"
   """Place one robot at the entrance of a deterministic terrain route."""
   terrain_level: int = 5
@@ -100,9 +105,10 @@ def _configure_terrain_demo(env_cfg, terrain_demo: str, terrain_level: int) -> i
     GENERATOR_NUM_ROWS,
     TERRAIN_KIND_TO_KEY,
     make_continuous_route_terrain_generator,
+    make_stairs_up_down_demo_terrain_generator,
   )
 
-  if terrain_demo not in TERRAIN_KIND_TO_KEY:
+  if terrain_demo not in (*TERRAIN_KIND_TO_KEY, "stairs_up_down"):
     raise ValueError(f"unknown terrain demo: {terrain_demo!r}")
   if not 0 <= terrain_level < GENERATOR_NUM_ROWS:
     raise ValueError(
@@ -112,9 +118,16 @@ def _configure_terrain_demo(env_cfg, terrain_demo: str, terrain_level: int) -> i
   terrain_cfg = env_cfg.scene.terrain
   if terrain_cfg is None:
     raise ValueError("terrain_demo requires a task with generated terrain")
-  terrain_cfg.terrain_generator = make_continuous_route_terrain_generator(
-    seed=42
-  )
+  if terrain_demo == "stairs_up_down":
+    terrain_cfg.terrain_generator = make_stairs_up_down_demo_terrain_generator(
+      seed=42
+    )
+    terrain_key = "pyramid_stairs"
+  else:
+    terrain_cfg.terrain_generator = make_continuous_route_terrain_generator(
+      seed=42
+    )
+    terrain_key = TERRAIN_KIND_TO_KEY[terrain_demo]
   env_cfg.scene.num_envs = 1
   env_cfg.curriculum = {}
   env_cfg.sim.nconmax = max(env_cfg.sim.nconmax or 0, 128)
@@ -143,7 +156,6 @@ def _configure_terrain_demo(env_cfg, terrain_demo: str, terrain_level: int) -> i
   }
   reset_cfg.params["velocity_range"] = {}
 
-  terrain_key = TERRAIN_KIND_TO_KEY[terrain_demo]
   return list(terrain_cfg.terrain_generator.sub_terrains).index(terrain_key)
 
 

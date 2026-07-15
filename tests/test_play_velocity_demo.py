@@ -51,6 +51,15 @@ class FixedVelocityDemoTest(unittest.TestCase):
       env_cfg.events["reset_base"].params["pose_range"]["yaw"], (0.0, 0.0)
     )
 
+  def test_stairs_up_down_demo_uses_long_single_column_patch(self) -> None:
+    env_cfg = load_env_cfg("Unitree-Go2-Rough-V7", play=True)
+    column = _configure_terrain_demo(env_cfg, "stairs_up_down", 5)
+    generator = env_cfg.scene.terrain.terrain_generator
+    self.assertEqual(column, 0)
+    self.assertEqual(generator.size, (12.0, 4.0))
+    self.assertEqual(generator.num_cols, 1)
+    self.assertEqual(tuple(generator.sub_terrains), ("pyramid_stairs",))
+
   def test_invalid_command_and_level_are_rejected(self) -> None:
     env_cfg = load_env_cfg("Unitree-Go2-Rough-V7", play=True)
     with self.assertRaises(ValueError):
