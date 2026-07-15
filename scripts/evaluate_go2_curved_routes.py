@@ -70,6 +70,24 @@ def _configure_profile(env_cfg: Any, profile: str) -> dict[str, Any]:
   }
 
 
+def _configure_episode_length(
+  env_cfg: Any, steps: int, safety_steps: int = 10
+) -> dict[str, float]:
+  """Extend only the evaluation timeout to cover the requested rollout."""
+  if steps <= 0 or safety_steps < 0:
+    raise ValueError("steps must be positive and safety_steps nonnegative")
+  control_dt = float(env_cfg.sim.dt * env_cfg.decimation)
+  original = float(env_cfg.episode_length_s)
+  env_cfg.episode_length_s = max(
+    original, (steps + safety_steps) * control_dt
+  )
+  return {
+    "original_episode_length_s": original,
+    "effective_episode_length_s": float(env_cfg.episode_length_s),
+    "control_dt": control_dt,
+  }
+
+
 class CurvedFlatTerrainCfg(SubTerrainCfg):
   size: tuple[float, float] = PATCH_SIZE
 
@@ -192,6 +210,7 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
   env_cfg.seed = cfg.seed
   env_cfg.curriculum = {}
   profile = _configure_profile(env_cfg, cfg.profile)
+  profile.update(_configure_episode_length(env_cfg, cfg.steps))
   command_cfg = env_cfg.commands["twist"]
   if not isinstance(command_cfg, UniformVelocityCommandCfg):
     raise TypeError("V7 twist command must be UniformVelocityCommand-compatible")
@@ -309,11 +328,14 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
   outputs = []
   for index, scenario in enumerate(scenario_group):
     mean_cmd = cmd_sum[index] / denom[index]; mean_actual = actual_sum[index] / denom[index]
+    required_yaw_rate = turn_sign * speed / radius
     outputs.append({
       **scenario,
       "route_kind": cfg.route_kind,
       "terrain_type": "evaluation_flat_16m",
       "terrain_level": 0,
+      "required_yaw_rate": required_yaw_rate,
+      "general_yaw_in_distribution": abs(required_yaw_rate) <= 0.3 + 1e-8,
       "completed": bool(completed[index]),
       "path_completion": bool(completed[index]),
       "arc_length": route.length,

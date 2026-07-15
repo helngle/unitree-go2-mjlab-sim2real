@@ -1,4 +1,5 @@
 import math
+from types import SimpleNamespace
 import unittest
 
 import torch
@@ -7,6 +8,7 @@ from scripts.evaluate_go2_curved_routes import (
   PATCH_SIZE,
   ROUTE_START_LOCAL,
   CurvedRouteConfig,
+  _configure_episode_length,
   _scenarios,
   _validate_config,
 )
@@ -132,6 +134,31 @@ class CurvedScenarioTest(unittest.TestCase):
           checkpoint="unused", mode="command_tape", yaw_offsets=(0.2,)
         )
       )
+
+  def test_evaluation_timeout_covers_requested_steps(self) -> None:
+    env_cfg = SimpleNamespace(
+      sim=SimpleNamespace(dt=0.005), decimation=4, episode_length_s=20.0
+    )
+    result = _configure_episode_length(env_cfg, steps=1200, safety_steps=10)
+    self.assertAlmostEqual(result["control_dt"], 0.02)
+    self.assertAlmostEqual(result["effective_episode_length_s"], 24.2)
+    self.assertAlmostEqual(env_cfg.episode_length_s, 24.2)
+
+  def test_required_yaw_rate_distribution_boundary(self) -> None:
+    scenarios = _scenarios(
+      CurvedRouteConfig(
+        checkpoint="unused",
+        radii=(1.5, 2.5),
+        speeds=(0.6,),
+        turn_signs=(1,),
+      )
+    )
+    required = [
+      item["turn_sign"] * item["speed"] / item["radius"]
+      for item in scenarios
+    ]
+    self.assertGreater(required[0], 0.3)
+    self.assertLessEqual(required[1], 0.3)
 
 
 if __name__ == "__main__":
