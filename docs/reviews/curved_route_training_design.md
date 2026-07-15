@@ -118,4 +118,3 @@ route corridor 或 reset 统计污染；Test Agent 尚未在最终 integration H
 * 只在 flat 上训练曲线命令可能造成 terrain/straight 遗忘；训练 probe 后必须完整复测
   rough terrain 矩阵。
 * 当前 terrain 是独立 patch；不能把单 patch 内曲线通过外推为跨 patch 无缝路径能力。
-
