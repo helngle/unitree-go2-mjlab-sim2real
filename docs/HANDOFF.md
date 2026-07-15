@@ -66,6 +66,20 @@ Coverage 应准确表述为 `continuous_intra_patch_transitions=true`、
 没有证明跨生成 patch 的无缝世界。下一步可进入固定半径圆弧、S 弯、forward+yaw、
 stop-and-go 和急转恢复的路径 controller baseline；仍先评估，不先训练。
 
+Viser 网页回放已支持固定命令和指定连续地形。推荐上楼梯命令：
+
+```bash
+python scripts/play.py Unitree-Go2-Rough-V7 \
+  --checkpoint-file logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt \
+  --terrain-demo stairs_up \
+  --terrain-level 5 \
+  --fixed-command 0.4 0.0 0.0 \
+  --viewer viser
+```
+
+`terrain-demo` 还支持 `stairs_down`、`slope_up`、`slope_down`。Demo 会自动使用单
+环境、固定入口/yaw、clean profile、固定 body command，并关闭 terrain 随机重选。
+
 当前项目：`/home/jensen/projects/unitree_rl_mjlab`
 
 目标：沿 Unitree 官方 `unitree_rl_mjlab` 路线优化 Go2 rough-terrain locomotion。当前默认模型是 V7 `model_13600.pt`；lateral-conditioned hip pose tolerance 单变量探针已完成但未通过足端摆幅/稳定性 gate，下一步应研究 command-conditioned foot-placement/step-length reward。

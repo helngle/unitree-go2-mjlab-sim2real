@@ -3,6 +3,7 @@
 import os
 import sys
 from dataclasses import asdict, dataclass
+import math
 from pathlib import Path
 from typing import Literal
 
@@ -32,11 +33,135 @@ class PlayConfig:
   video_width: int | None = None
   camera: int | str | None = None
   viewer: Literal["auto", "native", "viser"] = "auto"
+  fixed_command: tuple[float, float, float] | None = None
+  """Optional fixed body-frame ``(vx, vy, yaw_rate)`` command."""
+  terrain_demo: Literal[
+    "default", "stairs_up", "stairs_down", "slope_up", "slope_down"
+  ] = "default"
+  """Place one robot at the entrance of a deterministic terrain route."""
+  terrain_level: int = 5
+  """Continuous terrain difficulty row, from 0 to 9."""
   no_terminations: bool = False
   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
 
   # Internal flag used by demo script.
   _demo_mode: tyro.conf.Suppress[bool] = False
+
+
+def _configure_fixed_velocity_command(env_cfg, command: tuple[float, float, float]) -> None:
+  """Lock a velocity task to one body-frame command for interactive playback."""
+  from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
+  from src.tasks.velocity.mdp.mode_velocity_command import ModeVelocityCommandCfg
+
+  if len(command) != 3 or not all(math.isfinite(value) for value in command):
+    raise ValueError("fixed_command must contain three finite values: vx vy yaw_rate")
+  command_cfg = env_cfg.commands.get("twist")
+  if not isinstance(command_cfg, UniformVelocityCommandCfg):
+    raise TypeError("fixed_command requires a velocity task with a twist command")
+
+  vx, vy, yaw_rate = command
+  command_cfg.heading_command = False
+  command_cfg.rel_heading_envs = 0.0
+  command_cfg.rel_standing_envs = 0.0
+  command_cfg.init_velocity_prob = 0.0
+  command_cfg.resampling_time_range = (1.0e9, 1.0e9)
+  command_cfg.ranges.lin_vel_x = (vx, vx)
+  command_cfg.ranges.lin_vel_y = (vy, vy)
+  command_cfg.ranges.ang_vel_z = (yaw_rate, yaw_rate)
+  command_cfg.ranges.heading = None
+
+  if isinstance(command_cfg, ModeVelocityCommandCfg):
+    command_cfg.general_probability = 1.0
+    command_cfg.lateral_probability = 0.0
+    command_cfg.yaw_probability = 0.0
+    command_cfg.high_speed_probability = 0.0
+    command_cfg.focus_high_speed_probability = 0.0
+    command_cfg.general_lin_vel_x = (vx, vx)
+    command_cfg.general_lin_vel_y = (vy, vy)
+    command_cfg.general_ang_vel_z = (yaw_rate, yaw_rate)
+
+
+def _configure_terrain_demo(env_cfg, terrain_demo: str, terrain_level: int) -> int:
+  """Install the evaluation-only route terrain and return its column index."""
+  from src.tasks.velocity.evaluation.route_terrains import (
+    GENERATOR_NUM_ROWS,
+    TERRAIN_KIND_TO_KEY,
+    make_continuous_route_terrain_generator,
+  )
+
+  if terrain_demo not in TERRAIN_KIND_TO_KEY:
+    raise ValueError(f"unknown terrain demo: {terrain_demo!r}")
+  if not 0 <= terrain_level < GENERATOR_NUM_ROWS:
+    raise ValueError(
+      f"terrain_level must be in [0, {GENERATOR_NUM_ROWS - 1}], got {terrain_level}"
+    )
+
+  terrain_cfg = env_cfg.scene.terrain
+  if terrain_cfg is None:
+    raise ValueError("terrain_demo requires a task with generated terrain")
+  terrain_cfg.terrain_generator = make_continuous_route_terrain_generator(
+    seed=42
+  )
+  env_cfg.scene.num_envs = 1
+  env_cfg.curriculum = {}
+  env_cfg.sim.nconmax = max(env_cfg.sim.nconmax or 0, 128)
+
+  # Playback should isolate the terrain and command, not domain randomization.
+  env_cfg.observations["actor"].enable_corruption = False
+  for sensor_cfg in env_cfg.scene.sensors or ():
+    if sensor_cfg.name == "terrain_scan":
+      sensor_cfg.debug_vis = False
+  for name in (
+    "foot_friction",
+    "encoder_bias",
+    "base_com",
+    "base_payload",
+    "motor_strength",
+    "push_robot",
+    "randomize_terrain",
+  ):
+    env_cfg.events.pop(name, None)
+  reset_cfg = env_cfg.events["reset_base"]
+  reset_cfg.params["pose_range"] = {
+    "x": (0.0, 0.0),
+    "y": (0.0, 0.0),
+    "z": (0.0, 0.0),
+    "yaw": (0.0, 0.0),
+  }
+  reset_cfg.params["velocity_range"] = {}
+
+  terrain_key = TERRAIN_KIND_TO_KEY[terrain_demo]
+  return list(terrain_cfg.terrain_generator.sub_terrains).index(terrain_key)
+
+
+def _place_terrain_demo(env: ManagerBasedRlEnv, terrain_level: int, terrain_column: int) -> float:
+  """Relocate the robot after the wrapper reset to the selected route entrance."""
+  terrain = env.scene.terrain
+  if terrain is None or terrain.terrain_origins is None:
+    raise ValueError("terrain demo requires generated terrain origins")
+  robot = env.scene["robot"]
+  old_origin = terrain.env_origins.clone()
+  old_root = robot.data.root_link_pos_w.clone()
+  level = min(terrain_level, terrain.max_terrain_level - 1)
+  terrain.terrain_levels[:] = level
+  terrain.terrain_types[:] = terrain_column
+  terrain.env_origins[:] = terrain.terrain_origins[level, terrain_column]
+
+  root_pose = robot.data.root_link_pose_w.clone()
+  root_pose[:, :3] += terrain.env_origins - old_origin
+  robot.write_root_link_pose_to_sim(root_pose)
+  env.scene.write_data_to_sim()
+  env.sim.forward()
+  env.sim.sense()
+  error = torch.max(
+    torch.abs(
+      (robot.data.root_link_pos_w - terrain.env_origins)
+      - (old_root - old_origin)
+    )
+  )
+  if error > 1.0e-4:
+    raise RuntimeError(f"terrain demo placement error: {error.item():.6f}")
+  return float(error)
 
 
 def run_play(task_id: str, cfg: PlayConfig):
@@ -46,6 +171,19 @@ def run_play(task_id: str, cfg: PlayConfig):
 
   env_cfg = load_env_cfg(task_id, play=True)
   agent_cfg = load_rl_cfg(task_id)
+
+  terrain_column: int | None = None
+  fixed_command = cfg.fixed_command
+  if cfg.terrain_demo != "default":
+    if cfg.num_envs not in (None, 1):
+      raise ValueError("terrain_demo supports exactly one environment")
+    terrain_column = _configure_terrain_demo(
+      env_cfg, cfg.terrain_demo, cfg.terrain_level
+    )
+    if fixed_command is None:
+      fixed_command = (0.4, 0.0, 0.0)
+  if fixed_command is not None:
+    _configure_fixed_velocity_command(env_cfg, fixed_command)
 
   DUMMY_MODE = cfg.agent in {"zero", "random"}
   TRAINED_MODE = not DUMMY_MODE
@@ -133,6 +271,19 @@ def run_play(task_id: str, cfg: PlayConfig):
     )
 
   env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
+  if terrain_column is not None:
+    placement_error = _place_terrain_demo(
+      env.unwrapped, cfg.terrain_level, terrain_column
+    )
+    command_term = env.unwrapped.command_manager.get_term("twist")
+    assert fixed_command is not None
+    command_term.vel_command_b[:] = torch.tensor(
+      fixed_command, device=env.unwrapped.device
+    )
+    print(
+      f"[INFO]: Terrain demo={cfg.terrain_demo}, level={cfg.terrain_level}, "
+      f"command={fixed_command}, placement_error={placement_error:.2e}"
+    )
   if DUMMY_MODE:
     action_shape: tuple[int, ...] = env.unwrapped.action_space.shape
     if cfg.agent == "zero":

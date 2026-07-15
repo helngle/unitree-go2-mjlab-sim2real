@@ -2397,3 +2397,23 @@ py_compile、CLI contract、V7 registration/import、diff-check、GPU metrics �
 `model_13600.pt`。Coverage 是真实的 intra-patch continuous transition，不宣称
 inter-patch 世界连续性。下一阶段可按原顺序增加圆弧、S 弯、forward+yaw、
 stop-and-go 和急转恢复 evaluator；先评估，再决定是否存在训练变量。
+
+### Viser 固定地形网页演示
+
+为解决原 `play.py` 随机采样 `vx/vy/yaw` 且随机选择 terrain 的问题，新增回放参数：
+
+```text
+--fixed-command vx vy yaw_rate
+--terrain-demo default|stairs_up|stairs_down|slope_up|slope_down
+--terrain-level 0..9
+```
+
+指定 terrain demo 时只修改本次 play 配置：使用 evaluation-only continuous terrain、
+单环境、固定入口和 yaw、clean observation/events、`nconmax=128`，并移除
+`randomize_terrain`，不会修改训练 task 或 checkpoint。V7 ModeVelocityCommand 被
+锁定到 100% general mode，重采样时间设为 `1e9 s`。
+
+GPU strict-load 50-step smoke：stairs_up level 5、command `(0.4,0,0)`，terrain
+column/level/origin 保持不变，placement error `0`，初始 root clearance `0.32 m`，
+无 reset，actor observation `(1,234)`，action 全部有限。3 项配置 unittest、CLI
+tuple 解析、py_compile 和 diff-check 通过。
