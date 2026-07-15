@@ -76,7 +76,11 @@ def _configure_episode_length(
   """Extend only the evaluation timeout to cover the requested rollout."""
   if steps <= 0 or safety_steps < 0:
     raise ValueError("steps must be positive and safety_steps nonnegative")
-  control_dt = float(env_cfg.sim.dt * env_cfg.decimation)
+  if hasattr(env_cfg.sim, "dt"):
+    physics_dt = env_cfg.sim.dt
+  else:
+    physics_dt = env_cfg.sim.mujoco.timestep
+  control_dt = float(physics_dt * env_cfg.decimation)
   original = float(env_cfg.episode_length_s)
   env_cfg.episode_length_s = max(
     original, (steps + safety_steps) * control_dt
