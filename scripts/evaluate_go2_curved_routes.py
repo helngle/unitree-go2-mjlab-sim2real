@@ -217,12 +217,17 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
   cross_offsets = torch.tensor([s["cross_track_offset"] for s in scenario_group], device=device)
   yaw_offsets = torch.tensor([s["yaw_offset"] for s in scenario_group], device=device)
   route_start, placement_error, clearance = _place_routes(env, cross_offsets, yaw_offsets)
+  robot = env.scene["robot"]
   route: ArcRoute | SRoute
   route = make_arc_route(route_start, torch.zeros(len(scenario_group), device=device), radius, turn_sign) if cfg.route_kind == "arc" else make_s_route(route_start, torch.zeros(len(scenario_group), device=device), radius, turn_sign)
+  initial_progress, initial_cross, initial_heading_error = _route_errors(
+    route, robot.data.root_link_pos_w[:, :2], robot.data.heading_w
+  )
+  if torch.max(initial_progress.abs()) > 1e-4 or torch.max((initial_cross - cross_offsets).abs()) > 1e-4 or torch.max((initial_heading_error - yaw_offsets).abs()) > 1e-4:
+    raise RuntimeError("curved route initialization does not match requested offsets")
   command_term = env.command_manager.get_term("twist")
   if not isinstance(command_term, UniformVelocityCommand):
     raise TypeError("twist command term is not UniformVelocityCommand-compatible")
-  robot = env.scene["robot"]
   active = torch.ones(len(scenario_group), dtype=torch.bool, device=device)
   completed = torch.zeros_like(active)
   reset_count = torch.zeros(len(scenario_group), dtype=torch.long, device=device)
