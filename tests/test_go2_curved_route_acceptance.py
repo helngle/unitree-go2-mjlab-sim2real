@@ -15,9 +15,11 @@ import torch
 
 from src.tasks.velocity.evaluation.curved_routes import (
   ArcSpec,
+  CommandTapeSchedule,
   arc_command_controller,
   arc_route_errors,
   make_arc_route,
+  make_command_tape_schedule,
   make_s_route,
   s_command_controller,
 )
@@ -165,6 +167,109 @@ class CurvedRouteBatchAndValidationTest(unittest.TestCase):
       arc_route_errors(route, torch.zeros((2, 3)), torch.zeros(2))
     with self.assertRaises(ValueError):
       arc_route_errors(route, torch.zeros((2, 2)), torch.zeros(3))
+
+
+class CommandTapeScheduleAcceptanceTest(unittest.TestCase):
+  def assertTensorClose(
+    self, actual: torch.Tensor, expected: torch.Tensor, *, atol: float = 1e-6
+  ) -> None:
+    torch.testing.assert_close(actual, expected, rtol=0.0, atol=atol)
+
+  def test_arc_has_fixed_motion_steps_then_zero_settle(self) -> None:
+    schedule = make_command_tape_schedule(
+      "arc", radius=1.0, speed=1.0, turn_sign=1, control_dt=0.1,
+      settle_steps=3,
+    )
+    self.assertIsInstance(schedule, CommandTapeSchedule)
+    self.assertEqual(schedule.first_motion_steps, math.ceil((math.pi / 2.0) / 0.1))
+    self.assertEqual(schedule.second_motion_steps, 0)
+    moving = torch.tensor([1.0, 0.0, 1.0])
+    self.assertTensorClose(schedule.command_at(0), moving)
+    self.assertTensorClose(schedule.command_at(schedule.motion_steps - 1), moving)
+    self.assertTensorClose(schedule.command_at(schedule.motion_steps), torch.zeros(3))
+    self.assertTensorClose(schedule.command_at(schedule.total_steps + 20), torch.zeros(3))
+
+  def test_s_curve_switches_segments_only_at_scheduled_step(self) -> None:
+    schedule = make_command_tape_schedule(
+      "s_curve", radius=2.0, speed=0.5, turn_sign=1, control_dt=0.1,
+      settle_steps=2,
+    )
+    first = torch.tensor([0.5, 0.0, 0.25])
+    second = torch.tensor([0.5, 0.0, -0.25])
+    self.assertEqual(schedule.first_motion_steps, schedule.second_motion_steps)
+    self.assertTensorClose(schedule.command_at(schedule.first_motion_steps - 1), first)
+    self.assertTensorClose(schedule.command_at(schedule.first_motion_steps), second)
+    self.assertTensorClose(schedule.command_at(schedule.motion_steps - 1), second)
+    self.assertTensorClose(schedule.command_at(schedule.motion_steps), torch.zeros(3))
+
+  def test_completion_waits_for_tape_end_and_end_remains_frozen(self) -> None:
+    schedule = make_command_tape_schedule(
+      "arc", radius=1.5, speed=0.3, turn_sign=-1, control_dt=0.02,
+      settle_steps=4,
+    )
+    self.assertFalse(bool(schedule.completion_allowed(schedule.total_steps - 1)))
+    self.assertFalse(bool(schedule.tape_finished(schedule.total_steps - 1)))
+    self.assertTrue(bool(schedule.completion_allowed(schedule.total_steps)))
+    self.assertTrue(bool(schedule.tape_finished(schedule.total_steps)))
+    self.assertTrue(bool(schedule.tape_finished(schedule.total_steps + 100)))
+    self.assertTensorClose(schedule.command_at(schedule.total_steps), torch.zeros(3))
+
+  def test_batch_step_predicates_and_dtype_device(self) -> None:
+    schedule = make_command_tape_schedule(
+      "arc", radius=1.0, speed=0.5, turn_sign=1, control_dt=0.1,
+      settle_steps=2,
+    )
+    steps = torch.tensor(
+      [schedule.motion_steps, schedule.total_steps - 1, schedule.total_steps]
+    )
+    allowed = schedule.completion_allowed(steps)
+    finished = schedule.tape_finished(steps)
+    self.assertTrue(torch.equal(allowed, torch.tensor([False, False, True])))
+    self.assertTrue(torch.equal(finished, torch.tensor([False, False, True])))
+    command = schedule.command_at(0, device=steps.device, dtype=torch.float64)
+    self.assertEqual(command.dtype, torch.float64)
+    self.assertEqual(command.device, steps.device)
+
+  def test_invalid_schedule_inputs_raise(self) -> None:
+    invalid = (
+      ("arc", 0.0, 0.5, 1, 0.02, 2),
+      ("arc", 1.0, 0.0, 1, 0.02, 2),
+      ("arc", 1.0, 0.5, 1, 0.0, 2),
+      ("arc", 1.0, 0.5, 0, 0.02, 2),
+      ("unknown", 1.0, 0.5, 1, 0.02, 2),
+      ("arc", 1.0, 0.5, 1, 0.02, -1),
+    )
+    for args in invalid:
+      with self.subTest(args=args), self.assertRaises(ValueError):
+        make_command_tape_schedule(*args)
+    schedule = make_command_tape_schedule("arc", 1.0, 0.5, 1, 0.02)
+    with self.assertRaises(ValueError):
+      schedule.command_at(-1)
+
+  def test_command_tape_config_rejects_insufficient_steps(self) -> None:
+    from scripts.evaluate_go2_curved_routes import (
+      CurvedRouteConfig,
+      _validate_config,
+    )
+
+    schedule = make_command_tape_schedule(
+      "s_curve", radius=1.5, speed=0.3, turn_sign=1, control_dt=0.02,
+      settle_steps=5,
+    )
+    common = dict(
+      checkpoint="unused",
+      route_kind="s_curve",
+      mode="command_tape",
+      radii=(1.5,),
+      speeds=(0.3,),
+      turn_signs=(1,),
+      settle_steps=5,
+    )
+    with self.assertRaises(ValueError):
+      _validate_config(
+        CurvedRouteConfig(**common, steps=schedule.total_steps - 1)
+      )
+    _validate_config(CurvedRouteConfig(**common, steps=schedule.total_steps))
 
 
 class AttemptLifecycleAcceptanceTest(unittest.TestCase):
