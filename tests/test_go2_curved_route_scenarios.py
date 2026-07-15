@@ -47,6 +47,23 @@ class ArcGeometryTest(unittest.TestCase):
     torch.testing.assert_close(command[:, 1], torch.zeros(2), atol=1e-5, rtol=0)
     torch.testing.assert_close(command[:, 2], torch.full((2,), 0.25), atol=1e-5, rtol=0)
 
+  def test_controller_corrects_nonzero_cross_and_heading(self) -> None:
+    route = make_arc_route(torch.zeros(2), 0.4, 2.5, 1)
+    xy, heading = route.pose_at(0.7)
+    tangent = torch.stack((torch.cos(heading), torch.sin(heading)))
+    normal = torch.stack((-torch.sin(heading), torch.cos(heading)))
+    position = (xy + 0.15 * normal).unsqueeze(0)
+    actual_heading = (heading + 0.1).unsqueeze(0)
+    command = arc_command_controller(route, position, actual_heading, target_speed=0.4)
+    self.assertLess(float(command[0, 1]), 0.0)
+    self.assertLess(float(command[0, 2]), 0.4 / 2.5)
+
+  def test_controller_stops_at_float_endpoint(self) -> None:
+    route = make_arc_route(torch.zeros(2), 0.0, 1.5, 1)
+    xy, heading = route.pose_at(route.length)
+    command = arc_command_controller(route, xy.unsqueeze(0), heading.unsqueeze(0), target_speed=0.4)
+    torch.testing.assert_close(command, torch.zeros_like(command))
+
 
 class SRouteGeometryTest(unittest.TestCase):
   def test_s_route_is_continuous_and_restores_heading(self) -> None:
@@ -67,6 +84,15 @@ class SRouteGeometryTest(unittest.TestCase):
     second_command = s_command_controller(route, second_xy.unsqueeze(0), second_h.unsqueeze(0), target_speed=0.4)
     self.assertGreater(float(first_command[0, 2]), 0.0)
     self.assertLess(float(second_command[0, 2]), 0.0)
+
+  def test_s_controller_uses_world_tangent_at_nonzero_heading(self) -> None:
+    route = make_s_route(torch.tensor([1.0, -2.0]), 0.6, 2.0, 1)
+    xy, heading = route.second.pose_at(0.3)
+    command = s_command_controller(
+      route, xy.unsqueeze(0), heading.unsqueeze(0), target_speed=0.4
+    )
+    torch.testing.assert_close(command[0, :2], torch.tensor([0.4, 0.0]), atol=1e-5, rtol=0)
+    self.assertLess(float(command[0, 2]), 0.0)
 
   def test_invalid_arc_parameters(self) -> None:
     with self.assertRaises(ValueError):

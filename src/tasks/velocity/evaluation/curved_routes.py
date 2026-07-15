@@ -144,7 +144,7 @@ def _arc_projection(route: ArcRoute, position_w_xy: torch.Tensor) -> tuple[torch
   radial0 = -n / route.spec.curvature
   phi0 = torch.atan2(radial0[:, 1], radial0[:, 0])
   signed_delta = wrap_to_pi(phi - phi0) * float(route.spec.turn_sign)
-  progress = signed_delta.clamp(0.0, route.length) * route.spec.radius
+  progress = signed_delta.clamp(0.0, route.spec.angle) * route.spec.radius
   expected_xy, expected_h = route.pose_at(progress)
   tangent = torch.stack((torch.cos(expected_h), torch.sin(expected_h)), dim=-1)
   normal = torch.stack((-torch.sin(expected_h), torch.cos(expected_h)), dim=-1)
@@ -160,6 +160,18 @@ def arc_route_errors(route: ArcRoute, position_w_xy: torch.Tensor, heading_w: to
   return progress, cross, wrap_to_pi(heading_w - expected_h)
 
 
+def s_route_errors(route: SRoute, position_w_xy: torch.Tensor, heading_w: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+  """Return global progress and local errors for the active S-route arc."""
+  p1, c1, e1 = arc_route_errors(route.first, position_w_xy, heading_w)
+  p2, c2, e2 = arc_route_errors(route.second, position_w_xy, heading_w)
+  use_second = p1 >= route.first.length - 1.0e-5
+  return (
+    torch.where(use_second, route.first.length + p2, p1),
+    torch.where(use_second, c2, c1),
+    torch.where(use_second, e2, e1),
+  )
+
+
 def arc_command_controller(route: ArcRoute, position_w_xy: torch.Tensor, heading_w: torch.Tensor, *, target_speed: float, cross_track_gain: float = 1.2, heading_gain: float = 1.0, max_lateral_speed: float = 0.3, max_yaw_rate: float = 0.7) -> torch.Tensor:
   """Closed-loop body command for an arc; zero after its endpoint."""
   progress, cross, heading_error = arc_route_errors(route, position_w_xy, heading_w)
@@ -171,27 +183,27 @@ def arc_command_controller(route: ArcRoute, position_w_xy: torch.Tensor, heading
   body_v = world_to_body_velocity(world_v, heading_w)
   yaw = torch.clamp(route.spec.curvature * target_speed - heading_gain * heading_error, -max_yaw_rate, max_yaw_rate)
   command = torch.cat((body_v, yaw.unsqueeze(-1)), dim=-1)
-  return torch.where((progress >= route.length).unsqueeze(-1), torch.zeros_like(command), command)
+  done = progress >= route.length - 1.0e-5
+  return torch.where(done.unsqueeze(-1), torch.zeros_like(command), command)
 
 
 def s_command_controller(route: SRoute, position_w_xy: torch.Tensor, heading_w: torch.Tensor, *, target_speed: float, cross_track_gain: float = 1.2, heading_gain: float = 1.0, max_lateral_speed: float = 0.3, max_yaw_rate: float = 0.7) -> torch.Tensor:
   """Closed-loop controller for the two-arc S route."""
   # Select the active arc by geometric progress from the first endpoint.
-  p1, c1, h1 = arc_route_errors(route.first, position_w_xy, heading_w)
-  p2, c2, h2 = arc_route_errors(route.second, position_w_xy, heading_w)
+  p1, _, _ = arc_route_errors(route.first, position_w_xy, heading_w)
+  progress, cross, heading_error = s_route_errors(route, position_w_xy, heading_w)
   use_second = p1 >= route.first.length - 1.0e-5
-  progress = torch.where(use_second, route.first.length + p2, p1)
-  cross = torch.where(use_second, c2, c1)
-  expected_h = torch.where(use_second, h2, h1)
+  _, expected_h = route.pose_at(progress)
   tangent = torch.stack((torch.cos(expected_h), torch.sin(expected_h)), dim=-1)
   normal = torch.stack((-torch.sin(expected_h), torch.cos(expected_h)), dim=-1)
   lateral = torch.clamp(-cross_track_gain * cross, -max_lateral_speed, max_lateral_speed)
   world_v = target_speed * tangent + lateral.unsqueeze(-1) * normal
   body_v = world_to_body_velocity(world_v, heading_w)
   curvature = torch.where(use_second, torch.full_like(progress, route.second.spec.curvature), torch.full_like(progress, route.first.spec.curvature))
-  yaw = torch.clamp(curvature * target_speed - heading_gain * wrap_to_pi(heading_w - expected_h), -max_yaw_rate, max_yaw_rate)
+  yaw = torch.clamp(curvature * target_speed - heading_gain * heading_error, -max_yaw_rate, max_yaw_rate)
   command = torch.cat((body_v, yaw.unsqueeze(-1)), dim=-1)
-  return torch.where((progress >= route.length).unsqueeze(-1), torch.zeros_like(command), command)
+  done = progress >= route.length - 1.0e-5
+  return torch.where(done.unsqueeze(-1), torch.zeros_like(command), command)
 
 
-__all__ = ["ArcSpec", "ArcRoute", "SRoute", "make_arc_route", "make_s_route", "arc_route_errors", "arc_command_controller", "s_command_controller"]
+__all__ = ["ArcSpec", "ArcRoute", "SRoute", "make_arc_route", "make_s_route", "arc_route_errors", "s_route_errors", "arc_command_controller", "s_command_controller"]

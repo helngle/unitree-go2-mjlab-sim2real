@@ -22,6 +22,7 @@ from .curved_routes import (
   make_arc_route,
   make_s_route,
   s_command_controller,
+  s_route_errors,
 )
 
 __all__ = [
@@ -44,4 +45,5 @@ __all__ = [
   "make_arc_route",
   "make_s_route",
   "s_command_controller",
+  "s_route_errors",
 ]
