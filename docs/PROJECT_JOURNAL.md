@@ -2118,3 +2118,164 @@ step-length reward 单变量设计；不继续放宽 pose tolerance，不增加 
 12. Lateral-conditioned hip pose tolerance 单变量探针已完成：`model_13900.pt` 的横移 gain 有改善，但 clean mean 仅 `0.391`，横向足端摆幅仅 `3.64 cm`，且 randomized failure/contact flags 增加；Test Agent 判定 FAIL，继续默认使用 V7 `model_13600.pt`。
 13. 下一步设计 command-conditioned foot-placement/step-length reward 单变量探针；保持 V7 25% lateral、terrain、randomization、termination 和 trot phase 不变，不继续放宽 pose tolerance。
 14. 如果想控制固定速度，优先研究 `--viewer viser` 的 joystick 面板，或修改 Go2 play 模式的 command 采样逻辑。
+
+## 2026-07-15：复杂路径第一阶段无训练 baseline
+
+### 目标与多 Agent 集成
+
+本阶段将优先级从横移专项改为统一 policy 的局部路径执行闭环：世界路径由局部
+controller 转为 body-frame `vx/vy/yaw`，V7 policy 负责执行命令并适应地形。
+本阶段不训练，不修改 reward、command 采样、terrain、termination 或网络。
+
+使用 1 个 Integration Agent 和 3 个独立 worktree Agent：
+
+```text
+Training Design Agent: e5275a0
+Scenario Agent:        1f53a52 + 8aee1bb + b969175
+Acceptance Agent:      133e1a1
+
+integration commits:
+c14c18e  training design review
+7ef2fb5  independent acceptance tests
+cb9a9d5  parameterized route evaluator
+0038222  route placement after wrapper reset
+351c6ea  preserve rollout step index
+```
+
+Training Design Agent 确认 V7 actor 只观察 body-frame twist、proprioception、phase
+和局部 height scan，不观察世界位置、waypoint 或累计路径误差。因此 V7 是局部速度
+executor，路径跟踪必须由外部 controller 闭环完成。完整审查见：
+
+```text
+docs/reviews/complex_path_training_design.md
+```
+
+### Route evaluator
+
+新增：
+
+```text
+scripts/evaluate_go2_routes.py
+src/tasks/velocity/evaluation/routes.py
+tests/test_go2_route_scenarios.py
+tests/test_go2_route_acceptance.py
+```
+
+支持两种诊断模式：
+
+- `open_loop`：固定 body-frame forward command tape，隔离 locomotion 执行能力。
+- `line_follow`：由世界系 cross-track/heading error 生成 body-frame `vx/vy/yaw`，
+  检查 path controller 与 locomotion 的组合闭环。
+
+每个 env 是一次 route attempt；首次 completion 或 reset/termination 后冻结，自动
+reset 的新 episode 不会继续累计前进距离。JSON 记录 completion、progress、位置/
+航向误差、commanded/actual velocity、route-normal cross-axis velocity、slip、action
+acceleration、reset、首次失败原因、接触终止和 terrain relocation error。
+
+GPU smoke 发现并修复两个只在真实 rollout 暴露的问题：
+
+1. `RslRlVecEnvWrapper` 构造时会 reset，最初在 wrapper 前设置的 route pose 被覆盖。
+   现在 relocation/route placement 在 wrapper/runner 初始化后执行，并断言初始
+   progress、cross-track 和 heading error。
+2. rollout 循环索引 `_` 被 `step()` 返回的 extras 字典覆盖，首次 completion 时
+   `steps_to_completion` 抛 TypeError。现在使用明确的 `step_index`。
+
+最终 21 项 route tests、Python 编译、V7 task registration/import、CLI、
+`git diff --check` 和短 GPU smoke 均通过。smoke 的 relocation error 为 0，route
+start 与机器人实际初始位置一致，初始 heading 约 0，32 步无 reset。Acceptance
+Agent 在最终 integration HEAD `351c6ea` 上复验并给出 PASS；无残留训练/评估进程。
+
+### V7 无训练 baseline
+
+固定 checkpoint：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+task: Unitree-Go2-Rough-V7
+seed: 42
+```
+
+Flat open-loop clean，2 m，0.4 m/s，16 attempts：
+
+```text
+completion                         16/16 = 100%
+mean progress ratio               1.0016
+lateral RMS / max                 0.0074 / 0.0162 m
+heading RMS / max                 0.54 / 0.89 deg
+mean final position error         0.0079 m
+forward response gain             0.771
+reset / fell/base/upper/calf      0 / 0/0/0/0
+slip / action acceleration        0.0225 / 0.0696
+terrain relocation max error      3.81e-6 m
+```
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_flat_open_loop_clean_seed42.json
+```
+
+Flat line-follow 使用 cross-track `-0.2/0/+0.2 m`、yaw `-0.2/0/+0.2 rad`，
+4 levels x 4 repeats x 9 offsets = 144 attempts：
+
+```text
+profile       completion   lateral RMS   final |lateral|   heading RMS   reset
+clean         144/144      0.0505 m      0.0034 m          2.30 deg      0
+randomized    144/144      0.0574 m      0.0176 m          2.68 deg      0
+```
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_flat_line_follow_clean_seed42.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_flat_line_follow_randomized_seed42.json
+```
+
+独立 terrain patch 零初始误差矩阵使用 7 terrain types x 4 levels x 4 repeats =
+112 attempts，route 2.5 m：
+
+```text
+mode/profile             completion   reset/contact failure
+open_loop clean          109/112      0
+line_follow clean        112/112      0
+line_follow randomized   112/112      0
+```
+
+open-loop 的 3 个 `step_limit` 都已越过终点，但横向/航向没有收敛到 completion
+tolerance；line-follow 全部纠正完成。因此这三个失败属于缺少路径闭环，不是 policy
+在地形上摔倒。
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_patch_matrix_open_loop_clean_seed42.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_patch_matrix_line_follow_clean_seed42.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_patch_matrix_line_follow_randomized_seed42.json
+```
+
+最高难度重点矩阵使用 levels `3/7`、4 repeats、cross-track/yaw 各
+`-0.2/0/+0.2`，共 504 clean attempts：
+
+```text
+overall completion                503/504 = 99.80%
+flat/slope/inv-slope/rough/obstacle/up-stage completion 100%
+pyramid_stairs down-stage         71/72 = 98.61%
+唯一失败                          level 7, yaw +0.2 rad, illegal_calf_contact
+overall reset                     1/504
+terrain relocation max error      3.81e-6 m
+```
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_patch_matrix_line_follow_offsets_clean_seed42.json
+```
+
+### 结论与限制
+
+第一阶段结论：flat 直线路径 evaluator 的坐标、body command 和 attempt 生命周期已
+由测试和真实 GPU rollout 验证；V7 在现有独立 patch 的 2.5 m 直线闭环上表现良好，
+没有证据支持此时修改 reward 或启动 PPO。默认部署模型继续是 `model_13600.pt`。
+
+当前不能宣称“完整直线上/下楼梯”或“平地到楼梯/坡地到平地连续过渡”已通过：
+现有 V6/V7 terrain 是相互独立的 8 m x 8 m patch，没有 inter-patch transition
+geometry；楼梯 origin 位于中央平台，2.5 m outward route 只覆盖平台退出和一段台阶，
+不是从外侧入口到另一侧出口的完整楼梯。JSON 已明确标记
+`continuous_inter_patch_transitions=false`。
+
+下一步应先实现/校准连续 transition terrain 和合法入口 pose（包括 terrain-aware
+root z），用相同 evaluator 口径完成完整直线楼梯和 transition gate。该 gate 通过
+前不增加圆弧、S 弯或启动 2048-env 训练；若届时出现明确、可复现的单一 locomotion
+短板，再设计单变量 probe。

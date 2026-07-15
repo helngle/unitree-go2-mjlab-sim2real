@@ -1,5 +1,65 @@
 # 新聊天窗口交接摘要
 
+## 2026-07-15 当前状态（优先于下方历史记录）
+
+当前目标已从横移专项调整为统一 Go2 policy 的路径执行闭环：
+
+```text
+global/parameterized path
+-> local body-frame vx/vy/yaw controller
+-> one V7 locomotion policy
+-> measured path/terrain completion
+```
+
+默认部署模型仍为：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+不要采用 lateral pose probe 的 `model_13900.pt` 或 `model_14099.pt`。本阶段没有
+训练，也没有新 checkpoint。
+
+当前 integration 分支为 `exp/complex-path-integration`。已新增参数化直线路径
+evaluator `scripts/evaluate_go2_routes.py`、纯 tensor route helper、两组独立测试和
+training design review。关键 integration commits：
+
+```text
+c14c18e  training design review
+7ef2fb5  acceptance tests
+cb9a9d5  route evaluator
+0038222  place route after wrapper reset
+351c6ea  preserve rollout step index
+```
+
+Test Agent 在最终 integration HEAD `351c6ea` 上确认 PASS：route tests、编译、
+V7 registration/import、CLI 和 diff-check 已通过；Integration Agent 的 GPU smoke
+也通过，最终无残留训练/评估进程。
+V7 baseline 结果：
+
+```text
+flat open-loop clean:                  16/16 complete
+flat line-follow clean:               144/144 complete
+flat line-follow randomized:          144/144 complete
+7-patch line-follow clean:            112/112 complete
+7-patch line-follow randomized:       112/112 complete
+7-patch offsets clean, levels 3/7:    503/504 complete
+唯一失败: pyramid_stairs level 7, yaw +0.2 rad, illegal calf contact
+```
+
+所有正式 JSON 位于 V7 run 目录，前缀为 `route_baseline_`；详细命令、路径和指标见
+`docs/PROJECT_JOURNAL.md` 的 `2026-07-15` 章节。
+
+重要限制：当前 evaluator 只测独立的 8 m x 8 m generated terrain patch。
+`pyramid_stairs`/`pyramid_stairs_inv` 从中央平台向外只覆盖下/上一段台阶，不能宣称
+完整楼梯入口到出口已通过。现有 terrain 没有 flat-to-stairs、slope-to-flat 等真实
+连续 geometry；JSON 明确标记 continuous transitions unsupported。
+
+下一步先实现/校准连续 transition terrain 与合法入口 pose，特别是 non-flat 起点
+的 terrain-aware root z；然后用相同 evaluator 验证完整直线楼梯和连续过渡。
+在该 gate 通过前，不做圆弧/S 弯，不修改 reward/command distribution/gait，
+不启动 2048-env PPO。当前 baseline 没有显示需要立刻训练的单一 locomotion 短板。
+
 当前项目：`/home/jensen/projects/unitree_rl_mjlab`
 
 目标：沿 Unitree 官方 `unitree_rl_mjlab` 路线优化 Go2 rough-terrain locomotion。当前默认模型是 V7 `model_13600.pt`；lateral-conditioned hip pose tolerance 单变量探针已完成但未通过足端摆幅/稳定性 gate，下一步应研究 command-conditioned foot-placement/step-length reward。
