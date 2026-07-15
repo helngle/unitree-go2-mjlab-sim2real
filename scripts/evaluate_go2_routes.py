@@ -618,6 +618,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
         PATCH_SIZE,
         ROUTE_END_X,
         ROUTE_START_X,
+        TERRAIN_SCAN_HALF_X,
       )
 
       feature_start_progress = FEATURE_START_X - ROUTE_START_X
@@ -657,6 +658,15 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
             ROUTE_START_X, PATCH_SIZE[0] - ROUTE_END_X
           ),
           "boundary_margin_y": min(route_y, PATCH_SIZE[1] - route_y),
+          "terrain_scan_half_extent_x": TERRAIN_SCAN_HALF_X,
+          "terrain_scan_footprint_inside_patch": (
+            ROUTE_START_X - TERRAIN_SCAN_HALF_X >= 0.0
+            and ROUTE_END_X + TERRAIN_SCAN_HALF_X <= PATCH_SIZE[0]
+          ),
+          "terrain_scan_boundary_clearance_x": min(
+            ROUTE_START_X - TERRAIN_SCAN_HALF_X,
+            PATCH_SIZE[0] - ROUTE_END_X - TERRAIN_SCAN_HALF_X,
+          ),
           "start_flat": True,
           "endpoint_flat": True,
         }
@@ -670,6 +680,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       PATCH_SIZE,
       ROUTE_END_X,
       ROUTE_START_X,
+      TERRAIN_SCAN_HALF_X,
     )
 
     coverage = {
@@ -691,6 +702,15 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       "route_length": route_length,
       "heading": route_heading,
       "start_forward_offset": start_forward_offset,
+      "terrain_scan_half_extent_x": TERRAIN_SCAN_HALF_X,
+      "terrain_scan_start_x": [
+        ROUTE_START_X - TERRAIN_SCAN_HALF_X,
+        ROUTE_START_X + TERRAIN_SCAN_HALF_X,
+      ],
+      "terrain_scan_endpoint_x": [
+        ROUTE_END_X - TERRAIN_SCAN_HALF_X,
+        ROUTE_END_X + TERRAIN_SCAN_HALF_X,
+      ],
       "cross_track_offsets": list(cfg.cross_track_offsets),
       "yaw_offsets": list(cfg.yaw_offsets),
     }

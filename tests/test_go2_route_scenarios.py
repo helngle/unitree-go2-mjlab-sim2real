@@ -154,8 +154,20 @@ class ScenarioCoverageTest(unittest.TestCase):
     self.assertNotIn("transition", scenarios[0])
 
   def test_continuous_contract_locks_geometry(self) -> None:
+    from src.tasks.velocity.evaluation.route_terrains import (
+      PATCH_SIZE,
+      ROUTE_END_X,
+      ROUTE_START_X,
+      TERRAIN_SCAN_HALF_X,
+    )
+
     cfg = RouteConfig(checkpoints=("unused",), terrain_suite="continuous")
-    self.assertEqual(_resolve_route_contract(cfg), (6.5, 0.0, 0.0))
+    self.assertEqual(_resolve_route_contract(cfg), (6.0, 0.0, 0.0))
+    self.assertEqual(TERRAIN_SCAN_HALF_X, 0.8)
+    self.assertGreaterEqual(ROUTE_START_X, 1.0)
+    self.assertGreaterEqual(PATCH_SIZE[0] - ROUTE_END_X, 1.0)
+    self.assertGreaterEqual(ROUTE_START_X, TERRAIN_SCAN_HALF_X)
+    self.assertLessEqual(ROUTE_END_X + TERRAIN_SCAN_HALF_X, PATCH_SIZE[0])
     self.assertEqual(
       _resolve_route_contract(RouteConfig(checkpoints=("unused",))),
       (2.0, 0.0, 0.0),
