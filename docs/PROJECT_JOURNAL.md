@@ -2279,3 +2279,121 @@ geometry；楼梯 origin 位于中央平台，2.5 m outward route 只覆盖平�
 root z），用相同 evaluator 口径完成完整直线楼梯和 transition gate。该 gate 通过
 前不增加圆弧、S 弯或启动 2048-env 训练；若届时出现明确、可复现的单一 locomotion
 短板，再设计单变量 probe。
+
+## 2026-07-15：连续地形完整直线路径 gate
+
+### Evaluation-only geometry
+
+继续使用同一 1+3 Agent/worktree 结构。实现只进入 evaluation 层，不注册新 task，
+不修改 V7 的 reward、command sampler、reset、terrain training distribution、
+termination、网络或 checkpoint：
+
+```text
+Terrain Agent:     1c65c58 + 6cda2fb + ddd3748
+Scenario Agent:    e1140f9 + e8b1d94
+Acceptance Agent:  ca922bf + 8beeec9
+
+integration:
+5214ef0  continuous route terrain profiles
+5a66776  independent continuous acceptance
+092d24f  continuous route evaluator
+30b5c4a  keep terrain scan inside patch
+76d20f1  ray-test scan footprint heights
+440484e  enforce scan margins in acceptance
+3b2b471  report scan footprint margins
+```
+
+新增 `src/tasks/velocity/evaluation/route_terrains.py`。evaluator 从 registry 加载 V7
+配置深拷贝后，仅为本次评估替换 terrain generator；V7 actor/critic shape 仍为
+`234/261`，`model_13600.pt` strict load。四类 geometry：
+
+```text
+stairs_up / stairs_down / slope_up / slope_down
+patch: 8.0 x 4.0 m
+route axis: local +x
+start: x=1.0 m
+feature: x=2.0..4.4 m
+end: x=7.0 m
+route length: 6.0 m
+stairs: 8 x 0.30 m, step height 0.02..0.12 m by difficulty
+slope: 0.0..0.4 gradient by difficulty
+```
+
+每条 route 包含 approach flat、完整 feature 和 exit flat。TerrainOutput origin 位于
+入口 surface，wrapper reset 后按该 origin 重新 placement，保持 Go2 root clearance
+`0.32 m`。自定义 stairs boxes 使 MuJoCo 初始 contact 数超过 V7 的 `nconmax=35`，
+因此 continuous evaluation copy 单独将 `nconmax` 提升到 128；patch/training 配置不变。
+
+### GPU 发现的 scan 边界缺陷
+
+第一版使用 start `0.75`、end `7.25`、route `6.5 m`。虽然 CPU geometry/ray tests
+通过，但 GPU baseline 在 slope_up level 5/7 于 progress `<=0.22 m` 提前发生
+upper/base contact。open-loop 和 0.4 m/s 复验同样失败，最初看似 locomotion 短板。
+
+进一步检查发现 terrain scan x footprint 为 `+-0.8 m`：start `0.75 m` 会让后向
+ray 跨到相邻 curriculum row。相邻 profile 的入口/出口高度不同，初始观测被 patch
+边界高度墙污染。该问题属于 evaluator geometry，不是模型失败。
+
+修复后 contract 为 start `1.0`、end `7.0`、route `6.0 m`：
+
+```text
+start scan range: [0.2, 1.8] m，全部位于 entry flat
+end scan range:   [6.2, 7.8] m，全部位于 exit flat
+feature range:    [2.0, 4.4] m
+residual patch boundary clearance: 0.2 m
+```
+
+实际 MuJoCo rays 和独立 acceptance 均验证四类 profile 的 scan footprint 高度。修复
+后原来 0/8 的 slope_up level 5/7 诊断变为 8/8、零 reset/contact，确认旧失败完全
+来自 scan 跨 patch。以下旧 JSON 无效，不得用于模型结论：
+
+```text
+route_baseline_continuous_line_follow_clean_seed42.json
+route_baseline_continuous_slope_up_open_loop_clean_seed42.json
+route_diagnostic_continuous_slope_up_v0_4_clean_seed42.json
+```
+
+### 最终 V7 baseline
+
+共同设置：V7 `model_13600.pt`、`Unitree-Go2-Rough-V7`、seed 42、body forward
+command `0.6 m/s`、最多 1000 steps、line-follow，route `6.0 m`。
+
+Clean：4 cases x 4 levels (`0/3/5/7`) x 4 repeats = 64 attempts：
+
+```text
+case          completion   lateral RMS   heading RMS   final pos err   slip    action acc
+stairs_up       16/16        0.0529 m       0.54 deg      0.0074 m     0.0430    0.1108
+stairs_down     16/16        0.0221 m       1.26 deg      0.0070 m     0.0414    0.0956
+slope_up        16/16        0.0255 m       0.29 deg      0.0086 m     0.0320    0.1002
+slope_down      16/16        0.0094 m       1.08 deg      0.0096 m     0.0470    0.0896
+overall         64/64
+reset / fell/base/upper/calf: 0 / 0/0/0/0
+terrain_assignment_position_error_max: 0
+```
+
+Randomized 同一 64 attempts：`64/64`，零 reset/termination；各 case final position
+error 约 `0.029..0.033 m`，slip `0.040..0.050`，action acceleration
+`0.247..0.265`。
+
+参数化初始误差 clean：levels `3/7`、2 repeats、cross-track/yaw 各
+`-0.2/0/+0.2`，共 144 attempts：`144/144`，零 reset/termination。各 case lateral
+RMS `0.0395..0.0763 m`，heading RMS `1.72..2.46 deg`，final position error
+`0.0073..0.0100 m`。
+
+最终有效 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_continuous_line_follow_scanfixed_clean_seed42.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_continuous_line_follow_scanfixed_randomized_seed42.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_continuous_line_follow_offsets_scanfixed_clean_seed42.json
+```
+
+Test Agent 在最终 integration HEAD `3b2b471` 给出 PASS：41/41 route/terrain tests、
+py_compile、CLI contract、V7 registration/import、diff-check、GPU metrics 和 process
+检查全部通过；所有 worktree clean，无残留训练/评估进程。
+
+结论：完整直线 stairs/slope approach->feature->exit gate 已通过，且没有暴露需要
+训练的单一 locomotion 短板。因此不启动 2048-env PPO，继续默认部署 V7
+`model_13600.pt`。Coverage 是真实的 intra-patch continuous transition，不宣称
+inter-patch 世界连续性。下一阶段可按原顺序增加圆弧、S 弯、forward+yaw、
+stop-and-go 和急转恢复 evaluator；先评估，再决定是否存在训练变量。

@@ -50,15 +50,21 @@ flat line-follow randomized:          144/144 complete
 所有正式 JSON 位于 V7 run 目录，前缀为 `route_baseline_`；详细命令、路径和指标见
 `docs/PROJECT_JOURNAL.md` 的 `2026-07-15` 章节。
 
-重要限制：当前 evaluator 只测独立的 8 m x 8 m generated terrain patch。
-`pyramid_stairs`/`pyramid_stairs_inv` 从中央平台向外只覆盖下/上一段台阶，不能宣称
-完整楼梯入口到出口已通过。现有 terrain 没有 flat-to-stairs、slope-to-flat 等真实
-连续 geometry；JSON 明确标记 continuous transitions unsupported。
+现已增加 evaluation-only continuous suite：同一 8 m x 4 m patch 内包含入口平地、
+完整 stairs/slope 和出口平地，四类为 stairs/slope up/down。它不注册训练 task，
+不修改 V7 配置或 checkpoint。最终 scan-safe contract 是 start `1.0 m`、feature
+`2.0..4.4 m`、end `7.0 m`、route `6.0 m`；terrain scan `+-0.8 m` 不跨 patch。
 
-下一步先实现/校准连续 transition terrain 与合法入口 pose，特别是 non-flat 起点
-的 terrain-aware root z；然后用相同 evaluator 验证完整直线楼梯和连续过渡。
-在该 gate 通过前，不做圆弧/S 弯，不修改 reward/command distribution/gait，
-不启动 2048-env PPO。当前 baseline 没有显示需要立刻训练的单一 locomotion 短板。
+最终 V7 continuous baseline：clean `64/64`、randomized `64/64`、带
+`+-0.2 m` cross-track 和 `+-0.2 rad` yaw 初始偏差的 clean `144/144`，全部零 reset、
+零 termination，terrain placement error 为 0。Test Agent 在最终 HEAD `3b2b471`
+给出 PASS（41/41 tests）。直线完整楼梯/坡地过渡 gate 已通过，没有证据支持此时
+修改 reward 或启动 PPO；V7 `model_13600.pt` 继续作为默认模型。
+
+Coverage 应准确表述为 `continuous_intra_patch_transitions=true`、
+`continuous_inter_patch_transitions=false`：已经证明单 patch 内 approach->feature->exit，
+没有证明跨生成 patch 的无缝世界。下一步可进入固定半径圆弧、S 弯、forward+yaw、
+stop-and-go 和急转恢复的路径 controller baseline；仍先评估，不先训练。
 
 当前项目：`/home/jensen/projects/unitree_rl_mjlab`
 
