@@ -17,6 +17,8 @@ from src.tasks.velocity.evaluation.route_terrains import (
   ROUTE_START_X,
   STEP_COUNT,
   STEP_WIDTH,
+  TERRAIN_SCAN_HALF_X,
+  TERRAIN_SCAN_SIZE_X,
   TERRAIN_KEY_TO_KIND,
   TERRAIN_KIND_TO_KEY,
   ContinuousRouteTerrainCfg,
@@ -34,10 +36,16 @@ class RouteTerrainProfileTest(unittest.TestCase):
     bounds = route_terrain_bounds()
     self.assertEqual(bounds["patch_x"], (0.0, 8.0))
     self.assertEqual(bounds["patch_y"], (0.0, 4.0))
-    self.assertEqual(bounds["route_x"], (ROUTE_START_X, ROUTE_END_X))
+    self.assertEqual(bounds["route_x"], (1.0, 7.0))
     self.assertEqual(bounds["feature_x"], (FEATURE_START_X, FEATURE_END_X))
     self.assertEqual(PATCH_SIZE, (8.0, 4.0))
-    self.assertAlmostEqual(ROUTE_LENGTH, 6.5)
+    self.assertAlmostEqual(ROUTE_LENGTH, 6.0)
+    self.assertAlmostEqual(TERRAIN_SCAN_SIZE_X, 1.6)
+    self.assertAlmostEqual(TERRAIN_SCAN_HALF_X, 0.8)
+    np.testing.assert_allclose(bounds["start_scan_x"], (0.2, 1.8))
+    np.testing.assert_allclose(bounds["end_scan_x"], (6.2, 7.8))
+    self.assertGreaterEqual(bounds["start_scan_x"][0], bounds["patch_x"][0])
+    self.assertLessEqual(bounds["end_scan_x"][1], bounds["patch_x"][1])
     self.assertEqual(STEP_COUNT, 8)
     self.assertAlmostEqual(STEP_COUNT * STEP_WIDTH, 2.4)
 
@@ -71,6 +79,25 @@ class RouteTerrainProfileTest(unittest.TestCase):
       )
       self.assertAlmostEqual(
         route_surface_height(kind, 1.0, FEATURE_END_X + 0.01),
+        metadata.exit_surface_z,
+      )
+
+      start_scan = np.linspace(
+        ROUTE_START_X - TERRAIN_SCAN_HALF_X,
+        ROUTE_START_X + TERRAIN_SCAN_HALF_X,
+        9,
+      )
+      end_scan = np.linspace(
+        ROUTE_END_X - TERRAIN_SCAN_HALF_X,
+        ROUTE_END_X + TERRAIN_SCAN_HALF_X,
+        9,
+      )
+      np.testing.assert_allclose(
+        route_surface_height(kind, 1.0, start_scan),
+        metadata.entry_surface_z,
+      )
+      np.testing.assert_allclose(
+        route_surface_height(kind, 1.0, end_scan),
         metadata.exit_surface_z,
       )
 

@@ -25,10 +25,12 @@ from mjlab.terrains.utils import make_plane
 
 
 PATCH_SIZE = (8.0, 4.0)
-ROUTE_START_X = 0.75
+TERRAIN_SCAN_SIZE_X = 1.6
+TERRAIN_SCAN_HALF_X = TERRAIN_SCAN_SIZE_X / 2.0
+ROUTE_START_X = 1.0
 FEATURE_START_X = 2.0
 FEATURE_END_X = 4.4
-ROUTE_END_X = 7.25
+ROUTE_END_X = 7.0
 ROUTE_LENGTH = ROUTE_END_X - ROUTE_START_X
 STEP_WIDTH = 0.3
 STEP_COUNT = int(round((FEATURE_END_X - FEATURE_START_X) / STEP_WIDTH))
@@ -93,6 +95,11 @@ def validate_route_terrain_parameters(
     0.0 <= ROUTE_START_X < FEATURE_START_X < FEATURE_END_X < ROUTE_END_X <= patch_size[0]
   ):
     raise ValueError("route feature bounds must lie inside the patch")
+  if (
+    ROUTE_START_X - TERRAIN_SCAN_HALF_X < 0.0
+    or ROUTE_END_X + TERRAIN_SCAN_HALF_X > patch_size[0]
+  ):
+    raise ValueError("terrain scan footprint must remain inside the patch")
   if STEP_COUNT <= 0 or not math.isclose(
     FEATURE_START_X + STEP_COUNT * STEP_WIDTH, FEATURE_END_X, abs_tol=1.0e-9
   ):
@@ -106,6 +113,14 @@ def route_terrain_bounds() -> dict[str, tuple[float, float]]:
     "patch_y": (0.0, PATCH_SIZE[1]),
     "route_x": (ROUTE_START_X, ROUTE_END_X),
     "feature_x": (FEATURE_START_X, FEATURE_END_X),
+    "start_scan_x": (
+      ROUTE_START_X - TERRAIN_SCAN_HALF_X,
+      ROUTE_START_X + TERRAIN_SCAN_HALF_X,
+    ),
+    "end_scan_x": (
+      ROUTE_END_X - TERRAIN_SCAN_HALF_X,
+      ROUTE_END_X + TERRAIN_SCAN_HALF_X,
+    ),
   }
 
 
@@ -413,6 +428,8 @@ __all__ = [
   "RouteTerrainMetadata",
   "STEP_COUNT",
   "STEP_WIDTH",
+  "TERRAIN_SCAN_HALF_X",
+  "TERRAIN_SCAN_SIZE_X",
   "TERRAIN_KEY_TO_KIND",
   "TERRAIN_KIND_TO_KEY",
   "continuous_route_difficulty_matrix",
