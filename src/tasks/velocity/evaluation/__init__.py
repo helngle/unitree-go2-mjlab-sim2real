@@ -13,6 +13,16 @@ from .routes import (
   world_to_body_velocity,
   wrap_to_pi,
 )
+from .curved_routes import (
+  ArcRoute,
+  ArcSpec,
+  SRoute,
+  arc_command_controller,
+  arc_route_errors,
+  make_arc_route,
+  make_s_route,
+  s_command_controller,
+)
 
 __all__ = [
   "AttemptUpdate",
@@ -26,4 +36,12 @@ __all__ = [
   "validate_route_parameters",
   "world_to_body_velocity",
   "wrap_to_pi",
+  "ArcRoute",
+  "ArcSpec",
+  "SRoute",
+  "arc_command_controller",
+  "arc_route_errors",
+  "make_arc_route",
+  "make_s_route",
+  "s_command_controller",
 ]
