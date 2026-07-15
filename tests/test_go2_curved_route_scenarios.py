@@ -3,6 +3,13 @@ import unittest
 
 import torch
 
+from scripts.evaluate_go2_curved_routes import (
+  PATCH_SIZE,
+  ROUTE_START_LOCAL,
+  CurvedRouteConfig,
+  _scenarios,
+  _validate_config,
+)
 from src.tasks.velocity.evaluation.curved_routes import (
   ArcSpec,
   arc_command_controller,
@@ -99,6 +106,32 @@ class SRouteGeometryTest(unittest.TestCase):
       ArcSpec(0.0, 1)
     with self.assertRaises(ValueError):
       ArcSpec(1.0, 0)
+
+
+class CurvedScenarioTest(unittest.TestCase):
+  def test_parameter_matrix_and_flat_patch_margin(self) -> None:
+    cfg = CurvedRouteConfig(
+      checkpoint="unused",
+      radii=(1.5, 4.0),
+      speeds=(0.3, 0.6),
+      turn_signs=(1, -1),
+      cross_track_offsets=(-0.2, 0.2),
+      yaw_offsets=(-0.2, 0.2),
+      repeats=2,
+    )
+    _validate_config(cfg)
+    self.assertEqual(len(_scenarios(cfg)), 2 * 2 * 2 * 2 * 2 * 2)
+    self.assertGreaterEqual(ROUTE_START_LOCAL[0], 0.8)
+    self.assertGreaterEqual(ROUTE_START_LOCAL[1] - 4.0, 0.8)
+    self.assertGreaterEqual(PATCH_SIZE[1] - (ROUTE_START_LOCAL[1] + 4.0), 0.8)
+
+  def test_command_tape_rejects_initial_offsets(self) -> None:
+    with self.assertRaises(ValueError):
+      _validate_config(
+        CurvedRouteConfig(
+          checkpoint="unused", mode="command_tape", yaw_offsets=(0.2,)
+        )
+      )
 
 
 if __name__ == "__main__":
