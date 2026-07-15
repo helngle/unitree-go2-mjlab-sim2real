@@ -11,6 +11,29 @@ global/parameterized path
 -> measured path/terrain completion
 ```
 
+当前 curved-route integration 分支为 `exp/curved-route-integration`，曲线路径
+代码/测试基线为 `e95a4bc`。新增固定半径圆弧/S 弯纯 tensor geometry、`command_tape` 和
+`closed_loop` evaluator，以及独立 acceptance tests。Test Agent 在最终 HEAD
+给出 PASS：34/34 tests、py_compile、CLI、V7 registration/import、非法 steps、
+diff-check 和两项 GPU smoke 均通过；placement error 为 0、无 reset、JSON finite。
+
+V7 clean arc baseline：真正按理想时间调度的 command-tape 为 `0/18` completion，
+progress ratio `0.812..0.922`；closed-loop 在 1200 steps 为 `16/18`，两项
+`r=4.0,v=0.3` 增加到 1600 steps 后 `2/2` 完成，故足够时长下闭环圆弧通过。
+无证据授权修改 policy：本阶段未启动训练、没有新 checkpoint。下一步先跑 S 弯，
+再做 randomized/rough 曲线路径；楼梯曲线必须先验证 corridor geometry。
+
+有效 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_curved_arc_command_tape_clean_seed42_18env_1200steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_curved_arc_closed_loop_clean_seed42_18env_1200steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_curved_arc_closed_loop_r4v03_clean_seed42_2env_1600steps.json
+```
+
+旧的 `route_baseline_curved_arc_command_tape_clean_seed42_72.json` 使用了随实际
+progress 无限延长命令的错误 tape 语义，结论无效，不得引用。
+
 默认部署模型仍为：
 
 ```text

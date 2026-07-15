@@ -2424,3 +2424,51 @@ column/level/origin 保持不变，placement error `0`，初始 root clearance `
 出口，progress `9.20 m`，base relative z 从 `0.32 m` 上升到最高 `0.955 m` 后
 回到 `0.319 m`；无 reset/termination，lateral final `0.097 m`。几何 ray、CLI、
 配置和完整 policy rollout 均通过。
+
+### 2026-07-15 参数化圆弧 baseline（未训练）
+
+目的：验证统一 V7 policy 在固定半径圆弧上的 `body-frame vx, vy, yaw` 路径闭环，
+并区分固定命令时序的 locomotion 执行能力与 closed-loop path controller 的补偿能力。
+实现已整合到 integration 代码/测试基线 `e95a4bc`（关键实现 `b4f48c6`，acceptance
+`e95a4bc`）；测试 worktree 独立提交为 `dacad5c`。唯一评估模型为 V7：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+实现契约：左曲率为正、`wz = sign * vx / radius`；command-tape 按理想时间
+`ceil(length / (speed * control_dt))` 发送命令，运动段后发送零命令并等待 settle；
+S 弯按 step index 切换曲率，不依赖实际位置；所有 radius/speed/sign 场景在一个
+batched environment 中执行。reset 后 attempt 进度冻结，
+`terrain_assignment_position_error_max` 纳入 JSON。此前继续按实际 progress 发 tape
+命令的 JSON `.../route_baseline_curved_arc_command_tape_clean_seed42_72.json`
+判定为无效，不得用于模型结论。
+
+验证结果：
+
+```text
+纯几何/场景/acceptance 测试：34/34 PASS
+py_compile、CLI、V7 registration/import、非法 steps、git diff --check：PASS
+GPU smoke：placement error 0、reset 0、JSON finite；生命周期正确冻结为 tape_end
+```
+
+有效 clean arc command-tape 矩阵（18 场景，steps=1200）保存为
+`logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_curved_arc_command_tape_clean_seed42_18env_1200steps.json`。
+completion `0/18`，progress ratio
+约 `0.812..0.922`，无 reset；其中 required yaw 在 V7 general 分布内的场景也未能
+在理想时长内走完，说明固定时序下存在实际前进速度不足。该结果是诊断，不是网页
+或 evaluator 生命周期错误。
+
+同矩阵 closed-loop 保存为
+`logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_curved_arc_closed_loop_clean_seed42_18env_1200steps.json`：
+`16/18` 在 1200 steps 完成，剩余 `r=4.0,v=0.3` 两项仅因步数上限为
+`step_limit`；将这两项单独增加到 1600 steps 后为 `2/2` 完成，JSON 为
+`logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_curved_arc_closed_loop_r4v03_clean_seed42_2env_1600steps.json`。
+其闭环误差约
+`0.002..0.019 m` lateral RMS、`0.014..0.051 rad` heading RMS，无 reset。
+
+结论：V7 的 closed-loop 圆弧执行在足够时长下通过，command-tape 暴露的欠速尚
+不足以证明需要改 policy；当前不满足“tape 与 closed-loop 均对 ID 命令失败”的
+训练授权条件。未启动 2048-env PPO，未产生新 checkpoint；继续默认使用
+`model_13600.pt`，下一步先跑 S 弯和 randomized/rough 扩展，再决定是否存在单一
+训练变量。
