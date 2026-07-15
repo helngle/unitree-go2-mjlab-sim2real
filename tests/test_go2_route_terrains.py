@@ -168,7 +168,16 @@ class RouteTerrainSpecTest(unittest.TestCase):
         self.assertAlmostEqual(measured, metadata.entry_surface_z, delta=0.06)
 
   def test_generated_geometry_matches_profile_at_safe_samples(self) -> None:
-    samples = (0.9, 1.5, 2.15, 2.75, 3.65, 4.55, 6.5, 7.1)
+    samples = (
+      ROUTE_START_X - TERRAIN_SCAN_HALF_X,
+      ROUTE_START_X + TERRAIN_SCAN_HALF_X,
+      2.15,
+      2.75,
+      3.65,
+      4.55,
+      ROUTE_END_X - TERRAIN_SCAN_HALF_X,
+      ROUTE_END_X + TERRAIN_SCAN_HALF_X,
+    )
     for kind in TERRAIN_KIND_TO_KEY:
       with self.subTest(kind=kind):
         model = self._compile_profile(kind, 0.6)
