@@ -39,6 +39,7 @@ from src.tasks.velocity.evaluation.curved_routes import (
   arc_command_controller,
   arc_route_errors,
   make_arc_route,
+  make_command_tape_schedule,
   make_s_route,
   s_command_controller,
   s_route_errors,
@@ -129,6 +130,7 @@ class CurvedRouteConfig:
   cross_track_offsets: tuple[float, ...] = (0.0,)
   yaw_offsets: tuple[float, ...] = (0.0,)
   repeats: int = 1
+  settle_steps: int = 10
   cross_track_gain: float = 1.2
   heading_gain: float = 1.0
   max_lateral_speed: float = 0.3
@@ -156,6 +158,21 @@ def _validate_config(cfg: CurvedRouteConfig) -> None:
     raise ValueError("turn_signs must contain only -1 or +1")
   if cfg.mode == "command_tape" and (any(abs(x) > 1e-8 for x in cfg.cross_track_offsets) or any(abs(x) > 1e-8 for x in cfg.yaw_offsets)):
     raise ValueError("command_tape isolates locomotion and requires zero initial offsets")
+  if cfg.settle_steps < 0:
+    raise ValueError("settle_steps must be nonnegative")
+  if cfg.mode == "command_tape":
+    required_steps = max(
+      make_command_tape_schedule(
+        cfg.route_kind, radius, speed, sign, 0.02, cfg.settle_steps
+      ).total_steps
+      for radius in cfg.radii
+      for speed in cfg.speeds
+      for sign in cfg.turn_signs
+    )
+    if cfg.steps < required_steps:
+      raise ValueError(
+        f"command_tape requires steps >= {required_steps}, got {cfg.steps}"
+      )
 
 
 def _scenarios(cfg: CurvedRouteConfig) -> list[dict[str, Any]]:
@@ -168,6 +185,20 @@ def _scenarios(cfg: CurvedRouteConfig) -> list[dict[str, Any]]:
     for yaw in cfg.yaw_offsets
     for repeat in range(cfg.repeats)
   ]
+
+
+def _scenario_group_indices(
+  scenarios: list[dict[str, Any]],
+) -> dict[tuple[float, float, int], list[int]]:
+  """Group scenario indices without changing or duplicating their order."""
+  groups: dict[tuple[float, float, int], list[int]] = {}
+  for index, scenario in enumerate(scenarios):
+    key = (scenario["radius"], scenario["speed"], scenario["turn_sign"])
+    groups.setdefault(key, []).append(index)
+  covered = [index for indices in groups.values() for index in indices]
+  if sorted(covered) != list(range(len(scenarios))) or len(set(covered)) != len(covered):
+    raise RuntimeError("scenario groups must cover every index exactly once")
+  return groups
 
 
 def _route_errors(route: ArcRoute | SRoute, pos: torch.Tensor, heading: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -202,15 +233,16 @@ def _place_routes(env: ManagerBasedRlEnv, cross_offsets: torch.Tensor, yaw_offse
   return route_start, placement_error, clearance
 
 
-def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]) -> dict[str, Any]:
-  exemplar = scenario_group[0]
-  radius, speed, turn_sign = exemplar["radius"], exemplar["speed"], exemplar["turn_sign"]
+def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]]) -> dict[str, Any]:
+  """Run all curve parameter combinations in one vectorized environment."""
+  num_envs = len(scenarios)
+  group_indices = _scenario_group_indices(scenarios)
   env_cfg = load_env_cfg(cfg.task_id)
   agent_cfg = load_rl_cfg(cfg.task_id)
   terrain_cfg = env_cfg.scene.terrain
   assert terrain_cfg is not None
   terrain_cfg.terrain_generator = make_curved_flat_generator(cfg.seed)
-  env_cfg.scene.num_envs = len(scenario_group)
+  env_cfg.scene.num_envs = num_envs
   env_cfg.seed = cfg.seed
   env_cfg.curriculum = {}
   profile = _configure_profile(env_cfg, cfg.profile)
@@ -225,7 +257,7 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
   command_cfg.rel_standing_envs = 0.0
   command_cfg.init_velocity_prob = 0.0
   command_cfg.resampling_time_range = (1e9, 1e9)
-  command_cfg.ranges.lin_vel_x = (speed, speed)
+  command_cfg.ranges.lin_vel_x = (min(cfg.speeds), max(cfg.speeds))
   command_cfg.ranges.lin_vel_y = (-cfg.max_lateral_speed, cfg.max_lateral_speed)
   command_cfg.ranges.ang_vel_z = (-cfg.max_yaw_rate, cfg.max_yaw_rate)
   command_cfg.ranges.heading = None
@@ -237,31 +269,69 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
   runner.load(str(Path(cfg.checkpoint).expanduser().resolve()), load_cfg={"actor": True}, strict=True, map_location="cuda:0")
   policy = runner.get_inference_policy(device="cuda:0")
   device = env.device
-  cross_offsets = torch.tensor([s["cross_track_offset"] for s in scenario_group], device=device)
-  yaw_offsets = torch.tensor([s["yaw_offset"] for s in scenario_group], device=device)
+  cross_offsets = torch.tensor([s["cross_track_offset"] for s in scenarios], device=device)
+  yaw_offsets = torch.tensor([s["yaw_offset"] for s in scenarios], device=device)
   route_start, placement_error, clearance = _place_routes(env, cross_offsets, yaw_offsets)
   robot = env.scene["robot"]
-  route: ArcRoute | SRoute
-  route = make_arc_route(route_start, torch.zeros(len(scenario_group), device=device), radius, turn_sign) if cfg.route_kind == "arc" else make_s_route(route_start, torch.zeros(len(scenario_group), device=device), radius, turn_sign)
-  initial_progress, initial_cross, initial_heading_error = _route_errors(
-    route, robot.data.root_link_pos_w[:, :2], robot.data.heading_w
+
+  route_groups: dict[tuple[float, float, int], tuple[torch.Tensor, ArcRoute | SRoute]] = {}
+  tape_schedules = {}
+  route_lengths = torch.zeros(num_envs, device=device)
+  endpoints = torch.zeros(num_envs, 2, device=device)
+  endpoint_headings = torch.zeros(num_envs, device=device)
+  for key, indices in group_indices.items():
+    radius, _, turn_sign = key
+    ids = torch.tensor(indices, dtype=torch.long, device=device)
+    starts = route_start.index_select(0, ids)
+    headings = torch.zeros(len(indices), device=device)
+    route: ArcRoute | SRoute = (
+      make_arc_route(starts, headings, radius, turn_sign)
+      if cfg.route_kind == "arc"
+      else make_s_route(starts, headings, radius, turn_sign)
+    )
+    route_groups[key] = (ids, route)
+    tape_schedules[key] = make_command_tape_schedule(
+      cfg.route_kind, radius, key[1], turn_sign,
+      float(profile["control_dt"]), cfg.settle_steps,
+    )
+    route_lengths[ids] = route.length
+    endpoint, endpoint_heading = route.pose_at(route.length)
+    endpoints[ids] = endpoint
+    endpoint_headings[ids] = endpoint_heading
+
+  def route_states(
+    positions: torch.Tensor, headings: torch.Tensor
+  ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    progress = torch.zeros(num_envs, device=device)
+    cross = torch.zeros_like(progress)
+    heading_error = torch.zeros_like(progress)
+    for ids, route in route_groups.values():
+      p, c, h = _route_errors(
+        route, positions.index_select(0, ids), headings.index_select(0, ids)
+      )
+      progress[ids], cross[ids], heading_error[ids] = p, c, h
+    return progress, cross, heading_error
+
+  initial_progress, initial_cross, initial_heading_error = route_states(
+    robot.data.root_link_pos_w[:, :2], robot.data.heading_w
   )
   if torch.max(initial_progress.abs()) > 1e-4 or torch.max((initial_cross - cross_offsets).abs()) > 1e-4 or torch.max((initial_heading_error - yaw_offsets).abs()) > 1e-4:
     raise RuntimeError("curved route initialization does not match requested offsets")
   command_term = env.command_manager.get_term("twist")
   if not isinstance(command_term, UniformVelocityCommand):
     raise TypeError("twist command term is not UniformVelocityCommand-compatible")
-  active = torch.ones(len(scenario_group), dtype=torch.bool, device=device)
+  active = torch.ones(num_envs, dtype=torch.bool, device=device)
   completed = torch.zeros_like(active)
-  reset_count = torch.zeros(len(scenario_group), dtype=torch.long, device=device)
-  samples = torch.zeros(len(scenario_group), device=device)
+  failed = torch.zeros_like(active)
+  reset_count = torch.zeros(num_envs, dtype=torch.long, device=device)
+  samples = torch.zeros(num_envs, device=device)
   cross_sq = torch.zeros_like(samples); heading_sq = torch.zeros_like(samples)
   cross_max = torch.zeros_like(samples); heading_max = torch.zeros_like(samples)
   final_progress = torch.zeros_like(samples); final_cross = torch.zeros_like(samples); final_heading = torch.zeros_like(samples)
   final_position = robot.data.root_link_pos_w[:, :2].clone()
-  cmd_sum = torch.zeros(len(scenario_group), 3, device=device); actual_sum = torch.zeros_like(cmd_sum)
+  cmd_sum = torch.zeros(num_envs, 3, device=device); actual_sum = torch.zeros_like(cmd_sum)
   cross_velocity_sum = torch.zeros_like(samples); slip_sum = torch.zeros_like(samples); action_acc_sum = torch.zeros_like(samples)
-  first_reason: list[str | None] = [None] * len(scenario_group)
+  first_reason: list[str | None] = [None] * num_envs
   termination_counts = {name: torch.zeros_like(samples) for name in env.termination_manager.active_terms}
   try:
     feet_sensor = env.scene["feet_ground_contact"]
@@ -273,17 +343,32 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
     if not active.any():
       break
     pre_pos = robot.data.root_link_pos_w[:, :2].clone(); pre_heading = robot.data.heading_w.clone()
-    pre_progress, pre_cross, pre_heading_error = _route_errors(route, pre_pos, pre_heading)
-    if cfg.mode == "command_tape":
-      if isinstance(route, ArcRoute):
-        command = route.command_tape(torch.full((len(scenario_group),), speed, device=device))
+    pre_progress, pre_cross, pre_heading_error = route_states(pre_pos, pre_heading)
+    command = torch.zeros(num_envs, 3, device=device)
+    step_index = _
+    for key, (ids, route) in route_groups.items():
+      radius, speed, turn_sign = key
+      group_progress = pre_progress.index_select(0, ids)
+      if cfg.mode == "command_tape":
+        tape_command = tape_schedules[key].command_at(
+          step_index, device=device, dtype=pre_pos.dtype
+        )
+        group_command = tape_command.expand(len(ids), -1)
       else:
-        use_second = pre_progress >= route.first.length
-        curvature = torch.where(use_second, torch.full_like(pre_progress, route.second.spec.curvature), torch.full_like(pre_progress, route.first.spec.curvature))
-        command = torch.stack((torch.full_like(pre_progress, speed), torch.zeros_like(pre_progress), curvature * speed), dim=-1)
-    else:
-      controller = arc_command_controller if isinstance(route, ArcRoute) else s_command_controller
-      command = controller(route, pre_pos, pre_heading, target_speed=speed, cross_track_gain=cfg.cross_track_gain, heading_gain=cfg.heading_gain, max_lateral_speed=cfg.max_lateral_speed, max_yaw_rate=cfg.max_yaw_rate)
+        controller = (
+          arc_command_controller if isinstance(route, ArcRoute) else s_command_controller
+        )
+        group_command = controller(
+          route,
+          pre_pos.index_select(0, ids),
+          pre_heading.index_select(0, ids),
+          target_speed=speed,
+          cross_track_gain=cfg.cross_track_gain,
+          heading_gain=cfg.heading_gain,
+          max_lateral_speed=cfg.max_lateral_speed,
+          max_yaw_rate=cfg.max_yaw_rate,
+        )
+      command[ids] = group_command
     command = torch.where(active.unsqueeze(-1), command, 0.0)
     command_term.vel_command_b[:] = command
     observation = wrapped.get_observations()
@@ -295,11 +380,24 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
     reset = dones.bool()
     reset_count += (reset & active).long()
     post_pos = robot.data.root_link_pos_w[:, :2]; post_heading = robot.data.heading_w
-    post_progress, post_cross, post_heading_error = _route_errors(route, post_pos, post_heading)
+    post_progress, post_cross, post_heading_error = route_states(post_pos, post_heading)
     progress = torch.where(reset, pre_progress, post_progress)
     cross = torch.where(reset, pre_cross, post_cross)
     heading_error = torch.where(reset, pre_heading_error, post_heading_error)
-    lifecycle = update_attempt_status(active, progress, cross, heading_error, reset, route_length=route.length, cross_track_tolerance=cfg.cross_track_tolerance, heading_tolerance=cfg.heading_tolerance)
+    if cfg.mode == "command_tape":
+      completion_allowed = torch.zeros(num_envs, dtype=torch.bool, device=device)
+      tape_finished_now = torch.zeros_like(active)
+      for key, (ids, _) in route_groups.items():
+        schedule = tape_schedules[key]
+        completion_allowed[ids] = schedule.completion_allowed(step_index + 1)
+        tape_finished_now[ids] = schedule.tape_finished(step_index + 1)
+      gated_progress = torch.where(
+        completion_allowed, progress, torch.minimum(progress, route_lengths - 1e-5)
+      )
+    else:
+      gated_progress = progress
+      tape_finished_now = torch.zeros_like(active)
+    lifecycle = update_attempt_status(active, gated_progress, cross, heading_error, reset, route_length=route_lengths, cross_track_tolerance=cfg.cross_track_tolerance, heading_tolerance=cfg.heading_tolerance)
     sample = lifecycle.sample_mask.float(); samples += sample
     cross_sq += cross.square() * sample; heading_sq += heading_error.square() * sample
     cross_max = torch.maximum(cross_max, cross.abs() * sample); heading_max = torch.maximum(heading_max, heading_error.abs() * sample)
@@ -309,7 +407,10 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
     actual = torch.cat((robot.data.root_link_lin_vel_b[:, :2], robot.data.root_link_ang_vel_b[:, 2:3]), dim=-1)
     actual = torch.where(reset.unsqueeze(-1), torch.zeros_like(actual), actual)
     cmd_sum += command * sample.unsqueeze(-1); actual_sum += actual * sample.unsqueeze(-1)
-    _, expected_h = route.pose_at(progress)
+    expected_h = torch.zeros(num_envs, device=device)
+    for ids, route in route_groups.values():
+      _, group_heading = route.pose_at(progress.index_select(0, ids))
+      expected_h[ids] = group_heading
     world_v = torch.where(reset.unsqueeze(-1), torch.zeros_like(robot.data.root_link_lin_vel_w[:, :2]), robot.data.root_link_lin_vel_w[:, :2])
     cross_velocity_sum += route_normal_velocity(world_v, expected_h).abs() * sample
     if feet_sensor is not None:
@@ -323,16 +424,19 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
     for index in torch.where(lifecycle.failed_now)[0].tolist():
       names = [name for name in env.termination_manager.active_terms if bool(env.termination_manager.get_term(name)[index])]
       first_reason[index] = names[0] if names else "reset"
+    tape_failed = tape_finished_now & lifecycle.active
+    for index in torch.where(tape_failed)[0].tolist():
+      first_reason[index] = "tape_end"
     completed |= lifecycle.completed_now
-    active = lifecycle.active
+    failed |= lifecycle.failed_now | tape_failed
+    active = lifecycle.active & ~tape_failed
   for index in torch.where(active)[0].tolist():
     first_reason[index] = "step_limit"
-  endpoint, endpoint_heading = route.pose_at(route.length)
   denom = samples.clamp_min(1.0)
   outputs = []
-  for index, scenario in enumerate(scenario_group):
+  for index, scenario in enumerate(scenarios):
     mean_cmd = cmd_sum[index] / denom[index]; mean_actual = actual_sum[index] / denom[index]
-    required_yaw_rate = turn_sign * speed / radius
+    required_yaw_rate = scenario["turn_sign"] * scenario["speed"] / scenario["radius"]
     outputs.append({
       **scenario,
       "route_kind": cfg.route_kind,
@@ -341,10 +445,18 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
       "required_yaw_rate": required_yaw_rate,
       "general_yaw_in_distribution": abs(required_yaw_rate) <= 0.3 + 1e-8,
       "completed": bool(completed[index]),
+      "failed": bool(failed[index]),
+      "finished": bool(completed[index] | failed[index]),
       "path_completion": bool(completed[index]),
-      "arc_length": route.length,
+      "arc_length": float(route_lengths[index]),
+      "motion_steps": tape_schedules[
+        (scenario["radius"], scenario["speed"], scenario["turn_sign"])
+      ].motion_steps,
+      "settle_steps": tape_schedules[
+        (scenario["radius"], scenario["speed"], scenario["turn_sign"])
+      ].settle_steps,
       "arc_length_progress": float(final_progress[index]),
-      "arc_length_progress_ratio": float(final_progress[index] / route.length),
+      "arc_length_progress_ratio": float(final_progress[index] / route_lengths[index]),
       "lateral_rms": float(torch.sqrt(cross_sq[index] / denom[index])),
       "lateral_max": float(cross_max[index]),
       "lateral_final": float(final_cross[index]),
@@ -352,7 +464,7 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
       "heading_max": float(heading_max[index]),
       "heading_final": float(final_heading[index]),
       "final_heading_error": float(final_heading[index]),
-      "final_position_error": float(torch.norm(final_position[index] - endpoint[index])),
+      "final_position_error": float(torch.norm(final_position[index] - endpoints[index])),
       "commanded_velocity_xy_mean": [float(x) for x in mean_cmd[:2]],
       "actual_velocity_xy_mean": [float(x) for x in mean_actual[:2]],
       "commanded_yaw_rate_mean": float(mean_cmd[2]),
@@ -366,35 +478,32 @@ def _evaluate_group(cfg: CurvedRouteConfig, scenario_group: list[dict[str, Any]]
       "action_acceleration_mean": float(action_acc_sum[index] / denom[index]),
       "termination_counts": {name: float(value[index]) for name, value in termination_counts.items()},
       "route_start_xy": [float(x) for x in route_start[index]],
-      "route_endpoint_xy": [float(x) for x in endpoint[index]],
-      "route_endpoint_heading": float(endpoint_heading[index]),
+      "route_endpoint_xy": [float(x) for x in endpoints[index]],
+      "route_endpoint_heading": float(endpoint_headings[index]),
       "initial_root_clearance": float(clearance[index]),
     })
   env.close()
-  return {"profile_settings": profile, "terrain_assignment_position_error_max": placement_error, "scenarios": outputs}
+  return {
+    "profile_settings": profile,
+    "terrain_assignment_position_error_max": placement_error,
+    "num_envs": num_envs,
+    "scenarios": outputs,
+  }
 
 
 def evaluate(cfg: CurvedRouteConfig) -> dict[str, Any]:
   _validate_config(cfg)
   all_scenarios = _scenarios(cfg)
-  groups: dict[tuple[float, float, int], list[dict[str, Any]]] = {}
-  for scenario in all_scenarios:
-    groups.setdefault((scenario["radius"], scenario["speed"], scenario["turn_sign"]), []).append(scenario)
-  outputs: list[dict[str, Any]] = []
-  placement_max = 0.0
-  profile_settings = None
-  for group in groups.values():
-    result = _evaluate_group(cfg, group)
-    outputs.extend(result["scenarios"])
-    placement_max = max(placement_max, result["terrain_assignment_position_error_max"])
-    profile_settings = result["profile_settings"]
+  result = _evaluate_scenarios(cfg, all_scenarios)
+  outputs = result["scenarios"]
   completion = sum(item["completed"] for item in outputs) / max(len(outputs), 1)
   return {
     "config": asdict(cfg),
     "checkpoint": str(Path(cfg.checkpoint).expanduser().resolve()),
     "task_id": cfg.task_id,
-    "profile_settings": profile_settings,
-    "terrain_assignment_position_error_max": placement_max,
+    "profile_settings": result["profile_settings"],
+    "num_envs": result["num_envs"],
+    "terrain_assignment_position_error_max": result["terrain_assignment_position_error_max"],
     "coverage": {"flat_curves": True, "rough_curves": False, "terrain_transitions": False},
     "completion_rate": completion,
     "scenarios": outputs,

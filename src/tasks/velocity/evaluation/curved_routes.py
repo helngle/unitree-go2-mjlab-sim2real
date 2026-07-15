@@ -116,6 +116,92 @@ class SRoute:
     return xy, heading
 
 
+@dataclass(frozen=True)
+class CommandTapeSchedule:
+  """Ideal time schedule independent of the robot's realized progress."""
+
+  speed: float
+  first_curvature: float
+  second_curvature: float
+  first_motion_steps: int
+  second_motion_steps: int
+  settle_steps: int
+
+  @property
+  def motion_steps(self) -> int:
+    return self.first_motion_steps + self.second_motion_steps
+
+  @property
+  def total_steps(self) -> int:
+    return self.motion_steps + self.settle_steps
+
+  def command_at(
+    self,
+    step_index: int,
+    *,
+    device: torch.device | str | None = None,
+    dtype: torch.dtype = torch.float32,
+  ) -> torch.Tensor:
+    if step_index < 0:
+      raise ValueError("step_index must be nonnegative")
+    curvature = 0.0
+    if step_index < self.first_motion_steps:
+      curvature = self.first_curvature
+    elif step_index < self.motion_steps:
+      curvature = self.second_curvature
+    if step_index >= self.motion_steps:
+      return torch.zeros(3, device=device, dtype=dtype)
+    return torch.tensor(
+      [self.speed, 0.0, curvature * self.speed], device=device, dtype=dtype
+    )
+
+  def completion_allowed(self, step_index: int | torch.Tensor) -> bool | torch.Tensor:
+    """Whether geometric completion may be accepted after settle ends."""
+    if isinstance(step_index, torch.Tensor):
+      return step_index >= self.total_steps
+    return step_index >= self.total_steps
+
+  def tape_finished(self, step_index: int | torch.Tensor) -> bool | torch.Tensor:
+    """Whether the settle window has ended after this step count."""
+    if isinstance(step_index, torch.Tensor):
+      return step_index >= self.total_steps
+    return step_index >= self.total_steps
+
+
+def make_command_tape_schedule(
+  route_kind: str,
+  radius: float,
+  speed: float,
+  turn_sign: int,
+  control_dt: float,
+  settle_steps: int = 10,
+) -> CommandTapeSchedule:
+  """Construct an ideal arc/S command tape using ceil time discretization."""
+  sign = _validate_sign(turn_sign)
+  for name, value in (("radius", radius), ("speed", speed), ("control_dt", control_dt)):
+    if not math.isfinite(value) or value <= 0.0:
+      raise ValueError(f"{name} must be finite and positive")
+  if settle_steps < 0:
+    raise ValueError("settle_steps must be nonnegative")
+  if route_kind == "arc":
+    first_length = radius * math.pi / 2.0
+    second_steps = 0
+  elif route_kind == "s_curve":
+    first_length = radius * math.pi / 3.0
+    second_steps = math.ceil(first_length / (speed * control_dt))
+  else:
+    raise ValueError("route_kind must be 'arc' or 's_curve'")
+  first_steps = math.ceil(first_length / (speed * control_dt))
+  return CommandTapeSchedule(
+    speed=speed,
+    first_curvature=sign / radius,
+    second_curvature=(-sign / radius if route_kind == "s_curve" else 0.0),
+    first_motion_steps=first_steps,
+    second_motion_steps=second_steps,
+    settle_steps=settle_steps,
+  )
+
+
 def make_arc_route(start_xy: torch.Tensor, start_heading: torch.Tensor | float, radius: float, turn_sign: int, *, angle: float = math.pi / 2.0) -> ArcRoute:
   return ArcRoute(start_xy=start_xy, start_heading=start_heading, spec=ArcSpec(radius, turn_sign, angle))
 
@@ -206,4 +292,4 @@ def s_command_controller(route: SRoute, position_w_xy: torch.Tensor, heading_w: 
   return torch.where(done.unsqueeze(-1), torch.zeros_like(command), command)
 
 
-__all__ = ["ArcSpec", "ArcRoute", "SRoute", "make_arc_route", "make_s_route", "arc_route_errors", "s_route_errors", "arc_command_controller", "s_command_controller"]
+__all__ = ["ArcSpec", "ArcRoute", "SRoute", "CommandTapeSchedule", "make_arc_route", "make_s_route", "make_command_tape_schedule", "arc_route_errors", "s_route_errors", "arc_command_controller", "s_command_controller"]

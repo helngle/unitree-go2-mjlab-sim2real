@@ -9,11 +9,13 @@ from scripts.evaluate_go2_curved_routes import (
   ROUTE_START_LOCAL,
   CurvedRouteConfig,
   _configure_episode_length,
+  _scenario_group_indices,
   _scenarios,
   _validate_config,
 )
 from src.tasks.velocity.evaluation.curved_routes import (
   ArcSpec,
+  make_command_tape_schedule,
   arc_command_controller,
   arc_route_errors,
   make_arc_route,
@@ -159,6 +161,54 @@ class CurvedScenarioTest(unittest.TestCase):
     ]
     self.assertGreater(required[0], 0.3)
     self.assertLessEqual(required[1], 0.3)
+
+  def test_group_indices_cover_vectorized_environment_once(self) -> None:
+    scenarios = _scenarios(
+      CurvedRouteConfig(
+        checkpoint="unused",
+        radii=(1.5, 2.5, 4.0),
+        speeds=(0.3, 0.6),
+        turn_signs=(1, -1),
+        cross_track_offsets=(-0.2, 0.0, 0.2),
+        yaw_offsets=(-0.2, 0.0, 0.2),
+        repeats=2,
+      )
+    )
+    groups = _scenario_group_indices(scenarios)
+    covered = [index for indices in groups.values() for index in indices]
+    self.assertEqual(len(scenarios), 3 * 2 * 2 * 3 * 3 * 2)
+    self.assertEqual(len(groups), 3 * 2 * 2)
+    self.assertEqual(sorted(covered), list(range(len(scenarios))))
+    self.assertEqual(len(covered), len(set(covered)))
+
+  def test_arc_tape_schedule_is_time_based_and_settles(self) -> None:
+    schedule = make_command_tape_schedule("arc", 2.0, 0.5, 1, 0.02, 10)
+    self.assertEqual(schedule.motion_steps, math.ceil((2.0 * math.pi / 2.0) / 0.01))
+    self.assertEqual(schedule.total_steps, schedule.motion_steps + 10)
+    torch.testing.assert_close(
+      schedule.command_at(0), torch.tensor([0.5, 0.0, 0.25])
+    )
+    torch.testing.assert_close(
+      schedule.command_at(schedule.motion_steps), torch.zeros(3)
+    )
+    self.assertFalse(schedule.completion_allowed(schedule.motion_steps))
+    self.assertTrue(schedule.completion_allowed(schedule.total_steps))
+    self.assertFalse(schedule.tape_finished(schedule.total_steps - 1))
+    self.assertTrue(schedule.tape_finished(schedule.total_steps))
+
+  def test_s_tape_switches_by_schedule_step_not_actual_progress(self) -> None:
+    schedule = make_command_tape_schedule("s_curve", 4.0, 0.3, -1, 0.02, 10)
+    first = schedule.command_at(schedule.first_motion_steps - 1)
+    second = schedule.command_at(schedule.first_motion_steps)
+    torch.testing.assert_close(first[2], torch.tensor(-0.075))
+    torch.testing.assert_close(second[2], torch.tensor(0.075))
+    with self.assertRaises(ValueError):
+      _validate_config(
+        CurvedRouteConfig(
+          checkpoint="unused", route_kind="s_curve", mode="command_tape",
+          radii=(4.0,), speeds=(0.3,), turn_signs=(1,), steps=100,
+        )
+      )
 
 
 if __name__ == "__main__":
