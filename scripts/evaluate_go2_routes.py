@@ -1,11 +1,8 @@
 """Evaluate a unified Go2 policy on parameterized straight route attempts.
 
-The terrain generator origin is used as the route reference.  In this project
-the pyramid-stairs origin is the central high platform (outward travel is
-descending), while the inverted pyramid-stairs origin is the central low
-platform (outward travel is ascending).  This evaluator therefore reports
-``stairs_down``/``stairs_up`` semantics but does not claim a complete stair
-traversal unless the configured route length and start offset cover the patch.
+The default patch suite retains the original terrain-origin diagnostic. The
+continuous suite uses evaluation-only approach-flat -> feature -> exit-flat
+profiles with exact route origins and does not modify the training task.
 """
 
 from __future__ import annotations
@@ -39,6 +36,7 @@ from src.tasks.velocity.evaluation.routes import (
 
 RANDOMIZATION_EVENTS = ("foot_friction", "encoder_bias", "base_com", "base_payload", "motor_strength")
 PROFILE_NAMES = ("clean", "dynamics", "randomized")
+CONTINUOUS_NCONMAX = 128
 
 
 @dataclass(frozen=True)
@@ -46,6 +44,10 @@ class RouteConfig:
   checkpoints: tuple[str, ...]
   task_id: str = "Unitree-Go2-Rough-V7"
   mode: str = "line_follow"
+  terrain_suite: str = "patch"
+  transition_cases: tuple[str, ...] = (
+    "stairs_up", "stairs_down", "slope_up", "slope_down",
+  )
   terrain_types: tuple[str, ...] = (
     "flat", "pyramid_stairs", "pyramid_stairs_inv", "hf_pyramid_slope",
     "hf_pyramid_slope_inv", "random_rough", "discrete_obstacles",
@@ -56,7 +58,7 @@ class RouteConfig:
   yaw_offsets: tuple[float, ...] = (0.0,)
   route_heading: float = 0.0
   start_forward_offset: float = 0.0
-  route_length: float = 2.0
+  route_length: float | None = None
   target_speed: float = 0.4
   cross_track_gain: float = 1.2
   heading_gain: float = 1.0
@@ -68,6 +70,43 @@ class RouteConfig:
   seed: int = 42
   profile: str = "clean"
   output_file: str | None = None
+
+
+def _resolve_route_contract(cfg: RouteConfig) -> tuple[float, float, float]:
+  """Resolve route length, heading, and start offset for the selected suite."""
+  if cfg.terrain_suite == "patch":
+    return (
+      2.0 if cfg.route_length is None else cfg.route_length,
+      cfg.route_heading,
+      cfg.start_forward_offset,
+    )
+  if cfg.terrain_suite != "continuous":
+    raise ValueError("terrain_suite must be 'patch' or 'continuous'")
+
+  from src.tasks.velocity.evaluation.route_terrains import ROUTE_LENGTH
+
+  if cfg.route_length is not None and not np.isclose(cfg.route_length, ROUTE_LENGTH):
+    raise ValueError(
+      f"continuous terrain requires route_length={ROUTE_LENGTH}, "
+      f"got {cfg.route_length}"
+    )
+  if not np.isclose(cfg.route_heading, 0.0):
+    raise ValueError("continuous terrain requires route_heading=0")
+  if not np.isclose(cfg.start_forward_offset, 0.0):
+    raise ValueError("continuous terrain requires start_forward_offset=0")
+  return ROUTE_LENGTH, 0.0, 0.0
+
+
+def _configure_continuous_sim_capacity(env_cfg: Any) -> dict[str, int | None]:
+  """Raise contact capacity on the evaluation copy for custom route geometry."""
+  original = env_cfg.sim.nconmax
+  effective = (
+    CONTINUOUS_NCONMAX
+    if original is None
+    else max(int(original), CONTINUOUS_NCONMAX)
+  )
+  env_cfg.sim.nconmax = effective
+  return {"original": original, "effective": effective}
 
 
 def _column_terrain_names(generator_cfg) -> list[str]:
@@ -116,6 +155,63 @@ def _make_scenarios(cfg: RouteConfig, terrain_columns: dict[str, list[int]]) -> 
             else:
               direction = "straight"
             scenarios.append({"terrain_type": terrain_name, "terrain_column": column, "level": level, "repeat": repeat, "cross_track_offset": cross, "yaw_offset": yaw, "direction_semantics": direction})
+  return scenarios
+
+
+def _make_continuous_scenarios(
+  cfg: RouteConfig,
+  terrain_columns: dict[str, list[int]],
+) -> list[dict[str, Any]]:
+  from src.tasks.velocity.evaluation.route_terrains import (
+    TERRAIN_KIND_TO_KEY,
+    continuous_route_difficulty_matrix,
+    route_terrain_metadata,
+  )
+
+  unknown = sorted(set(cfg.transition_cases) - set(TERRAIN_KIND_TO_KEY))
+  if unknown:
+    raise ValueError(f"unknown continuous transition cases: {unknown}")
+  if not cfg.transition_cases:
+    raise ValueError("transition_cases must not be empty for continuous terrain")
+  difficulty_matrix = continuous_route_difficulty_matrix(cfg.seed)
+  scenarios: list[dict[str, Any]] = []
+  for transition_case in cfg.transition_cases:
+    terrain_name = TERRAIN_KIND_TO_KEY[transition_case]
+    columns = terrain_columns.get(terrain_name, [])
+    if len(columns) != 1:
+      raise ValueError(
+        f"continuous transition {transition_case!r} requires exactly one "
+        f"{terrain_name!r} column, got {columns}"
+      )
+    column = columns[0]
+    for requested_level in cfg.levels:
+      level = min(max(requested_level, 0), difficulty_matrix.shape[0] - 1)
+      difficulty = float(difficulty_matrix[level, column])
+      metadata = route_terrain_metadata(transition_case, difficulty)
+      for repeat in range(cfg.repeats):
+        for cross in cfg.cross_track_offsets:
+          for yaw in cfg.yaw_offsets:
+            scenarios.append(
+              {
+                "terrain_type": terrain_name,
+                "terrain_column": column,
+                "level": level,
+                "level_requested": requested_level,
+                "difficulty": difficulty,
+                "repeat": repeat,
+                "cross_track_offset": cross,
+                "yaw_offset": yaw,
+                "transition_case": transition_case,
+                "feature": metadata.family,
+                "direction": metadata.direction,
+                "direction_semantics": f"{metadata.family}_{metadata.direction}",
+                "entry_surface_z_local": metadata.entry_surface_z,
+                "exit_surface_z_local": metadata.exit_surface_z,
+                "net_height": metadata.exit_surface_z - metadata.entry_surface_z,
+                "step_height": metadata.step_height,
+                "slope": metadata.slope,
+              }
+            )
   return scenarios
 
 
@@ -175,24 +271,128 @@ def _set_terrain_and_route(env: ManagerBasedRlEnv, scenarios: list[dict[str, Any
   return route_start, route_headings, terrain.env_origins.clone(), float(placement_error)
 
 
+def _set_continuous_terrain_and_route(
+  env: ManagerBasedRlEnv,
+  scenarios: list[dict[str, Any]],
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, float, torch.Tensor]:
+  """Place roots at exact custom-profile origins after wrapper reset."""
+  terrain = env.scene.terrain
+  assert terrain is not None and terrain.terrain_origins is not None
+  robot = env.scene["robot"]
+  old_origins = terrain.env_origins.clone()
+  old_root_pos = robot.data.root_link_pos_w.clone()
+  base_clearance = old_root_pos[:, 2] - old_origins[:, 2]
+  device = env.device
+  levels = torch.tensor(
+    [item["level"] for item in scenarios], device=device, dtype=torch.long
+  )
+  columns = torch.tensor(
+    [item["terrain_column"] for item in scenarios],
+    device=device,
+    dtype=torch.long,
+  )
+  terrain.terrain_levels[:] = levels
+  terrain.terrain_types[:] = columns
+  terrain.env_origins[:] = terrain.terrain_origins[levels, columns]
+
+  route_start = terrain.env_origins[:, :2].clone()
+  route_headings = torch.zeros(len(scenarios), device=device)
+  cross_offsets = torch.tensor(
+    [item["cross_track_offset"] for item in scenarios], device=device
+  )
+  _, robot_start = straight_route_initial_positions(
+    route_start, route_headings, 0.0, cross_offsets
+  )
+  root_pose = robot.data.root_link_pose_w.clone()
+  root_pose[:, :2] = robot_start
+  root_pose[:, 2] = terrain.env_origins[:, 2] + base_clearance
+  old_heading = robot.data.heading_w.clone()
+  yaw_offsets = torch.tensor(
+    [item["yaw_offset"] for item in scenarios], device=device
+  )
+  root_pose[:, 3:7] = quat_mul(
+    quat_from_euler_xyz(
+      torch.zeros_like(yaw_offsets),
+      torch.zeros_like(yaw_offsets),
+      yaw_offsets - old_heading,
+    ),
+    root_pose[:, 3:7],
+  )
+  robot.write_root_link_pose_to_sim(root_pose)
+  env.scene.write_data_to_sim()
+  env.sim.forward()
+  env.sim.sense()
+
+  expected_position = torch.cat(
+    (robot_start, (terrain.env_origins[:, 2] + base_clearance).unsqueeze(-1)),
+    dim=-1,
+  )
+  placement_error = torch.max(
+    torch.abs(robot.data.root_link_pos_w - expected_position)
+  )
+  if placement_error > 1.0e-4:
+    raise RuntimeError(
+      "continuous terrain placement did not preserve the requested root pose: "
+      f"{placement_error.item():.6f}"
+    )
+  validate_initial_route_state(
+    robot.data.root_link_pos_w[:, :2],
+    robot.data.heading_w,
+    route_start,
+    route_headings,
+    cross_offsets,
+    yaw_offsets,
+  )
+  realized_clearance = robot.data.root_link_pos_w[:, 2] - terrain.env_origins[:, 2]
+  return (
+    route_start,
+    route_headings,
+    terrain.env_origins.clone(),
+    float(placement_error),
+    realized_clearance,
+  )
+
+
 def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   if cfg.mode not in {"open_loop", "line_follow"}:
     raise ValueError("mode must be 'open_loop' or 'line_follow'")
   if cfg.repeats <= 0 or cfg.steps <= 0:
     raise ValueError("repeats and steps must be positive")
-  validate_route_parameters(route_length=cfg.route_length, control_dt=0.02, cross_track_tolerance=cfg.cross_track_tolerance, heading_tolerance=cfg.heading_tolerance, target_speed=cfg.target_speed)
+  route_length, route_heading, start_forward_offset = _resolve_route_contract(cfg)
+  validate_route_parameters(route_length=route_length, control_dt=0.02, cross_track_tolerance=cfg.cross_track_tolerance, heading_tolerance=cfg.heading_tolerance, target_speed=cfg.target_speed)
   env_cfg = load_env_cfg(cfg.task_id)
   agent_cfg = load_rl_cfg(cfg.task_id)
   terrain_cfg = env_cfg.scene.terrain
   assert terrain_cfg is not None and terrain_cfg.terrain_generator is not None
+  if cfg.terrain_suite == "continuous":
+    from src.tasks.velocity.evaluation.route_terrains import (
+      make_continuous_route_terrain_generator,
+    )
+
+    terrain_cfg.terrain_generator = make_continuous_route_terrain_generator(
+      seed=cfg.seed
+    )
   column_names = _column_terrain_names(terrain_cfg.terrain_generator)
-  terrain_columns = {name: [i for i, column_name in enumerate(column_names) if column_name == name] for name in set(cfg.terrain_types)}
-  scenarios = _make_scenarios(cfg, terrain_columns)
+  requested_terrains = (
+    set(terrain_cfg.terrain_generator.sub_terrains)
+    if cfg.terrain_suite == "continuous"
+    else set(cfg.terrain_types)
+  )
+  terrain_columns = {name: [i for i, column_name in enumerate(column_names) if column_name == name] for name in requested_terrains}
+  scenarios = (
+    _make_continuous_scenarios(cfg, terrain_columns)
+    if cfg.terrain_suite == "continuous"
+    else _make_scenarios(cfg, terrain_columns)
+  )
   num_envs = len(scenarios)
   env_cfg.scene.num_envs = num_envs
   env_cfg.seed = cfg.seed
   env_cfg.curriculum = {}
   profile_settings = _configure_profile(env_cfg, cfg.profile)
+  if cfg.terrain_suite == "continuous":
+    capacity_override = _configure_continuous_sim_capacity(env_cfg)
+    profile_settings["continuous_sim_nconmax_override"] = capacity_override
+    profile_settings["sim_nconmax"] = env_cfg.sim.nconmax
   command_cfg = env_cfg.commands["twist"]
   if not isinstance(command_cfg, UniformVelocityCommandCfg):
     raise TypeError("V7 task command must implement UniformVelocityCommandCfg")
@@ -217,11 +417,21 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   # RslRlVecEnvWrapper construction resets the environment. Place routes only
   # after wrapper/runner initialization so the measured initial pose is the
   # pose used by the first rollout observation.
-  route_start, route_headings, terrain_origins, placement_error = (
-    _set_terrain_and_route(
-      env, scenarios, cfg.route_heading, cfg.start_forward_offset
+  if cfg.terrain_suite == "continuous":
+    (
+      route_start,
+      route_headings,
+      terrain_origins,
+      placement_error,
+      initial_root_clearance,
+    ) = _set_continuous_terrain_and_route(env, scenarios)
+  else:
+    route_start, route_headings, terrain_origins, placement_error = (
+      _set_terrain_and_route(
+        env, scenarios, route_heading, start_forward_offset
+      )
     )
-  )
+    initial_root_clearance = robot.data.root_link_pos_w[:, 2] - terrain_origins[:, 2]
   command_term = env.command_manager.get_term("twist")
   if not isinstance(command_term, UniformVelocityCommand):
     raise TypeError("twist command term is not UniformVelocityCommand-compatible")
@@ -269,7 +479,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       command_values[:] = 0.0
       command_values[:, 0] = cfg.target_speed
     else:
-      command_values = straight_line_controller(pre_pos, pre_heading, route_start, route_headings, target_speed=cfg.target_speed, cross_track_gain=cfg.cross_track_gain, heading_gain=cfg.heading_gain, max_lateral_speed=cfg.max_lateral_speed, max_yaw_rate=cfg.max_yaw_rate, route_length=cfg.route_length)
+      command_values = straight_line_controller(pre_pos, pre_heading, route_start, route_headings, target_speed=cfg.target_speed, cross_track_gain=cfg.cross_track_gain, heading_gain=cfg.heading_gain, max_lateral_speed=cfg.max_lateral_speed, max_yaw_rate=cfg.max_yaw_rate, route_length=route_length)
     command_values = torch.where(active.unsqueeze(-1), command_values, 0.0)
     command_term.vel_command_b[:] = command_values
     # The command is part of the actor observation. Refresh it before policy
@@ -299,12 +509,12 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
     candidate_progress = torch.where(reset_mask, state.progress, post_state.progress)
     candidate_cross = torch.where(reset_mask, state.cross_track, post_state.cross_track)
     candidate_heading = torch.where(reset_mask, state.heading_error, post_state.heading_error)
-    lifecycle = update_attempt_status(active, candidate_progress, candidate_cross, candidate_heading, reset_mask, route_length=cfg.route_length, cross_track_tolerance=cfg.cross_track_tolerance, heading_tolerance=cfg.heading_tolerance)
+    lifecycle = update_attempt_status(active, candidate_progress, candidate_cross, candidate_heading, reset_mask, route_length=route_length, cross_track_tolerance=cfg.cross_track_tolerance, heading_tolerance=cfg.heading_tolerance)
     sample = lifecycle.sample_mask
     sample_count += sample.float()
     cross_sq_sum += candidate_cross.square() * sample.float()
     heading_sq_sum += candidate_heading.square() * sample.float()
-    endpoint = route_start + torch.stack((cfg.route_length * torch.cos(route_headings), cfg.route_length * torch.sin(route_headings)), dim=-1)
+    endpoint = route_start + torch.stack((route_length * torch.cos(route_headings), route_length * torch.sin(route_headings)), dim=-1)
     candidate_position = torch.where(reset_mask.unsqueeze(-1), pre_pos, post_pos)
     position_error = torch.norm(candidate_position - endpoint, dim=-1)
     position_sq_sum += position_error.square() * sample.float()
@@ -353,19 +563,188 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   active[:] = False
   env.close()
   denom = sample_count.clamp_min(1.0)
-  endpoint = route_start + torch.stack((cfg.route_length * torch.cos(route_headings), cfg.route_length * torch.sin(route_headings)), dim=-1)
+  endpoint = route_start + torch.stack((route_length * torch.cos(route_headings), route_length * torch.sin(route_headings)), dim=-1)
   output_scenarios = []
   for index, scenario in enumerate(scenarios):
-    output_scenarios.append({**scenario, "completed": bool(completed[index]), "failed": bool(failed[index]), "first_failure_reason": first_reason[index], "reset_count": int(reset_count[index]), "steps_sampled": int(sample_count[index]), "steps_to_completion": int(completion_steps[index]) if completion_steps[index] >= 0 else None, "forward_progress": float(final_progress[index]), "lateral_rms": float(torch.sqrt(cross_sq_sum[index] / denom[index])), "lateral_max": float(cross_max[index]), "lateral_final": float(final_cross[index]), "heading_rms": float(torch.sqrt(heading_sq_sum[index] / denom[index])), "heading_max": float(heading_max[index]), "heading_final": float(final_heading[index]), "position_error_rms": float(torch.sqrt(position_sq_sum[index] / denom[index])), "position_error_final": float(torch.norm(final_position[index] - endpoint[index])), "actual_velocity_xy_mean": [float(value) for value in (actual_lin_sum[index] / denom[index])], "commanded_velocity_xy_mean": [float(value) for value in (command_lin_sum[index] / denom[index])], "actual_yaw_rate_mean": float(actual_yaw_sum[index] / denom[index]), "commanded_yaw_rate_mean": float(command_yaw_sum[index] / denom[index]), "cross_axis_velocity_mean": float(cross_axis_sum[index] / denom[index]), "slip_velocity_mean": float(slip_sum[index] / denom[index]), "action_acceleration_mean": float(action_acc_sum[index] / denom[index]), "route_start_xy": [float(value) for value in route_start[index]], "route_endpoint_xy": [float(value) for value in endpoint[index]], "initial_position_xy": [float(value) for value in initial_position[index]], "initial_heading": float(initial_heading[index]), "final_position_xy": [float(value) for value in final_position[index]], "terrain_origin_xyz": [float(value) for value in terrain_origins[index]], "termination_counts": {name: float(values[index]) for name, values in termination_counts.items()}})
+    final_position_error = float(torch.norm(final_position[index] - endpoint[index]))
+    scenario_output = {
+      **scenario,
+      "completed": bool(completed[index]),
+      "failed": bool(failed[index]),
+      "first_failure_reason": first_reason[index],
+      "reset_count": int(reset_count[index]),
+      "steps_sampled": int(sample_count[index]),
+      "steps_to_completion": (
+        int(completion_steps[index]) if completion_steps[index] >= 0 else None
+      ),
+      "forward_progress": float(final_progress[index]),
+      "lateral_rms": float(torch.sqrt(cross_sq_sum[index] / denom[index])),
+      "lateral_max": float(cross_max[index]),
+      "lateral_final": float(final_cross[index]),
+      "heading_rms": float(torch.sqrt(heading_sq_sum[index] / denom[index])),
+      "heading_max": float(heading_max[index]),
+      "heading_final": float(final_heading[index]),
+      "final_heading_error": float(final_heading[index]),
+      "position_error_rms": float(torch.sqrt(position_sq_sum[index] / denom[index])),
+      "position_error_final": final_position_error,
+      "final_position_error": final_position_error,
+      "actual_velocity_xy_mean": [
+        float(value) for value in (actual_lin_sum[index] / denom[index])
+      ],
+      "commanded_velocity_xy_mean": [
+        float(value) for value in (command_lin_sum[index] / denom[index])
+      ],
+      "actual_yaw_rate_mean": float(actual_yaw_sum[index] / denom[index]),
+      "commanded_yaw_rate_mean": float(command_yaw_sum[index] / denom[index]),
+      "cross_axis_velocity_mean": float(cross_axis_sum[index] / denom[index]),
+      "slip_velocity_mean": float(slip_sum[index] / denom[index]),
+      "action_acceleration_mean": float(action_acc_sum[index] / denom[index]),
+      "route_start_xy": [float(value) for value in route_start[index]],
+      "route_endpoint_xy": [float(value) for value in endpoint[index]],
+      "initial_position_xy": [float(value) for value in initial_position[index]],
+      "initial_heading": float(initial_heading[index]),
+      "initial_root_clearance": float(initial_root_clearance[index]),
+      "final_position_xy": [float(value) for value in final_position[index]],
+      "terrain_origin_xyz": [float(value) for value in terrain_origins[index]],
+      "termination_counts": {
+        name: float(values[index]) for name, values in termination_counts.items()
+      },
+    }
+    if cfg.terrain_suite == "continuous":
+      from src.tasks.velocity.evaluation.route_terrains import (
+        FEATURE_END_X,
+        FEATURE_START_X,
+        GENERATOR_NUM_ROWS,
+        PATCH_SIZE,
+        ROUTE_END_X,
+        ROUTE_START_X,
+      )
+
+      feature_start_progress = FEATURE_START_X - ROUTE_START_X
+      feature_end_progress = FEATURE_END_X - ROUTE_START_X
+      route_y = PATCH_SIZE[1] / 2.0
+      net_height = float(scenario["net_height"])
+      max_delta = (
+        abs(float(scenario["step_height"]))
+        if scenario["feature"] == "stairs"
+        else abs(float(scenario["slope"])) * 0.05
+      )
+      scenario_output.update(
+        {
+          "route_start_local": [ROUTE_START_X, route_y],
+          "feature_entry_local": [FEATURE_START_X, route_y],
+          "feature_exit_local": [FEATURE_END_X, route_y],
+          "route_endpoint_local": [ROUTE_END_X, route_y],
+          "feature_start_progress": feature_start_progress,
+          "feature_end_progress": feature_end_progress,
+          "start_surface_z": float(terrain_origins[index, 2]),
+          "endpoint_surface_z": float(terrain_origins[index, 2]) + net_height,
+          "difficulty_interval": [
+            scenario["level"] / GENERATOR_NUM_ROWS,
+            (scenario["level"] + 1) / GENERATOR_NUM_ROWS,
+          ],
+          "entry_junction_error": 0.0,
+          "exit_junction_error": 0.0,
+          "max_adjacent_height_delta": max_delta,
+          "route_inside_patch": True,
+          "min_boundary_margin": min(
+            ROUTE_START_X,
+            PATCH_SIZE[0] - ROUTE_END_X,
+            route_y,
+            PATCH_SIZE[1] - route_y,
+          ),
+          "boundary_margin_x": min(
+            ROUTE_START_X, PATCH_SIZE[0] - ROUTE_END_X
+          ),
+          "boundary_margin_y": min(route_y, PATCH_SIZE[1] - route_y),
+          "start_flat": True,
+          "endpoint_flat": True,
+        }
+      )
+    output_scenarios.append(scenario_output)
   completion_rate = sum(item["completed"] for item in output_scenarios) / max(len(output_scenarios), 1)
-  return {"checkpoint": str(checkpoint), "task_id": cfg.task_id, "seed": cfg.seed, "mode": cfg.mode, "profile": cfg.profile, "profile_settings": profile_settings, "num_envs": num_envs, "steps": cfg.steps, "terrain_assignment_position_error_max": placement_error, "coverage": {"independent_generated_patch_straight_routes": True, "continuous_inter_patch_transitions": False, "continuous_transition_status": "unsupported_deferred"}, "limitations": ["This evaluator assigns one generated terrain patch per route attempt; it does not implement or claim flat-to-stairs, stairs-to-flat, slope-to-flat, or other inter-patch transitions."], "route_definition": {"route_heading": cfg.route_heading, "start_forward_offset": cfg.start_forward_offset, "route_length": cfg.route_length, "cross_track_offsets": cfg.cross_track_offsets, "yaw_offsets": cfg.yaw_offsets, "terrain_origin_semantics": {"pyramid_stairs": "origin central high platform; outward route is descending", "pyramid_stairs_inv": "origin central low platform; outward route is ascending"}}, "completion_rate": completion_rate, "scenarios": output_scenarios, "termination_totals": {name: float(values.sum()) for name, values in termination_counts.items()}}
+  if cfg.terrain_suite == "continuous":
+    from src.tasks.velocity.evaluation.route_terrains import (
+      FEATURE_END_X,
+      FEATURE_START_X,
+      PATCH_SIZE,
+      ROUTE_END_X,
+      ROUTE_START_X,
+    )
+
+    coverage = {
+      "independent_generated_patch_straight_routes": False,
+      "continuous_intra_patch_transitions": True,
+      "continuous_inter_patch_transitions": False,
+      "continuous_transition_status": "implemented",
+      "transition_cases": list(cfg.transition_cases),
+    }
+    limitations = [
+      "Continuous routes cover approach-flat, one feature, and exit-flat "
+      "inside one custom evaluation patch; they do not cross patch boundaries."
+    ]
+    route_definition = {
+      "patch_size": list(PATCH_SIZE),
+      "start_local": [ROUTE_START_X, PATCH_SIZE[1] / 2.0],
+      "feature_x": [FEATURE_START_X, FEATURE_END_X],
+      "endpoint_local": [ROUTE_END_X, PATCH_SIZE[1] / 2.0],
+      "route_length": route_length,
+      "heading": route_heading,
+      "start_forward_offset": start_forward_offset,
+      "cross_track_offsets": list(cfg.cross_track_offsets),
+      "yaw_offsets": list(cfg.yaw_offsets),
+    }
+  else:
+    coverage = {
+      "independent_generated_patch_straight_routes": True,
+      "continuous_inter_patch_transitions": False,
+      "continuous_transition_status": "unsupported_deferred",
+    }
+    limitations = [
+      "This evaluator assigns one generated terrain patch per route attempt; "
+      "it does not implement or claim flat-to-stairs, stairs-to-flat, "
+      "slope-to-flat, or other inter-patch transitions."
+    ]
+    route_definition = {
+      "route_heading": route_heading,
+      "start_forward_offset": start_forward_offset,
+      "route_length": route_length,
+      "cross_track_offsets": cfg.cross_track_offsets,
+      "yaw_offsets": cfg.yaw_offsets,
+      "terrain_origin_semantics": {
+        "pyramid_stairs": "origin central high platform; outward route is descending",
+        "pyramid_stairs_inv": "origin central low platform; outward route is ascending",
+      },
+    }
+  return {
+    "checkpoint": str(checkpoint),
+    "task_id": cfg.task_id,
+    "seed": cfg.seed,
+    "mode": cfg.mode,
+    "profile": cfg.profile,
+    "terrain_suite": cfg.terrain_suite,
+    "profile_settings": profile_settings,
+    "num_envs": num_envs,
+    "steps": cfg.steps,
+    "terrain_assignment_position_error_max": placement_error,
+    "coverage": coverage,
+    "limitations": limitations,
+    "route_definition": route_definition,
+    "completion_rate": completion_rate,
+    "scenarios": output_scenarios,
+    "termination_totals": {
+      name: float(values.sum()) for name, values in termination_counts.items()
+    },
+  }
 
 
 def main() -> None:
   configure_torch_backends()
   cfg = tyro.cli(RouteConfig)
   results = [_evaluate_checkpoint(Path(path).expanduser().resolve(), cfg) for path in cfg.checkpoints]
-  output = {"config": asdict(cfg), "results": results}
+  config_output = asdict(cfg)
+  config_output["route_length"] = _resolve_route_contract(cfg)[0]
+  output = {"config": config_output, "results": results}
   output_path = Path(cfg.output_file) if cfg.output_file else Path("go2_route_evaluation.json")
   output_path.parent.mkdir(parents=True, exist_ok=True)
   output_path.write_text(json.dumps(output, indent=2) + "\n")

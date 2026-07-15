@@ -1,11 +1,19 @@
 """CPU-only tests for route-frame math and attempt lifecycle."""
 
 import math
+from types import SimpleNamespace
 import unittest
 
 import torch
 
-from scripts.evaluate_go2_routes import RouteConfig, _make_scenarios
+from scripts.evaluate_go2_routes import (
+  RouteConfig,
+  _column_terrain_names,
+  _configure_continuous_sim_capacity,
+  _make_continuous_scenarios,
+  _make_scenarios,
+  _resolve_route_contract,
+)
 from src.tasks.velocity.evaluation.routes import (
   route_frame_errors,
   route_normal_velocity,
@@ -144,6 +152,73 @@ class ScenarioCoverageTest(unittest.TestCase):
     self.assertEqual(scenarios[0]["direction_semantics"], "straight")
     self.assertEqual(scenarios[1]["direction_semantics"], "stairs_down")
     self.assertNotIn("transition", scenarios[0])
+
+  def test_continuous_contract_locks_geometry(self) -> None:
+    cfg = RouteConfig(checkpoints=("unused",), terrain_suite="continuous")
+    self.assertEqual(_resolve_route_contract(cfg), (6.5, 0.0, 0.0))
+    self.assertEqual(
+      _resolve_route_contract(RouteConfig(checkpoints=("unused",))),
+      (2.0, 0.0, 0.0),
+    )
+    invalid = (
+      RouteConfig(
+        checkpoints=("unused",), terrain_suite="continuous", route_length=6.4
+      ),
+      RouteConfig(
+        checkpoints=("unused",), terrain_suite="continuous", route_heading=0.1
+      ),
+      RouteConfig(
+        checkpoints=("unused",),
+        terrain_suite="continuous",
+        start_forward_offset=0.1,
+      ),
+    )
+    for invalid_cfg in invalid:
+      with self.assertRaises(ValueError):
+        _resolve_route_contract(invalid_cfg)
+
+  def test_continuous_scenario_matrix_and_metadata(self) -> None:
+    from src.tasks.velocity.evaluation.route_terrains import (
+      make_continuous_route_terrain_generator,
+    )
+
+    cfg = RouteConfig(
+      checkpoints=("unused",),
+      terrain_suite="continuous",
+      levels=(3, 7),
+      repeats=2,
+      cross_track_offsets=(0.0, 0.2),
+      yaw_offsets=(0.0, -0.1),
+    )
+    generator = make_continuous_route_terrain_generator(seed=cfg.seed)
+    column_names = _column_terrain_names(generator)
+    terrain_columns = {
+      name: [index for index, value in enumerate(column_names) if value == name]
+      for name in generator.sub_terrains
+    }
+    scenarios = _make_continuous_scenarios(cfg, terrain_columns)
+    self.assertEqual(len(scenarios), 4 * 2 * 2 * 2 * 2)
+    self.assertEqual(
+      {scenario["transition_case"] for scenario in scenarios},
+      {"stairs_up", "stairs_down", "slope_up", "slope_down"},
+    )
+    for scenario in scenarios:
+      self.assertEqual(scenario["direction"], scenario["transition_case"].split("_")[1])
+      self.assertGreaterEqual(scenario["difficulty"], scenario["level"] / 10)
+      self.assertLess(scenario["difficulty"], (scenario["level"] + 1) / 10)
+      expected_sign = 1 if scenario["direction"] == "up" else -1
+      self.assertGreater(expected_sign * scenario["net_height"], 0.0)
+
+  def test_continuous_suite_raises_contact_capacity_only_when_called(self) -> None:
+    env_cfg = SimpleNamespace(sim=SimpleNamespace(nconmax=35))
+    override = _configure_continuous_sim_capacity(env_cfg)
+    self.assertEqual(override, {"original": 35, "effective": 128})
+    self.assertEqual(env_cfg.sim.nconmax, 128)
+
+    already_large = SimpleNamespace(sim=SimpleNamespace(nconmax=256))
+    override = _configure_continuous_sim_capacity(already_large)
+    self.assertEqual(override, {"original": 256, "effective": 256})
+    self.assertEqual(already_large.sim.nconmax, 256)
 
 
 if __name__ == "__main__":
