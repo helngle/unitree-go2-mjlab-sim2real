@@ -25,6 +25,8 @@ Terrain 结果目前只算可信 smoke：没有 slip/action P95/max 和非终止
 contact rate，不能声称完整 formal complex-terrain gate。训练决策仍为 **NO-GO**，
 本轮未训练、没有新 checkpoint；默认模型继续是 V7 `model_13600.pt`。下一步先补齐
 terrain matched metric aggregation，再扩 high difficulty/transition，不改 reward/sampler。
+最终 Acceptance Agent 在 integration `f7e7ceb` 上给出 PASS：200 tests PASS、1 个按设计
+skip，关键 GPU JSON、CLI、V7 注册、worktree 和残留进程检查全部通过。
 
 ## 2026-07-16 S 弯瞬态与 randomized flat 结果（最新）
 

@@ -2762,3 +2762,8 @@ continuous transitions 或 stairs curves。
 训练；V7 `model_13600.pt` 继续作为默认模型。** 后续优先把 terrain rollout 接入
 matched P95/max 和非终止 contact 聚合，再扩大 high difficulty/transition 覆盖；不修改
 reward、sampler 或网络。
+
+最终 Acceptance Agent 在 integration `f7e7ceb` 上给出 **PASS**：全量 200 tests
+PASS、1 个未来 production sampler 接线测试按设计 skip；独立 matched/terrain 47/47
+PASS；编译、CLI、V7 注册、8 份关键 JSON finite 检查、worktree/process/GPU 清洁检查
+全部通过。Terrain coverage 仍严格保持 smoke-only 表述。
