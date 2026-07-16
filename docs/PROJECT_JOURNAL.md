@@ -2665,6 +2665,9 @@ checkpoint；没有启动 matched control/probe 或 PPO，没有新模型。现 
 Integration HEAD 的全量 Go2 unittest 为 `132 PASS + 1 intentional skip`；skip 仍是
 尚未授权的 production curve sampler/frozen-terrain wiring。相关 `py_compile`、CLI
 help、V7 task registration/load、五个正式 JSON finite 检查和 `git diff --check` 均
-通过。最终 Test Agent 仍需在包含本文档的最终 HEAD 上统一复跑并给出 PASS/FAIL。
+通过。Test Agent 在包含本文档的 integration tree `54b320e` 上最终判定 **PASS**：
+90 项 curved/S/transient/curriculum 测试通过、1 项同一 intentional skip；1-env/32-step
+GPU smoke 的 placement/reset 均为 `0`，transient schema 和 finite 检查通过。四个本轮
+worktree clean，无残留 train/evaluate/play 或 GPU compute 进程。
 
 最终结论：**NO-GO，未启动训练；V7 `model_13600.pt` 继续作为默认模型。**
