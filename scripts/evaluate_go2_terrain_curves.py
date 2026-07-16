@@ -41,6 +41,15 @@ from src.tasks.velocity.evaluation.terrain_curved_routes import (
   slope_direction_is_compatible,
   validate_route_footprint,
 )
+from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
+  ACTION_ACCELERATION_DEFINITION,
+  ACTIVE_SAMPLE_DEFINITION,
+  OnlineTerrainRolloutMetrics,
+  action_acceleration,
+  contact_any,
+  foot_contact_any,
+  foot_slip_velocity,
+)
 
 
 TERRAIN_KEYS: dict[TerrainCurveKind, str] = {
@@ -250,6 +259,7 @@ def _terrain_assignment(
 
 def _contact_termination_summary(
   termination_counts: dict[str, float],
+  rollout_metrics: dict[str, Any] | None = None,
 ) -> dict[str, dict[str, object]]:
   mapping = {
     "fell": "fell_over",
@@ -257,14 +267,48 @@ def _contact_termination_summary(
     "upper_leg": "illegal_upper_leg_contact",
     "calf": "illegal_calf_contact",
   }
-  return {
+  contacts = (
+    rollout_metrics.get("body_contacts", {})
+    if rollout_metrics is not None
+    else {}
+  )
+  result = {
     label: {
       "termination_count": termination_counts.get(term),
       "available": term in termination_counts,
-      "scope": "termination events; non-terminating contact rate is not retained",
+      "scope": (
+        "termination events only; non-terminating contact samples were not supplied"
+      ),
     }
     for label, term in mapping.items()
   }
+  for label in ("base", "upper_leg", "calf"):
+    if label in contacts:
+      result[label].update(contacts[label])
+      result[label]["scope"] = (
+        "contact-positive active control steps plus separately retained "
+        "catastrophic termination events"
+      )
+  return result
+
+
+def _sensor_contact(
+  env: ManagerBasedRlEnv, name: str, num_envs: int
+) -> torch.Tensor | None:
+  try:
+    return contact_any(env.scene[name].data.found, num_envs)
+  except KeyError:
+    return None
+
+
+def _catastrophic_termination(
+  env: ManagerBasedRlEnv, num_envs: int
+) -> torch.Tensor:
+  result = torch.zeros(num_envs, dtype=torch.bool, device=env.device)
+  for name in env.termination_manager.active_terms:
+    if not env.termination_manager.get_term_cfg(name).time_out:
+      result |= env.termination_manager.get_term(name).bool()
+  return result
 
 
 def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
@@ -273,6 +317,8 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
   capture: dict[str, Any] = {}
   original_generator = flat_curves.make_curved_flat_generator
   original_placement = flat_curves._place_routes
+  original_env_constructor = flat_curves.ManagerBasedRlEnv
+  original_transient_metrics = flat_curves.OnlineCommandTransientMetrics
 
   def generator(seed: int):
     return make_terrain_curve_generator(seed)
@@ -286,8 +332,80 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
       env, scenarios, cross_offsets, yaw_offsets, capture
     )
 
+  def env_constructor(*args: Any, **kwargs: Any) -> ManagerBasedRlEnv:
+    env = original_env_constructor(*args, **kwargs)
+    capture["rollout_env"] = env
+    return env
+
+  class TerrainMetricsHook:
+    """Delegate flat transient metrics and sample terrain evidence in lockstep."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+      self._delegate = original_transient_metrics(*args, **kwargs)
+      num_envs = int(args[0] if args else kwargs["num_envs"])
+      env = capture.get("rollout_env")
+      if env is None:
+        raise RuntimeError("terrain rollout environment was not captured")
+      self._env: ManagerBasedRlEnv = env
+      robot = self._env.scene["robot"]
+      self._foot_ids, _ = robot.find_sites(("FR", "FL", "RR", "RL"))
+      self._metrics = OnlineTerrainRolloutMetrics(
+        num_envs,
+        cfg.steps,
+        device=self._env.device,
+        dtype=robot.data.root_link_pos_w.dtype,
+      )
+      capture["rollout_metrics"] = self._metrics
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+      self._delegate.update(*args, **kwargs)
+      sample_mask = kwargs.get("sample_mask")
+      if sample_mask is None:
+        raise RuntimeError("flat terrain rollout did not provide sample_mask")
+      num_envs = self._metrics.num_envs
+      robot = self._env.scene["robot"]
+      try:
+        feet_found = self._env.scene["feet_ground_contact"].data.found
+      except KeyError:
+        slip = None
+      else:
+        foot_contact = foot_contact_any(
+          feet_found, num_envs, len(self._foot_ids)
+        )
+        slip = foot_slip_velocity(
+          robot.data.site_lin_vel_w[:, self._foot_ids, :2], foot_contact
+        )
+      self._metrics.update(
+        sample_mask=sample_mask,
+        action_acceleration=action_acceleration(
+          self._env.action_manager.action,
+          self._env.action_manager.prev_action,
+          self._env.action_manager.prev_prev_action,
+        ),
+        foot_slip_velocity=slip,
+        body_contacts={
+          "base": _sensor_contact(
+            self._env, "base_ground_contact", num_envs
+          ),
+          "upper_leg": _sensor_contact(
+            self._env, "upper_leg_ground_contact", num_envs
+          ),
+          "calf": _sensor_contact(
+            self._env, "calf_ground_contact", num_envs
+          ),
+        },
+        catastrophic_termination=_catastrophic_termination(
+          self._env, num_envs
+        ),
+      )
+
+    def result(self, env_index: int) -> dict[str, Any]:
+      return self._delegate.result(env_index)
+
   flat_curves.make_curved_flat_generator = generator
   flat_curves._place_routes = placement
+  flat_curves.ManagerBasedRlEnv = env_constructor
+  flat_curves.OnlineCommandTransientMetrics = TerrainMetricsHook
   try:
     raw = flat_curves._evaluate_scenarios(
       _base_config(cfg), scenarios
@@ -295,6 +413,12 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
   finally:
     flat_curves.make_curved_flat_generator = original_generator
     flat_curves._place_routes = original_placement
+    flat_curves.ManagerBasedRlEnv = original_env_constructor
+    flat_curves.OnlineCommandTransientMetrics = original_transient_metrics
+
+  rollout_metrics = capture.get("rollout_metrics")
+  if not isinstance(rollout_metrics, OnlineTerrainRolloutMetrics):
+    raise RuntimeError("terrain rollout metrics hook was not initialized")
 
   outputs = raw["scenarios"]
   for index, (scenario, output) in enumerate(zip(scenarios, outputs, strict=True)):
@@ -306,6 +430,14 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
       scenario["turn_sign"],
       corridor_half_width=cfg.corridor_half_width,
     )
+    terrain_metrics = rollout_metrics.result(index)
+    if terrain_metrics["active_control_step_samples"] != output["steps_sampled"]:
+      raise RuntimeError(
+        "terrain metric sample mask diverged from the reused route rollout"
+      )
+    action_distribution = terrain_metrics["action_acceleration"]
+    slip_distribution = terrain_metrics["foot_slip_velocity"]
+    body_contacts = terrain_metrics["body_contacts"]
     output.update({
       "terrain_type": TERRAIN_KEYS[kind],
       "terrain_curve_kind": kind,
@@ -331,14 +463,34 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
           cfg.route_kind, scenario["radius"], scenario["turn_sign"]
         ) if kind.startswith("slope") else None
       ),
+      "terrain_rollout_metrics": terrain_metrics,
+      "action_acceleration_mean": action_distribution["mean"],
+      "action_acceleration_p95": action_distribution["p95"],
+      "action_acceleration_max": action_distribution["max"],
+      "slip_velocity_mean": slip_distribution["mean"],
+      "slip_velocity_p95": slip_distribution["p95"],
+      "slip_velocity_max": slip_distribution["max"],
+      "base_contact_count": body_contacts["base"]["non_terminating_count"],
+      "base_contact_rate": body_contacts["base"]["non_terminating_rate"],
+      "upper_leg_contact_count": body_contacts["upper_leg"][
+        "non_terminating_count"
+      ],
+      "upper_leg_contact_rate": body_contacts["upper_leg"][
+        "non_terminating_rate"
+      ],
+      "calf_contact_count": body_contacts["calf"]["non_terminating_count"],
+      "calf_contact_rate": body_contacts["calf"]["non_terminating_rate"],
+      "catastrophic_termination": terrain_metrics["catastrophic_termination"][
+        "occurred"
+      ],
       "contact_termination_summary": _contact_termination_summary(
-        output["termination_counts"]
+        output["termination_counts"], terrain_metrics
       ),
     })
 
   completion = sum(item["completed"] for item in outputs) / max(len(outputs), 1)
   result = {
-    "schema_version": 1,
+    "schema_version": 2,
     "git_head": _git_head(),
     "config": asdict(cfg),
     "checkpoint": str(Path(cfg.checkpoint).expanduser().resolve()),
@@ -359,13 +511,20 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
       "continuous_approach_feature_exit": continuous_transition_coverage(),
       "stairs_curves": False,
     },
+    "metric_invariants": {
+      "sample_denominator": ACTIVE_SAMPLE_DEFINITION,
+      "action_acceleration_definition": ACTION_ACCELERATION_DEFINITION,
+      "body_contact_rate_denominator": (
+        "active_control_step_samples for the same environment and original attempt"
+      ),
+      "attempt_freeze": (
+        "terminal control step included; completion, failure, and reset-episode "
+        "steps after it excluded by lifecycle.sample_mask"
+      ),
+    },
     "limitations": [
       "Continuous approach-feature-exit curves are not implemented because the "
       "validated 8x4 m transition patch cannot contain the requested curves.",
-      "Contact output currently reports catastrophic termination events; "
-      "non-terminating body-part contact rates are not retained by the reused rollout.",
-      "Per-step P95/max slip and action-acceleration are not retained by the reused "
-      "rollout; mean values remain available per scenario.",
     ],
     "scenarios": outputs,
   }
@@ -379,8 +538,8 @@ def main() -> None:
   result = evaluate(cfg)
   output = Path(cfg.output_file)
   output.parent.mkdir(parents=True, exist_ok=True)
-  output.write_text(json.dumps(result, indent=2) + "\n")
-  print(json.dumps(result, indent=2))
+  output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+  print(json.dumps(result, indent=2, allow_nan=False))
   print(f"[INFO] Wrote terrain curved-route evaluation to {output}")
 
 
