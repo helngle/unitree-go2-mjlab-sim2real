@@ -1,5 +1,32 @@
 # 新聊天窗口交接摘要
 
+## 2026-07-16 High terrain boundary 与完整 rollout metrics（最新）
+
+当前 integration 分支为 `exp/terrain-boundary-integration`，基线 `5d233f4`。本轮
+补齐 terrain route 的 action acceleration / slip mean、P95、max，以及非终止
+base/upper-leg/calf contact count/rate；所有统计以原 attempt 的 active control-step
+为分母，reset/completion/failure 后冻结。Straight/curve 也新增 cross-track/heading
+P95 和逐 scenario progress ratio；修复 straight `--steps` 未同步延长 episode timeout
+的问题。
+
+Evaluator Gate 最终 PASS：239 tests PASS、1 个既有 intentional skip；6 份正式 GPU
+JSON 的 finite/schema/sample freeze/P95/contact/placement/corridor/scan/coverage 全部通过。
+Low/medium clean arc 为 `64/64`。High/extreme clean arc 和 S 均为 `37/64`；失败集中在
+长距离 pyramid slope，random rough 为 `16/16`。High-slope randomized arc 为 `7/32`。
+失败场景 controller saturation 仅约 `1.1--2.8%`，commanded vx 约 `0.39 m/s`、actual
+仅 `0.16--0.17 m/s`，且 scan margin `>1.27 m`，因此是可信 locomotion 能力边界，
+不是 controller 或 patch 越界。
+
+Continuous straight levels 7/9 clean 为 `12/12`；randomized 为 `10/12`，level-9
+stairs up/down 各因 calf contact reset 一次。旧 `...12env_1800steps.json` 的单项
+time-out 来自 evaluator timeout 未延长，不能用于模型结论；正式 clean 文件是
+`...12env_2400steps.json`。
+
+本轮固定 **NO-GO，未训练、无新 checkpoint**。V7 `model_13600.pt` 仍为默认模型，
+但不宣称 high/extreme sustained slope 已通过。下一步先在同一 18 m high-slope patch
+做 matched straight/arc/S，区分长坡暴露与曲线耦合；再对 randomized level-9 stairs
+做多 seed 复现，之后才定义单变量 hard-case sampling probe。
+
 ## 2026-07-16 Matched randomization 与 terrain curve smoke（最新）
 
 当前 integration 分支为 `exp/terrain-curve-matched-integration`。严格 matched flat

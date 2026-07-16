@@ -2767,3 +2767,124 @@ reward、sampler 或网络。
 PASS、1 个未来 production sampler 接线测试按设计 skip；独立 matched/terrain 47/47
 PASS；编译、CLI、V7 注册、8 份关键 JSON finite 检查、worktree/process/GPU 清洁检查
 全部通过。Terrain coverage 仍严格保持 smoke-only 表述。
+
+### 2026-07-16 High terrain boundary 与完整 rollout metrics（NO-GO，未训练）
+
+本阶段从 clean baseline `5d233f4` 创建 `exp/terrain-boundary-integration`，使用 1 个
+Integration Agent 和 3 个独立 worktree Agent：
+
+```text
+Terrain Metrics Agent:   7c1ec54 -> integration edd2bc9
+Boundary Scenario Agent: c24f166 -> integration cbb3292
+Acceptance Agent:        f0a48ff -> integration ce6632f
+Integration fixes:       72eb5ff, 17663c8, d16a784, 308e974, 2a43523
+```
+
+#### 指标和 evaluator 修复
+
+新增 `OnlineTerrainRolloutMetrics`，按每个环境原 route attempt 的 active control-step
+保留 action acceleration、foot slip 和 body-part contact。终止控制步计入分母，之后
+自动 reset 的新 episode 不计入；空样本/缺失传感器使用 `null + reason`，JSON 使用
+`allow_nan=False`。action acceleration 保持原离散定义：
+
+```text
+mean(abs(action[t] - 2*action[t-1] + action[t-2]))
+```
+
+输出新增 action/slip mean、P95、max；base/upper-leg/calf 非终止与全部 contact
+count/rate；catastrophic termination 独立统计。Straight/curve route 同时补齐
+cross-track/heading P95、逐 scenario progress ratio 和 steps_sampled。
+
+首个 GPU 回归在 JSON 拼装前 fail-fast：底层 curved scenario 缺少 `steps_sampled`，
+修复为 `308e974`。Continuous 初次使用 `--steps=1800` 时又发现 straight evaluator
+没有延长 20 s episode timeout；level-9 stairs_up 因内置 time_out 被误判。`2a43523`
+使 effective episode length 覆盖 requested horizon，并增加 CPU contract。旧文件：
+
+```text
+route_boundary_continuous_straight_clean_levels7_9_metricsv2_seed42_12env_1800steps.json
+```
+
+只保留为 evaluator 缺陷记录，不得用于模型失败结论；正式 clean 结论使用 2400-step
+完整重跑。
+
+#### 参数化边界 geometry
+
+High curve evaluator 使用 evaluation-only 18 x 18 m patch，V7 primitive 的 high/
+extreme difficulty 固定为 `0.8/1.0`。Slope gradient 对应约 `0.32/0.40`，discrete
+obstacle height 对应约 `0.084/0.10 m`。V7 random rough primitive 忽略 difficulty，
+因此 high/extreme 只是相同分布的独立样本，JSON 明确禁止声称 extreme 更难。
+
+Continuous straight 使用单一 8 x 4 m approach-feature-exit surface，覆盖 slope/stairs
+up/down、random rough 和 discrete obstacle。Route 为 `x=1..7 m`，feature 为
+`x=2..4.4 m`，height scan 边界余量 `0.2 m`。它是真实 intra-patch continuous
+transition，不声称 inter-patch 连续；旧 patch 不缩放为曲线，continuous curves 和
+stairs curves 明确拒绝。
+
+#### 正式 GPU JSON 与结果
+
+共同 checkpoint/task/seed：
+
+```text
+checkpoint: logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+task: Unitree-Go2-Rough-V7
+seed: 42
+```
+
+正式 JSON 均位于上述 V7 run 目录：
+
+```text
+route_terrain_curves_arc_clean_low_medium_metricsv2_seed42_64env_2000steps.json
+route_boundary_high_extreme_arc_clean_metricsv2_seed42_64env_2400steps.json
+route_boundary_high_extreme_s_curve_clean_metricsv2_seed42_64env_2400steps.json
+route_boundary_high_extreme_arc_randomized_slopes_seed42_32env_2400steps.json
+route_boundary_continuous_straight_clean_levels7_9_metricsv2_seed42_12env_2400steps.json
+route_boundary_continuous_straight_randomized_levels7_9_metricsv2_seed42_12env_2400steps.json
+```
+
+统一汇总：
+
+```text
+matrix                         done   reset  progress  action  action P95max  slip   slip P95max  base/upper/calf samples
+low/medium arc clean           64/64     0    1.0000   0.076      0.279      0.036     0.185          0/0/0
+high/extreme arc clean         37/64    14    0.7412   0.112      0.975      0.055     0.611          0/4/8
+high/extreme S clean           37/64    18    0.7025   0.106      0.956      0.055     0.615          0/3/11
+high/extreme arc randomized     7/32    19    0.5867   0.299      1.011      0.068     0.785          0/1/9
+continuous straight clean      12/12     0    1.0008   0.096      0.333      0.045     0.230          0/0/11
+continuous straight randomized 10/12     2    0.8807   0.258      0.513      0.051     0.228          0/0/11
+```
+
+Low/medium regression 64/64、零 reset/termination，assignment error `5.96e-8`、
+route placement error `0`，说明新指标没有改变旧结论。
+
+High clean arc：slope_up high/extreme 均 `0/8`；slope_down high `6/8`、extreme
+`0/8`。High clean S 的对应结果为 `0/8, 0/8, 7/8, 0/8`。Random rough 两种
+route 均 `16/16`；non-slope 不是主要失败来源。Arc/S slope failure 的 controller
+saturation 分别只有约 `2.8%/1.1%`，mean commanded vx 约 `0.394/0.392 m/s`，mean
+actual vx 仅 `0.160/0.167 m/s`；corridor/scan 最小 margin 为 `4.2/1.27 m`。
+Clean termination totals：arc fell/base/upper/calf=`1/1/9/6`，S=`5/0/9/4`；另有
+低进度 step-limit `13/9`。因此这是 sustained high/extreme pyramid slope 下可复现的
+locomotion 执行边界，不是 controller saturation、horizon 或 scan 越界。
+
+High randomized slope arc 为 `7/32`，与同子集 clean `6/32` 同级，说明随机化不是
+主要根因。Continuous clean levels 7/9 在修复 timeout 后为 `12/12`、零 reset；
+randomized 为 `10/12`，level-9 stairs_up/down 各因 illegal calf contact reset 一次，
+其余 slope/rough/obstacle `8/8`。
+
+#### 验收和下一步
+
+Acceptance Agent 最终判定 **Evaluator Gate PASS**：239 tests PASS、1 个既有
+intentional skip；compileall、4 个 CLI、V7 registry、diff-check、6 份正式 JSON 的
+recursive finite/schema/sample freeze/P95/max/contact denominator/placement/margin/
+coverage 全部通过。无残留 train/evaluate/play 进程，GPU 空闲。
+
+Model Gate 单独记录为部分 FAIL：high/extreme sustained slope curves 和 randomized
+level-9 stairs 暴露能力边界，但不反向否定 evaluator。本轮固定 **NO-GO，未启动训练，
+没有新 checkpoint；V7 `model_13600.pt` 继续作为默认模型**，同时明确不宣称已通过
+上述边界场景。
+
+下一步先做同一 18 m high/extreme pyramid patch 的 matched straight/arc/S，区分
+“长坡持续暴露”与“坡地 forward+yaw/横坡耦合”。再对 randomized level-9 stairs
+使用 seed 43/44 复现。只有归因稳定后才定义单变量 probe：若 straight 也失败，只
+提高 high/extreme slope hard-case terrain exposure；若只曲线失败，只增加高坡上的
+parameterized forward+yaw hard-case sampling。两种方案都冻结 reward、termination、
+gait、network 和其余通用 terrain 分布。
