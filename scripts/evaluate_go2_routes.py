@@ -32,6 +32,15 @@ from src.tasks.velocity.evaluation.routes import (
   validate_initial_route_state,
   validate_route_parameters,
 )
+from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
+  ACTION_ACCELERATION_DEFINITION,
+  ACTIVE_SAMPLE_DEFINITION,
+  OnlineTerrainRolloutMetrics,
+  action_acceleration,
+  contact_any,
+  foot_contact_any,
+  foot_slip_velocity,
+)
 
 
 RANDOMIZATION_EVENTS = ("foot_friction", "encoder_bias", "base_com", "base_payload", "motor_strength")
@@ -133,6 +142,25 @@ def _configure_profile(env_cfg: Any, profile: str) -> dict[str, Any]:
     "startup_randomization_events": [name for name in RANDOMIZATION_EVENTS if name in env_cfg.events],
     "push_enabled": "push_robot" in env_cfg.events,
   }
+
+
+def _sensor_contact(
+  env: ManagerBasedRlEnv, name: str, num_envs: int
+) -> torch.Tensor | None:
+  try:
+    return contact_any(env.scene[name].data.found, num_envs)
+  except KeyError:
+    return None
+
+
+def _catastrophic_termination(
+  env: ManagerBasedRlEnv, num_envs: int
+) -> torch.Tensor:
+  result = torch.zeros(num_envs, dtype=torch.bool, device=env.device)
+  for name in env.termination_manager.active_terms:
+    if not env.termination_manager.get_term_cfg(name).time_out:
+      result |= env.termination_manager.get_term(name).bool()
+  return result
 
 
 def _make_scenarios(cfg: RouteConfig, terrain_columns: dict[str, list[int]]) -> list[dict[str, Any]]:
@@ -446,6 +474,13 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   position_sq_sum = torch.zeros(num_envs, device=device)
   cross_max = torch.zeros(num_envs, device=device)
   heading_max = torch.zeros(num_envs, device=device)
+  cross_abs_samples = torch.zeros(
+    (num_envs, cfg.steps), device=device, dtype=cross_max.dtype
+  )
+  heading_abs_samples = torch.zeros_like(cross_abs_samples)
+  path_sample_valid = torch.zeros(
+    (num_envs, cfg.steps), device=device, dtype=torch.bool
+  )
   final_progress = torch.zeros(num_envs, device=device)
   final_cross = torch.zeros(num_envs, device=device)
   final_heading = torch.zeros(num_envs, device=device)
@@ -461,6 +496,12 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   cross_axis_sum = torch.zeros(num_envs, device=device)
   slip_sum = torch.zeros(num_envs, device=device)
   action_acc_sum = torch.zeros(num_envs, device=device)
+  rollout_metrics = OnlineTerrainRolloutMetrics(
+    num_envs,
+    cfg.steps,
+    device=device,
+    dtype=robot.data.root_link_pos_w.dtype,
+  )
   termination_counts = {name: torch.zeros(num_envs, device=device) for name in env.termination_manager.active_terms}
   try:
     feet_sensor = env.scene["feet_ground_contact"]
@@ -514,6 +555,9 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
     sample_count += sample.float()
     cross_sq_sum += candidate_cross.square() * sample.float()
     heading_sq_sum += candidate_heading.square() * sample.float()
+    cross_abs_samples[:, step_index] = candidate_cross.abs()
+    heading_abs_samples[:, step_index] = candidate_heading.abs()
+    path_sample_valid[:, step_index] = sample
     endpoint = route_start + torch.stack((route_length * torch.cos(route_headings), route_length * torch.sin(route_headings)), dim=-1)
     candidate_position = torch.where(reset_mask.unsqueeze(-1), pre_pos, post_pos)
     position_error = torch.norm(candidate_position - endpoint, dim=-1)
@@ -540,13 +584,35 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       torch.abs(route_normal_velocity(actual_lin_w, route_headings))
       * sample.float()
     )
-    if feet_sensor is not None:
-      contact = feet_sensor.data.found > 0
-      foot_speed = torch.norm(robot.data.site_lin_vel_w[:, foot_site_ids, :2], dim=-1)
-      slip = (foot_speed * contact).sum(dim=-1) / contact.sum(dim=-1).clamp_min(1)
+    if feet_sensor is None:
+      slip = None
+    else:
+      foot_contact = foot_contact_any(
+        feet_sensor.data.found, num_envs, len(foot_site_ids)
+      )
+      slip = foot_slip_velocity(
+        robot.data.site_lin_vel_w[:, foot_site_ids, :2], foot_contact
+      )
       slip_sum += slip * sample.float()
-    action_acc = env.action_manager.action - 2 * env.action_manager.prev_action + env.action_manager.prev_prev_action
-    action_acc_sum += torch.mean(torch.abs(action_acc), dim=-1) * sample.float()
+    action_acc = action_acceleration(
+      env.action_manager.action,
+      env.action_manager.prev_action,
+      env.action_manager.prev_prev_action,
+    )
+    action_acc_sum += action_acc * sample.float()
+    rollout_metrics.update(
+      sample_mask=sample,
+      action_acceleration=action_acc,
+      foot_slip_velocity=slip,
+      body_contacts={
+        "base": _sensor_contact(env, "base_ground_contact", num_envs),
+        "upper_leg": _sensor_contact(
+          env, "upper_leg_ground_contact", num_envs
+        ),
+        "calf": _sensor_contact(env, "calf_ground_contact", num_envs),
+      },
+      catastrophic_termination=_catastrophic_termination(env, num_envs),
+    )
     for index in torch.where(lifecycle.completed_now | lifecycle.failed_now)[0].tolist():
       if first_reason[index] is None:
         if bool(lifecycle.completed_now[index]):
@@ -567,6 +633,17 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   output_scenarios = []
   for index, scenario in enumerate(scenarios):
     final_position_error = float(torch.norm(final_position[index] - endpoint[index]))
+    path_mask = path_sample_valid[index]
+    cross_distribution = cross_abs_samples[index][path_mask].to(torch.float64)
+    heading_distribution = heading_abs_samples[index][path_mask].to(torch.float64)
+    if cross_distribution.numel() == 0 or heading_distribution.numel() == 0:
+      raise RuntimeError("finished straight attempt has no retained path samples")
+    terrain_metrics = rollout_metrics.result(index)
+    if terrain_metrics["active_control_step_samples"] != int(sample_count[index]):
+      raise RuntimeError("terrain metric sample mask diverged from route lifecycle")
+    action_distribution = terrain_metrics["action_acceleration"]
+    slip_distribution = terrain_metrics["foot_slip_velocity"]
+    body_contacts = terrain_metrics["body_contacts"]
     scenario_output = {
       **scenario,
       "completed": bool(completed[index]),
@@ -579,9 +656,11 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       ),
       "forward_progress": float(final_progress[index]),
       "lateral_rms": float(torch.sqrt(cross_sq_sum[index] / denom[index])),
+      "lateral_p95": float(torch.quantile(cross_distribution, 0.95)),
       "lateral_max": float(cross_max[index]),
       "lateral_final": float(final_cross[index]),
       "heading_rms": float(torch.sqrt(heading_sq_sum[index] / denom[index])),
+      "heading_p95": float(torch.quantile(heading_distribution, 0.95)),
       "heading_max": float(heading_max[index]),
       "heading_final": float(final_heading[index]),
       "final_heading_error": float(final_heading[index]),
@@ -597,8 +676,23 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       "actual_yaw_rate_mean": float(actual_yaw_sum[index] / denom[index]),
       "commanded_yaw_rate_mean": float(command_yaw_sum[index] / denom[index]),
       "cross_axis_velocity_mean": float(cross_axis_sum[index] / denom[index]),
-      "slip_velocity_mean": float(slip_sum[index] / denom[index]),
-      "action_acceleration_mean": float(action_acc_sum[index] / denom[index]),
+      "slip_velocity_mean": slip_distribution["mean"],
+      "slip_velocity_p95": slip_distribution["p95"],
+      "slip_velocity_max": slip_distribution["max"],
+      "action_acceleration_mean": action_distribution["mean"],
+      "action_acceleration_p95": action_distribution["p95"],
+      "action_acceleration_max": action_distribution["max"],
+      "base_contact_count": body_contacts["base"]["non_terminating_count"],
+      "base_contact_rate": body_contacts["base"]["non_terminating_rate"],
+      "upper_leg_contact_count": body_contacts["upper_leg"][
+        "non_terminating_count"
+      ],
+      "upper_leg_contact_rate": body_contacts["upper_leg"][
+        "non_terminating_rate"
+      ],
+      "calf_contact_count": body_contacts["calf"]["non_terminating_count"],
+      "calf_contact_rate": body_contacts["calf"]["non_terminating_rate"],
+      "terrain_rollout_metrics": terrain_metrics,
       "route_start_xy": [float(value) for value in route_start[index]],
       "route_endpoint_xy": [float(value) for value in endpoint[index]],
       "initial_position_xy": [float(value) for value in initial_position[index]],
@@ -737,6 +831,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       },
     }
   return {
+    "schema_version": 2,
     "checkpoint": str(checkpoint),
     "task_id": cfg.task_id,
     "seed": cfg.seed,
@@ -747,6 +842,16 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
     "num_envs": num_envs,
     "steps": cfg.steps,
     "terrain_assignment_position_error_max": placement_error,
+    "metric_invariants": {
+      "sample_denominator": ACTIVE_SAMPLE_DEFINITION,
+      "action_acceleration_definition": ACTION_ACCELERATION_DEFINITION,
+      "body_contact_rate_denominator": (
+        "active_control_step_samples for the same environment and original attempt"
+      ),
+      "attempt_freeze": (
+        "terminal control step included; all later/reset-episode steps excluded"
+      ),
+    },
     "coverage": coverage,
     "limitations": limitations,
     "route_definition": route_definition,
@@ -767,8 +872,8 @@ def main() -> None:
   output = {"config": config_output, "results": results}
   output_path = Path(cfg.output_file) if cfg.output_file else Path("go2_route_evaluation.json")
   output_path.parent.mkdir(parents=True, exist_ok=True)
-  output_path.write_text(json.dumps(output, indent=2) + "\n")
-  print(json.dumps(output, indent=2))
+  output_path.write_text(json.dumps(output, indent=2, allow_nan=False) + "\n")
+  print(json.dumps(output, indent=2, allow_nan=False))
   print(f"[INFO] Wrote route evaluation to {output_path}")
 
 

@@ -331,6 +331,13 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
   samples = torch.zeros(num_envs, device=device)
   cross_sq = torch.zeros_like(samples); heading_sq = torch.zeros_like(samples)
   cross_max = torch.zeros_like(samples); heading_max = torch.zeros_like(samples)
+  cross_abs_samples = torch.zeros(
+    (num_envs, cfg.steps), device=device, dtype=samples.dtype
+  )
+  heading_abs_samples = torch.zeros_like(cross_abs_samples)
+  path_sample_valid = torch.zeros(
+    (num_envs, cfg.steps), device=device, dtype=torch.bool
+  )
   final_progress = torch.zeros_like(samples); final_cross = torch.zeros_like(samples); final_heading = torch.zeros_like(samples)
   final_position = robot.data.root_link_pos_w[:, :2].clone()
   cmd_sum = torch.zeros(num_envs, 3, device=device); actual_sum = torch.zeros_like(cmd_sum)
@@ -430,6 +437,9 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
     lifecycle = update_attempt_status(active, gated_progress, cross, heading_error, reset, route_length=route_lengths, cross_track_tolerance=cfg.cross_track_tolerance, heading_tolerance=cfg.heading_tolerance)
     sample = lifecycle.sample_mask.float(); samples += sample
     cross_sq += cross.square() * sample; heading_sq += heading_error.square() * sample
+    cross_abs_samples[:, step_index] = cross.abs()
+    heading_abs_samples[:, step_index] = heading_error.abs()
+    path_sample_valid[:, step_index] = lifecycle.sample_mask
     cross_max = torch.maximum(cross_max, cross.abs() * sample); heading_max = torch.maximum(heading_max, heading_error.abs() * sample)
     final_progress = torch.where(lifecycle.sample_mask, progress, final_progress); final_cross = torch.where(lifecycle.sample_mask, cross, final_cross); final_heading = torch.where(lifecycle.sample_mask, heading_error, final_heading)
     candidate_position = torch.where(reset.unsqueeze(-1), pre_pos, post_pos)
@@ -474,6 +484,11 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
   outputs = []
   for index, scenario in enumerate(scenarios):
     mean_cmd = cmd_sum[index] / denom[index]; mean_actual = actual_sum[index] / denom[index]
+    path_mask = path_sample_valid[index]
+    cross_distribution = cross_abs_samples[index][path_mask].to(torch.float64)
+    heading_distribution = heading_abs_samples[index][path_mask].to(torch.float64)
+    if cross_distribution.numel() == 0 or heading_distribution.numel() == 0:
+      raise RuntimeError("finished curved attempt has no retained path samples")
     required_yaw_rate = scenario["turn_sign"] * scenario["speed"] / scenario["radius"]
     outputs.append({
       **scenario,
@@ -496,9 +511,11 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
       "arc_length_progress": float(final_progress[index]),
       "arc_length_progress_ratio": float(final_progress[index] / route_lengths[index]),
       "lateral_rms": float(torch.sqrt(cross_sq[index] / denom[index])),
+      "lateral_p95": float(torch.quantile(cross_distribution, 0.95)),
       "lateral_max": float(cross_max[index]),
       "lateral_final": float(final_cross[index]),
       "heading_rms": float(torch.sqrt(heading_sq[index] / denom[index])),
+      "heading_p95": float(torch.quantile(heading_distribution, 0.95)),
       "heading_max": float(heading_max[index]),
       "heading_final": float(final_heading[index]),
       "final_heading_error": float(final_heading[index]),
