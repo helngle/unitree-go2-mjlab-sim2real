@@ -10,6 +10,7 @@ from scripts.evaluate_go2_routes import (
   RouteConfig,
   _column_terrain_names,
   _configure_continuous_sim_capacity,
+  _configure_episode_length,
   _make_continuous_scenarios,
   _make_scenarios,
   _resolve_route_contract,
@@ -231,6 +232,18 @@ class ScenarioCoverageTest(unittest.TestCase):
     override = _configure_continuous_sim_capacity(already_large)
     self.assertEqual(override, {"original": 256, "effective": 256})
     self.assertEqual(already_large.sim.nconmax, 256)
+
+  def test_requested_steps_extend_evaluation_timeout(self) -> None:
+    env_cfg = SimpleNamespace(
+      sim=SimpleNamespace(dt=0.005),
+      decimation=4,
+      episode_length_s=20.0,
+    )
+    settings = _configure_episode_length(env_cfg, 1800)
+    self.assertAlmostEqual(settings["control_dt"], 0.02)
+    self.assertAlmostEqual(settings["original_episode_length_s"], 20.0)
+    self.assertAlmostEqual(settings["effective_episode_length_s"], 36.2)
+    self.assertAlmostEqual(env_cfg.episode_length_s, 36.2)
 
 
 if __name__ == "__main__":

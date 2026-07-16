@@ -118,6 +118,29 @@ def _configure_continuous_sim_capacity(env_cfg: Any) -> dict[str, int | None]:
   return {"original": original, "effective": effective}
 
 
+def _configure_episode_length(
+  env_cfg: Any, steps: int, safety_steps: int = 10
+) -> dict[str, float]:
+  """Extend the evaluation timeout to cover the requested control horizon."""
+  if steps <= 0 or safety_steps < 0:
+    raise ValueError("steps must be positive and safety_steps nonnegative")
+  physics_dt = (
+    env_cfg.sim.dt
+    if hasattr(env_cfg.sim, "dt")
+    else env_cfg.sim.mujoco.timestep
+  )
+  control_dt = float(physics_dt * env_cfg.decimation)
+  original = float(env_cfg.episode_length_s)
+  env_cfg.episode_length_s = max(
+    original, (steps + safety_steps) * control_dt
+  )
+  return {
+    "original_episode_length_s": original,
+    "effective_episode_length_s": float(env_cfg.episode_length_s),
+    "control_dt": control_dt,
+  }
+
+
 def _column_terrain_names(generator_cfg) -> list[str]:
   names = list(generator_cfg.sub_terrains)
   proportions = np.asarray([cfg.proportion for cfg in generator_cfg.sub_terrains.values()], dtype=np.float64)
@@ -417,6 +440,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
   env_cfg.seed = cfg.seed
   env_cfg.curriculum = {}
   profile_settings = _configure_profile(env_cfg, cfg.profile)
+  profile_settings.update(_configure_episode_length(env_cfg, cfg.steps))
   if cfg.terrain_suite == "continuous":
     capacity_override = _configure_continuous_sim_capacity(env_cfg)
     profile_settings["continuous_sim_nconmax_override"] = capacity_override
