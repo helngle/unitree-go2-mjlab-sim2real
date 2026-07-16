@@ -2472,3 +2472,81 @@ completion `0/18`，progress ratio
 训练授权条件。未启动 2048-env PPO，未产生新 checkpoint；继续默认使用
 `model_13600.pt`，下一步先跑 S 弯和 randomized/rough 扩展，再决定是否存在单一
 训练变量。
+
+### 2026-07-16 Curve pre-training 审计（NO-GO，未训练）
+
+目的：在实现 15% correlated forward+yaw sampler 之前，验证 terrain curriculum、
+pure-axis/coupled response 和 matched control/probe 契约。integration 分支为
+`exp/curve-pretrain-integration`；三个独立 Agent source commits 为 curriculum
+`f431598`、command diagnostics `36f68b9`、acceptance `a9704c2`，对应 integration
+commits 为 `0cd1fff`、`6671bd2`、`5b4e436`。
+
+本轮没有修改生产 `curriculums.py`、`mode_velocity_command.py`、Go2 env config、
+reward、terrain、termination、gait 或网络；没有实现 curve sampler，也没有启动 GPU
+训练。
+
+#### Terrain curriculum 审计
+
+当前生产公式等价于：
+
+```text
+d_net = ||root_xy(T) - terrain_origin_xy||
+v_last = ||command_xy(T)||
+move_up = d_net > patch_length/2
+move_down = d_net < v_last * episode_length * 0.5 and not move_up
+```
+
+它使用终点净位移而不是累计路程，并且降级阈值只使用 3--8 秒重采样序列中的最后
+一个平移命令。独立测试确认：完整圆完美回到起点会降级；纯 yaw 失败不能降级，
+但漂移超过 4 m 可升级；换向抵消和最后进入 zero-command settle 会改变判断；相同
+累计路程可因路线几何得到相反 level 决策。因此保持当前 curriculum 开启并增加
+curve quota 不是单变量实验。
+
+只读检查 `model_13600.pt`：checkpoint 保存 `2048` 个 terrain levels/types，
+`common_step_counter=326664`，mean level `5.275390625`，level `0..9`、type `0..19`。
+未来若重新授权 matched 实验，control/probe 都必须使用 2048 env 从同一 checkpoint
+恢复完全相同 assignment，然后移除 `terrain_levels` term 并在起止比较逐元素值或
+hash；不得同时修改 command-aware curriculum。
+
+详细审计：`docs/reviews/curve_curriculum_audit.md`。
+
+#### Command response 诊断
+
+只解析修复后的 scheduled tape 和既有有效 JSON。旧的
+`route_baseline_curved_arc_command_tape_clean_seed42_72.json` 仍无效，新增脚本会拒绝
+其 schema。
+
+```text
+subset   n    vx gain   wz gain   progress   reset/contact
+ID       14    0.8108    0.9525     0.8558       0
+OOD       4    0.8290    0.9450     0.8884       0
+```
+
+OOD 仅为 `r=1.5,v=0.5/0.6` 左右四项。clean flat pure forward `0.6 m/s` gain
+为 `0.8540`，同速且 ID 的 coupled gain 为 `0.8490`，差约 `-0.6%`；补足 horizon
+后 closed-loop 合并结果为 `18/18`、零 reset。证据支持通用 forward under-gain，
+不支持额外 forward+yaw 耦合退化。
+
+离线可复现输出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/curve_command_diagnostics_offline_seed42.json
+```
+
+历史 JSON 只保存 attempt aggregate，没有逐 control-step command/response；rise time、
+overshoot、settling time 当前不可恢复。pure-yaw 文件也没有 signed actual yaw mean，
+因此诊断明确输出 unavailable，而没有用 absolute error 猜测 gain。详细结论见
+`docs/reviews/curve_command_diagnostics.md`。
+
+#### 验收与决策
+
+integration 首轮统一运行 57 项测试：56 PASS、1 intentional skip。skip 对应尚未授权
+实现的 production curve sampler/frozen-terrain wiring；不能标记为已经完成。其余
+py_compile、V7 registration/import、CLI、真实 JSON 离线解析和 `git diff --check`
+均通过。
+
+最终决策：**NO-GO，不实现 curve sampler，不启动 matched control/probe 或 PPO**。
+原因是训练 gate 要求 coupled gain 明显弱于 pure forward/pure yaw 或 closed-loop 失败，
+而现有证据相反。下一步先完成 clean S 弯、randomized/rough 曲线，或增加带逐步时序
+的严格 matched command-response 小诊断；只有发现额外 coupled locomotion 短板后，
+才重新评估 15% curve quota。V7 `model_13600.pt` 继续作为默认模型。

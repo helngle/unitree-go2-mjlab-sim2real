@@ -1,6 +1,6 @@
 # 新聊天窗口交接摘要
 
-## 2026-07-15 当前状态（优先于下方历史记录）
+## 2026-07-16 当前状态（优先于下方历史记录）
 
 当前目标已从横移专项调整为统一 Go2 policy 的路径执行闭环：
 
@@ -10,6 +10,34 @@ global/parameterized path
 -> one V7 locomotion policy
 -> measured path/terrain completion
 ```
+
+最新训练前审计分支为 `exp/curve-pretrain-integration`。本轮没有实现 curve sampler、
+没有修改生产 curriculum/reward/terrain/termination/gait/network，也没有启动训练。
+三个独立 Agent 已完成 curriculum、command response 和 acceptance 审计。
+
+结论为 **NO-GO：当前不授权 15% curve sampler 或 PPO**。有效 scheduled tape 的
+14 个 V7 general-yaw ID 场景为：`vx gain=0.8108`、`wz gain=0.9525`、平均 progress
+`0.8558`；clean flat pure forward `0.6 m/s` gain 为 `0.8540`，同速 ID coupled
+gain 为 `0.8490`，仅低约 `0.6%`。补足 horizon 后 closed-loop 为 `18/18`、零 reset。
+因此缺口是已有通用 forward under-gain，没有证据表明 forward+yaw 存在额外耦合退化。
+
+同时确认 `terrain_levels_vel()` 只使用 episode 末净位移和最后一个平移命令：完美
+完整圆会降级，纯 yaw 失败没有降级信号，换向抵消及零命令 settle 会改变难度判定。
+若未来确有 coupled 短板，matched control/probe 必须都以 2048 env 从
+`model_13600.pt` 恢复相同 level/type，移除 `terrain_levels` term 后全程冻结；
+首轮不要同时上线 command-aware curriculum。checkpoint 已确认保存完整的 2048 个
+levels/types，mean level `5.2754`、level `0..9`、type `0..19`。
+
+新增离线诊断：
+
+```text
+scripts/diagnose_go2_command_response.py
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/curve_command_diagnostics_offline_seed42.json
+```
+
+下一步先完成 clean S 弯、randomized/rough 曲线，或补充带逐步时序的严格 matched
+pure-forward/pure-yaw/coupled 短诊断。历史 JSON 没有 rise time/overshoot 序列，
+不得从 aggregate mean 反推。默认模型继续是 V7 `model_13600.pt`。
 
 当前 curved-route integration 分支为 `exp/curved-route-integration`，曲线路径
 代码/测试基线为 `e95a4bc`。新增固定半径圆弧/S 弯纯 tensor geometry、`command_tape` 和
