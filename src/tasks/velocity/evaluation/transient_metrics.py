@@ -17,7 +17,7 @@ class TransientMetricConfig:
   num_segments: int
   rise_fraction: float = 0.9
   settling_fraction: float = 0.1
-  target_epsilon: float = 1.0e-5
+  target_epsilon: float = 1.0e-3
 
   def __post_init__(self) -> None:
     if not math.isfinite(self.control_dt) or self.control_dt <= 0.0:
@@ -58,6 +58,8 @@ class OnlineCommandTransientMetrics:
     self.sample_count = torch.zeros(shape, dtype=torch.long, device=device)
     self.command_sum = torch.zeros(axis_shape, dtype=dtype, device=device)
     self.actual_sum = torch.zeros_like(self.command_sum)
+    self.command_square_sum = torch.zeros_like(self.command_sum)
+    self.command_actual_sum = torch.zeros_like(self.command_sum)
     self.absolute_error_integral = torch.zeros_like(self.command_sum)
     self.target_count = torch.zeros(axis_shape, dtype=torch.long, device=device)
     self.first_target_step = torch.full(axis_shape, -1, dtype=torch.long, device=device)
@@ -179,6 +181,8 @@ class OnlineCommandTransientMetrics:
     self.sample_count[response_ids, response_segments] += 1
     self.command_sum[response_ids, response_segments] += target
     self.actual_sum[response_ids, response_segments] += response
+    self.command_square_sum[response_ids, response_segments] += target.square()
+    self.command_actual_sum[response_ids, response_segments] += target * response
     self.absolute_error_integral[response_ids, response_segments] += (
       (response - target).abs() * self.config.control_dt
     )
@@ -302,10 +306,16 @@ class OnlineCommandTransientMetrics:
       actual_mean = self.actual_sum[env_index, segment] / denom
       gain: list[float | None] = []
       for axis in range(3):
-        command_value = float(command_mean[axis])
+        command_energy = float(
+          self.command_square_sum[env_index, segment, axis]
+        )
+        command_rms = math.sqrt(command_energy / denom)
         gain.append(
-          float(actual_mean[axis] / command_mean[axis])
-          if abs(command_value) > self.config.target_epsilon else None
+          float(
+            self.command_actual_sum[env_index, segment, axis]
+            / self.command_square_sum[env_index, segment, axis]
+          )
+          if command_rms > self.config.target_epsilon else None
         )
       segments.append({
         "segment_index": segment,

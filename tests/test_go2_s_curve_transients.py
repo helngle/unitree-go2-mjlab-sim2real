@@ -134,6 +134,32 @@ class OnlineTransientMetricTest(unittest.TestCase):
     self.assertEqual(lateral["rise_time_reason"], "no_nonzero_target")
     self.assertIsNone(result["segments"][0]["response_gain"]["vy"])
 
+  def test_near_zero_and_sign_changing_commands_do_not_create_ratio_spikes(self) -> None:
+    near_zero = _collector(num_segments=1)
+    for step in range(2):
+      near_zero.update(
+        step_index=step,
+        command=torch.tensor([[0.5, (-1.0 if step else 1.0) * 1.2e-4, 0.2]]),
+        actual=torch.tensor([[0.4, 0.01, 0.18]]),
+        segment_index=torch.tensor([0]),
+        sample_mask=torch.tensor([True]),
+      )
+    self.assertIsNone(near_zero.result(0)["segments"][0]["response_gain"]["vy"])
+
+    varying = _collector(num_segments=1)
+    for step, target in enumerate((0.1, -0.1)):
+      varying.update(
+        step_index=step,
+        command=torch.tensor([[0.5, target, 0.2]]),
+        actual=torch.tensor([[0.4, 0.8 * target, 0.18]]),
+        segment_index=torch.tensor([0]),
+        sample_mask=torch.tensor([True]),
+      )
+    self.assertAlmostEqual(
+      varying.result(0)["segments"][0]["response_gain"]["vy"], 0.8,
+      places=6,
+    )
+
   def test_never_reaches_target_reports_unavailable(self) -> None:
     collector = _collector(num_segments=1)
     for step in range(4):
