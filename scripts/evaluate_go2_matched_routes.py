@@ -277,6 +277,7 @@ def _evaluate_route_kind(
   active = torch.ones(num_envs, dtype=torch.bool, device=device)
   completed = torch.zeros_like(active)
   failed = torch.zeros_like(active)
+  settle_remaining = torch.zeros(num_envs, dtype=torch.long, device=device)
   reset_count = torch.zeros(num_envs, dtype=torch.long, device=device)
   sample_count = torch.zeros(num_envs, device=device)
   cross_sq = torch.zeros(num_envs, device=device)
@@ -288,6 +289,7 @@ def _evaluate_route_kind(
   final_heading = torch.zeros_like(cross_sq)
   final_position = robot.data.root_link_pos_w[:, :2].clone()
   command_sum = torch.zeros(num_envs, 3, device=device)
+  command_energy = torch.zeros_like(command_sum)
   actual_sum = torch.zeros_like(command_sum)
   saturation_count = torch.zeros(num_envs, device=device)
   contact_counts = {
@@ -364,7 +366,8 @@ def _evaluate_route_kind(
           | (group_command[:, 2].abs() >= cfg.max_yaw_rate - 1.0e-6)
         )
         command[ids] = group_command
-      command = torch.where(active.unsqueeze(-1), command, 0.0)
+      motion_active = active & ~completed
+      command = torch.where(motion_active.unsqueeze(-1), command, 0.0)
       command_term.vel_command_b[:] = command
       observation = wrapped.get_observations()
       with torch.inference_mode():
@@ -381,12 +384,12 @@ def _evaluate_route_kind(
       cross = torch.where(reset, pre_cross, post_cross)
       heading_error = torch.where(reset, pre_heading_error, post_heading_error)
       lifecycle = update_attempt_status(
-        active, progress, cross, heading_error, reset,
+        motion_active, progress, cross, heading_error, reset,
         route_length=route_lengths,
         cross_track_tolerance=cfg.cross_track_tolerance,
         heading_tolerance=cfg.heading_tolerance,
       )
-      sample = lifecycle.sample_mask
+      sample = active
       sample_f = sample.float()
       sample_count += sample_f
       cross_sq += cross.square() * sample_f
@@ -404,6 +407,7 @@ def _evaluate_route_kind(
       )
       actual = torch.where(reset.unsqueeze(-1), torch.zeros_like(actual), actual)
       command_sum += command * sample_f.unsqueeze(-1)
+      command_energy += command.square() * sample_f.unsqueeze(-1)
       actual_sum += actual * sample_f.unsqueeze(-1)
       saturation_count += saturated.float() * sample_f
       transient_metrics.update(
@@ -449,7 +453,27 @@ def _evaluate_route_kind(
         first_reason[index] = names[0] if names else "reset"
       completed |= lifecycle.completed_now
       failed |= lifecycle.failed_now
-      active = lifecycle.active
+      settle_remaining = torch.where(
+        lifecycle.completed_now,
+        torch.full_like(settle_remaining, cfg.settle_steps),
+        settle_remaining,
+      )
+      settling = completed & active
+      settle_remaining = torch.where(
+        settling & ~lifecycle.completed_now,
+        (settle_remaining - 1).clamp_min(0),
+        settle_remaining,
+      )
+      settle_failed = settling & reset
+      for index in torch.where(settle_failed)[0].tolist():
+        names = [
+          name for name in env.termination_manager.active_terms
+          if bool(env.termination_manager.get_term(name)[index])
+        ]
+        first_reason[index] = names[0] if names else "reset_during_settle"
+      failed |= settle_failed
+      settle_done = completed & (settle_remaining == 0)
+      active = (lifecycle.active | settling) & ~settle_done & ~settle_failed
   finally:
     env.close()
 
@@ -492,6 +516,16 @@ def _evaluate_route_kind(
       "heading_max": float(heading_max[index]),
       "heading_final": float(final_heading[index]),
       "commanded_velocity_mean": [float(x) for x in command_mean],
+      "command_energy": {
+        "discrete_sum_squared_by_axis": [
+          float(x) for x in command_energy[index]
+        ],
+        "integral_squared_by_axis": [
+          float(x * episode_settings["control_dt"])
+          for x in command_energy[index]
+        ],
+        "definition": "sum(command_axis^2) over motion plus settle samples",
+      },
       "actual_velocity_mean": [float(x) for x in actual_mean],
       "response_gain": transient_metrics.result(index),
       "sample_metrics": distribution_metrics.result(index),

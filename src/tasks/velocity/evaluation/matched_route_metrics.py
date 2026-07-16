@@ -216,11 +216,9 @@ def matched_route_local_bounds(
     raise ValueError("start_xy must be finite")
   if route_kind == "straight":
     return start_x, start_x + length, start_y, start_y
-  x_extent = (
-    math.sin(2.0 * math.pi / 3.0) * radius
-    if route_kind == "arc"
-    else math.sqrt(3.0) * radius
-  )
+  # A 120-degree arc reaches its maximum x displacement at 90 degrees,
+  # before returning to sin(120 degrees) * radius at the endpoint.
+  x_extent = radius if route_kind == "arc" else math.sqrt(3.0) * radius
   y_extent = (1.5 * radius if route_kind == "arc" else radius) * turn_sign
   return (
     start_x,
