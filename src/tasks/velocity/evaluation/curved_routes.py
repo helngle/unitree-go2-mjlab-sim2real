@@ -155,6 +155,14 @@ class CommandTapeSchedule:
       [self.speed, 0.0, curvature * self.speed], device=device, dtype=dtype
     )
 
+  def segment_at(self, step_index: int) -> int:
+    """Return the time-scheduled route segment, independent of robot state."""
+    if step_index < 0:
+      raise ValueError("step_index must be nonnegative")
+    if self.second_motion_steps == 0:
+      return 0
+    return int(step_index >= self.first_motion_steps)
+
   def completion_allowed(self, step_index: int | torch.Tensor) -> bool | torch.Tensor:
     """Whether geometric completion may be accepted after settle ends."""
     if isinstance(step_index, torch.Tensor):

@@ -45,6 +45,10 @@ from src.tasks.velocity.evaluation.curved_routes import (
   s_route_errors,
 )
 from src.tasks.velocity.evaluation.routes import route_normal_velocity, update_attempt_status
+from src.tasks.velocity.evaluation.transient_metrics import (
+  OnlineCommandTransientMetrics,
+  TransientMetricConfig,
+)
 
 
 PATCH_SIZE = (16.0, 16.0)
@@ -333,6 +337,15 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
   cross_velocity_sum = torch.zeros_like(samples); slip_sum = torch.zeros_like(samples); action_acc_sum = torch.zeros_like(samples)
   first_reason: list[str | None] = [None] * num_envs
   termination_counts = {name: torch.zeros_like(samples) for name in env.termination_manager.active_terms}
+  transient_metrics = OnlineCommandTransientMetrics(
+    num_envs,
+    device=device,
+    dtype=robot.data.root_link_pos_w.dtype,
+    config=TransientMetricConfig(
+      control_dt=float(profile["control_dt"]),
+      num_segments=2 if cfg.route_kind == "s_curve" else 1,
+    ),
+  )
   try:
     feet_sensor = env.scene["feet_ground_contact"]
   except KeyError:
@@ -345,6 +358,8 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
     pre_pos = robot.data.root_link_pos_w[:, :2].clone(); pre_heading = robot.data.heading_w.clone()
     pre_progress, pre_cross, pre_heading_error = route_states(pre_pos, pre_heading)
     command = torch.zeros(num_envs, 3, device=device)
+    segment_index = torch.zeros(num_envs, dtype=torch.long, device=device)
+    controller_saturated = torch.zeros(num_envs, dtype=torch.bool, device=device)
     step_index = _
     for key, (ids, route) in route_groups.items():
       radius, speed, turn_sign = key
@@ -354,6 +369,8 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
           step_index, device=device, dtype=pre_pos.dtype
         )
         group_command = tape_command.expand(len(ids), -1)
+        if cfg.route_kind == "s_curve":
+          segment_index[ids] = tape_schedules[key].segment_at(step_index)
       else:
         controller = (
           arc_command_controller if isinstance(route, ArcRoute) else s_command_controller
@@ -367,6 +384,19 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
           heading_gain=cfg.heading_gain,
           max_lateral_speed=cfg.max_lateral_speed,
           max_yaw_rate=cfg.max_yaw_rate,
+        )
+        if isinstance(route, SRoute):
+          first_progress, _, _ = arc_route_errors(
+            route.first,
+            pre_pos.index_select(0, ids),
+            pre_heading.index_select(0, ids),
+          )
+          segment_index[ids] = (
+            first_progress >= route.first.length - 1.0e-5
+          ).long()
+        controller_saturated[ids] = (
+          (group_command[:, 1].abs() >= cfg.max_lateral_speed - 1.0e-6)
+          | (group_command[:, 2].abs() >= cfg.max_yaw_rate - 1.0e-6)
         )
       command[ids] = group_command
     command = torch.where(active.unsqueeze(-1), command, 0.0)
@@ -406,6 +436,14 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
     final_position = torch.where(lifecycle.sample_mask.unsqueeze(-1), candidate_position, final_position)
     actual = torch.cat((robot.data.root_link_lin_vel_b[:, :2], robot.data.root_link_ang_vel_b[:, 2:3]), dim=-1)
     actual = torch.where(reset.unsqueeze(-1), torch.zeros_like(actual), actual)
+    transient_metrics.update(
+      step_index=step_index,
+      command=command,
+      actual=actual,
+      segment_index=segment_index,
+      sample_mask=lifecycle.sample_mask,
+      saturated=controller_saturated,
+    )
     cmd_sum += command * sample.unsqueeze(-1); actual_sum += actual * sample.unsqueeze(-1)
     expected_h = torch.zeros(num_envs, device=device)
     for ids, route in route_groups.values():
@@ -476,6 +514,7 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
       "first_failure_reason": first_reason[index],
       "slip_velocity_mean": float(slip_sum[index] / denom[index]),
       "action_acceleration_mean": float(action_acc_sum[index] / denom[index]),
+      "command_response_transients": transient_metrics.result(index),
       "termination_counts": {name: float(value[index]) for name, value in termination_counts.items()},
       "route_start_xy": [float(x) for x in route_start[index]],
       "route_endpoint_xy": [float(x) for x in endpoints[index]],
