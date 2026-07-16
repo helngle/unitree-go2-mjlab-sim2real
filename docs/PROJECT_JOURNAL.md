@@ -2550,3 +2550,121 @@ py_compile、V7 registration/import、CLI、真实 JSON 离线解析和 `git dif
 而现有证据相反。下一步先完成 clean S 弯、randomized/rough 曲线，或增加带逐步时序
 的严格 matched command-response 小诊断；只有发现额外 coupled locomotion 短板后，
 才重新评估 15% curve quota。V7 `model_13600.pt` 继续作为默认模型。
+
+### 2026-07-16 S 弯逐步瞬态与 randomized flat baseline（NO-GO，未训练）
+
+目的：补齐逐控制步 command-response 指标，并使用 V7 验证两段反向曲率的 clean 与
+randomized flat S 弯，区分普通前进欠速、yaw 换向、closed-loop controller 和
+locomotion policy 问题。本轮 integration 分支为 `exp/s-curve-transient-integration`；
+实现 Agent source commit 为 `d18bf26`，整合后提交为 `042ce00`，主 Agent 的 near-zero
+gain 修复为 `3a68ec0`，Acceptance Agent source commit 为 `e0b4edf`（整合后
+`18e7669`），Training Decision Agent source commit 为 `6148829`（整合后
+`2550236`）。
+
+唯一模型仍为：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+实现新增逐 segment 的 commanded/actual `vx/vy/wz`、least-squares response gain、
+IAE、90% rise time、overshoot、进入并保持 +/-10% band 的 settling time、yaw
+sign-switch latency、command delta、controller saturation、slip 和 action acceleration。
+S command-tape 两段按严格 step index 切换，不依赖实际 pose；reset 后 attempt 和指标
+冻结。gain 分母使用 `sum(command^2)`，命令能量低于阈值时输出 JSON `null`，避免把
+接近零的 `vy` 噪声误报为几十倍 gain。closed-loop 的 target 每步变化，因此其
+rise/overshoot/settling 只能解释为对 instantaneous command 的响应，不能当作固定
+阶跃稳态指标。
+
+#### Clean command-tape
+
+正式命令：
+
+```text
+python scripts/evaluate_go2_curved_routes.py \
+  --checkpoint <V7 model_13600.pt> \
+  --route-kind s_curve --mode command_tape \
+  --radii 1.5 2.5 4.0 --speeds 0.3 0.5 0.6 --turn-signs 1 -1 \
+  --steps 1600 --settle-steps 10 --profile clean --seed 42
+```
+
+JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_command_tape_clean_seed42_18env_1600steps.json
+```
+
+固定理想时长下 completion 为 `0/18`，但零 reset、零 fell/base/upper-leg/calf contact，
+terrain placement error 为 `0`。它是前进欠速诊断，不作为唯一训练 gate：
+
+```text
+subset  n   progress  vx gain seg1/seg2  wz gain seg1/seg2  yaw switch
+ID      14   0.8271       0.7902/0.8209       0.9408/0.9357      0.0457 s
+OOD      4   0.8534       0.7790/0.8518       0.9249/0.9045      0.0400 s
+```
+
+ID slip/action acceleration/cross-axis velocity 分别为 `0.0273/0.0728/0.0651`；yaw
+换向快速且方向正确，没有 S 弯特有的 command bandwidth 失败。
+
+#### Clean closed-loop
+
+同一 18 场景矩阵使用 `--mode closed_loop --steps 2000 --profile clean`。JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_closed_loop_clean_seed42_18env_2000steps.json
+```
+
+结果为 `18/18` completion、mean progress `1.0`、零 reset/termination、controller
+saturation `0`、placement error `0`。lateral RMS mean `0.00659 m`、lateral max
+`0.03174 m`、heading RMS mean `1.42 deg`、heading max `4.66 deg`、slip mean
+`0.02858`、action acceleration mean `0.07524`。ID yaw sign-switch latency mean
+`0.0314 s`。clean closed-loop gate 全部通过。
+
+#### Randomized flat
+
+randomized profile 保留 observation corruption、friction、encoder bias、COM/payload、
+motor strength 和 push，仍使用相同 flat S 矩阵、seed 和 V7 checkpoint。正式 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_closed_loop_randomized_flat_seed42_18env_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_closed_loop_r4v03_right_randomized_seed42_1env_2400steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_command_tape_randomized_flat_seed42_18env_1600steps.json
+```
+
+closed-loop 2000-step 矩阵为 `17/18`，mean progress `0.99939`，completion `94.4%`，
+零 reset/termination。唯一 `r=4.0,v=0.3,right` 达到 `98.9%` 后因 `step_limit`
+结束；保持相同 seed/profile 单独延长到 2400 steps 后 `1/1` 完成，最终位置误差
+`0.0256 m`，证明是 horizon false failure。原矩阵 lateral RMS mean `0.02653 m`、
+lateral max `0.12909 m`、heading RMS mean `1.89 deg`、heading max `6.48 deg`，均通过
+randomized gate；slip mean `0.03674`，action acceleration mean `0.23258`。
+
+randomized command-tape 仍为固定时长 `0/18`，但零 reset/contact。ID progress
+`0.8063`、两段 vx gain `0.7798/0.8038`、wz gain `0.8844/0.9413`、yaw switch
+`0.0486 s`。因此随机化下仍是普通 forward under-gain，未出现明显换向带宽或左右
+不对称问题。五个正式 JSON 均通过递归 finite 检查；允许的缺失瞬态值使用 JSON
+`null`，没有 NaN/Inf。
+
+randomized action acceleration 约为 clean 的 `3.1x`，但当前没有完全相同随机化条件的
+straight/arc matched reference，不能把它归因于 S 弯，也不能用 clean 的 `1.2x`
+阈值直接授权训练。后续应先补同 profile 的 matched route reference。
+
+#### 训练决策与覆盖边界
+
+Training Decision Agent 判定 **NO-GO**：clean closed-loop `18/18`，randomized 的唯一
+未完成项补足 horizon 后通过；yaw 换向约 `0.03--0.05 s`，controller saturation 为
+`0`，coupled/sign-switch 没有明显弱于既有 pure-axis baseline。V7 的 3--8 s 随机
+重采样只会偶然覆盖 general-to-general 的反向 yaw，不精确等价于 S tape，但当前证据
+仍不足以授权 15% curve mode 或 transition-sequence sampler。
+
+本轮没有修改 reward、production sampler、terrain、termination、gait、network 或
+checkpoint；没有启动 matched control/probe 或 PPO，没有新模型。现 evaluator 明确
+输出 `flat_curves=true`、`rough_curves=false`、`terrain_transitions=false`，因此没有
+运行或宣称 slope/rough/obstacle 曲线能力；后续必须先实现兼容 corridor、scan footprint
+和 relocation 的复杂地形曲线 evaluator。
+
+Integration HEAD 的全量 Go2 unittest 为 `132 PASS + 1 intentional skip`；skip 仍是
+尚未授权的 production curve sampler/frozen-terrain wiring。相关 `py_compile`、CLI
+help、V7 task registration/load、五个正式 JSON finite 检查和 `git diff --check` 均
+通过。最终 Test Agent 仍需在包含本文档的最终 HEAD 上统一复跑并给出 PASS/FAIL。
+
+最终结论：**NO-GO，未启动训练；V7 `model_13600.pt` 继续作为默认模型。**

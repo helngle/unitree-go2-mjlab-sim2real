@@ -1,5 +1,49 @@
 # 新聊天窗口交接摘要
 
+## 2026-07-16 S 弯瞬态与 randomized flat 结果（最新）
+
+当前 integration 分支为 `exp/s-curve-transient-integration`。已新增逐控制步/逐 segment
+的 response gain、IAE、rise/overshoot/settling、yaw sign-switch latency、command
+slew/saturation、slip 和 action acceleration；S command-tape 严格按 step index 换向，
+reset 后 attempt 冻结。near-zero command 的 gain 现在输出 `null`，不会把接近零的
+`vy` 噪声误报为大 gain。
+
+V7 clean S command-tape 在理想固定时长内为 `0/18`，ID 的两段 vx gain 为
+`0.7902/0.8209`，wz gain 为 `0.9408/0.9357`，yaw 换向延迟 `0.0457 s`，零 reset/contact。
+它说明普通 forward under-gain，不是 S 弯换向失效。clean closed-loop 为 `18/18`，
+mean lateral RMS `0.00659 m`、最大 lateral error `0.03174 m`、mean heading RMS
+`1.42 deg`、最大 heading error `4.66 deg`，零 reset/termination、saturation `0`。
+
+randomized flat closed-loop 2000-step 矩阵为 `17/18`、mean progress `0.99939`，唯一
+`r=4.0,v=0.3,right` 在 `98.9%` 因 step limit 结束；延长至 2400 steps 后 `1/1`
+完成，确认不是 policy failure。原矩阵 lateral RMS mean `0.02653 m`、lateral max
+`0.12909 m`、heading RMS mean `1.89 deg`、heading max `6.48 deg`，零 reset/contact。
+randomized tape 的 ID yaw 换向为 `0.0486 s`，仍无带宽短板。randomized action
+acceleration `0.23258` 约为 clean `0.07524` 的 `3.1x`，但缺少同 profile straight/arc
+matched reference，后续必须先补参考，不能据此训练。
+
+Training Decision Agent 结论为 **NO-GO**：没有授权 15% curve sampler、transition
+sequence sampler 或 PPO；本轮未训练、没有新 checkpoint。当前 evaluator 只覆盖
+flat curves，明确不覆盖 rough curves 或 terrain transitions；不得宣称已验证坡地、
+rough、障碍或楼梯曲线。下一步优先实现 scan/corridor/relocation 兼容的复杂地形曲线
+evaluator，或先补 randomized straight/arc matched action-acceleration reference。
+
+正式 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_command_tape_clean_seed42_18env_1600steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_closed_loop_clean_seed42_18env_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_closed_loop_randomized_flat_seed42_18env_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_closed_loop_r4v03_right_randomized_seed42_1env_2400steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_baseline_s_curve_command_tape_randomized_flat_seed42_18env_1600steps.json
+```
+
+默认模型继续是 V7：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
 ## 2026-07-16 当前状态（优先于下方历史记录）
 
 当前目标已从横移专项调整为统一 Go2 policy 的路径执行闭环：
