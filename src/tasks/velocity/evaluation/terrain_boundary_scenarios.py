@@ -124,8 +124,8 @@ def effective_high_terrain_parameters(
       "difficulty_affects_geometry": False,
       "difficulty_invariant": True,
       "difficulty_reason": (
-        "V7 HfRandomUniformTerrainCfg deletes its difficulty argument; high "
-        "and extreme rows are independent samples of the same distribution"
+        "V7 HfRandomUniformTerrainCfg ignores (deletes) its difficulty argument; "
+        "high and extreme rows are independent samples of the same distribution"
       ),
     }
   if kind == "discrete_obstacle":
