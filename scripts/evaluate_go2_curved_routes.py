@@ -500,6 +500,7 @@ def _evaluate_scenarios(cfg: CurvedRouteConfig, scenarios: list[dict[str, Any]])
       "completed": bool(completed[index]),
       "failed": bool(failed[index]),
       "finished": bool(completed[index] | failed[index]),
+      "steps_sampled": int(samples[index]),
       "path_completion": bool(completed[index]),
       "arc_length": float(route_lengths[index]),
       "motion_steps": tape_schedules[
