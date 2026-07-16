@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import inspect
 import json
 import math
 from typing import Any, Mapping
@@ -11,7 +12,12 @@ from unittest import mock
 
 import torch
 
-from scripts.evaluate_go2_matched_routes import MatchedRouteConfig, _scenarios, evaluate
+from scripts.evaluate_go2_matched_routes import (
+  MatchedRouteConfig,
+  _evaluate_route_kind,
+  _scenarios,
+  evaluate,
+)
 from src.tasks.velocity.evaluation.curved_routes import make_arc_route, make_s_route
 from src.tasks.velocity.evaluation.matched_route_metrics import (
   ACTION_ACCELERATION_DEFINITION,
@@ -236,6 +242,19 @@ class MatchedGeometryAndEnergyAcceptanceTest(unittest.TestCase):
       {value[0] for value in route_energy.values()}, {forward_energy}
     )
     self.assertEqual(route_energy["arc"][1], route_energy["s_curve"][1])
+
+  def test_rollout_applies_settle_and_reports_command_energy(self) -> None:
+    source = inspect.getsource(_evaluate_route_kind)
+    self.assertIn(
+      "cfg.settle_steps",
+      source,
+      "settle_steps is metadata-only and does not affect the rollout lifecycle",
+    )
+    self.assertIn(
+      "command_energy",
+      source,
+      "closed-loop command energy is not retained for matched verification",
+    )
 
   def test_left_right_routes_are_exact_mirrors_and_scan_safe(self) -> None:
     start = torch.tensor([2.0, 8.0], dtype=torch.float64)
