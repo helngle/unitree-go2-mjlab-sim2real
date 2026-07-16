@@ -655,6 +655,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
         int(completion_steps[index]) if completion_steps[index] >= 0 else None
       ),
       "forward_progress": float(final_progress[index]),
+      "progress_ratio": float(final_progress[index] / route_length),
       "lateral_rms": float(torch.sqrt(cross_sq_sum[index] / denom[index])),
       "lateral_p95": float(torch.quantile(cross_distribution, 0.95)),
       "lateral_max": float(cross_max[index]),
