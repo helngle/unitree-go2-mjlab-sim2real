@@ -1,5 +1,31 @@
 # 新聊天窗口交接摘要
 
+## 2026-07-16 Matched randomization 与 terrain curve smoke（最新）
+
+当前 integration 分支为 `exp/terrain-curve-matched-integration`。严格 matched flat
+straight/arc/S 使用统一路长 `2*pi*r/3`、相同 seed/profile/horizon，并实际执行 10-step
+settle 和输出 command energy。Clean 三类均 `18/18`；full-randomized 均 `17/18`，
+唯一未完成是共同的 slow `r=4,v=0.3,right` step-limit、零 reset。Randomized action
+acceleration straight/arc/S 为 `0.23202/0.23257/0.23292`，S 仅高 `0.39%/0.15%`，
+明确不是 S 特异问题。
+
+因素归因：S clean `0.07524`，dynamics-only `0.07705`，push-only `0.07563`，
+observation-only `0.22738`；actor corruption only `0.22810`，encoder bias only
+`0.07622`。动作粗糙度主要来自 actor observation corruption，不是曲线、push 或
+dynamics randomization。
+
+新增 18 x 18 m evaluation-only terrain curve evaluator。Low/medium slope up/down、
+random rough、discrete obstacle：clean arc `64/64`，clean S 补 horizon 后 `64/64`；
+randomized arc `64/64`，randomized S 的 slow r4/v0.3 子矩阵补 horizon 后全部通过。
+所有 rollout 零 reset/termination，terrain assignment error `5.96e-8`、route placement
+error `0`。旧 8 x 4 m transition patch 不容纳曲线，明确拒绝；未覆盖 continuous
+transition 或 stairs curve。
+
+Terrain 结果目前只算可信 smoke：没有 slip/action P95/max 和非终止 base/upper/calf
+contact rate，不能声称完整 formal complex-terrain gate。训练决策仍为 **NO-GO**，
+本轮未训练、没有新 checkpoint；默认模型继续是 V7 `model_13600.pt`。下一步先补齐
+terrain matched metric aggregation，再扩 high difficulty/transition，不改 reward/sampler。
+
 ## 2026-07-16 S 弯瞬态与 randomized flat 结果（最新）
 
 当前 integration 分支为 `exp/s-curve-transient-integration`。已新增逐控制步/逐 segment

@@ -2671,3 +2671,94 @@ GPU smoke 的 placement/reset 均为 `0`，transient schema 和 finite 检查通
 worktree clean，无残留 train/evaluate/play 或 GPU compute 进程。
 
 最终结论：**NO-GO，未启动训练；V7 `model_13600.pt` 继续作为默认模型。**
+
+### 2026-07-16 Matched randomization 与复杂地形曲线 smoke（NO-GO，未训练）
+
+本阶段使用 1 个 Integration Agent 和 3 个独立 Agent/worktree。Matched Reference
+Agent commit `8dc0caf` 整合为 `524fc5b`；Terrain Curve Agent commit `c1579ef`
+整合为 `0b8b2ac`；Acceptance commits `a7209ab/21173f7` 整合为
+`2e6712e/f36b55f`。Acceptance 首轮发现并阻止了三个 matched contract 缺陷：120 度
+arc corridor x 上界低估、`settle_steps` 只存在于 metadata、JSON 没有 command
+energy。Integration 修复 commit 为 `b058f13`：arc bounds 使用 90 度处真实极值，
+completion 后执行固定零命令 settle window，并输出每轴离散/积分 command energy。
+
+#### 严格 matched flat 对照
+
+straight、120 度 arc、两个反向 60 度 arc 组成的 S 使用统一路长 `2*pi*r/3`，相同
+checkpoint、seed、matched slot、speed、steps、controller limits 和 profile；每个
+route kind 在 fresh env 中用同 seed 重建。正式修复后 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_matched_straight_arc_s_clean_full_settlefixed_seed42_18slots_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_matched_straight_arc_s_clean_full_settlefixed_diagnostics_seed42.json
+```
+
+结果：
+
+```text
+profile          route       completion   action_acc   slip
+clean            straight      18/18       0.07435    0.02833
+clean            arc           18/18       0.07521    0.02875
+clean            S             18/18       0.07587    0.02896
+full randomized  straight      17/18       0.23202    0.03577
+full randomized  arc           17/18       0.23257    0.03717
+full randomized  S             17/18       0.23292    0.03723
+```
+
+randomized 三类唯一未完成项均是同一 `r=4,v=0.3,right` slot，progress 约
+`0.982/0.987/0.989`、零 reset，属于共同 horizon 边界。S action acceleration 在
+clean 下仅比 arc/straight 高 `0.87%/2.04%`，randomized 下仅高 `0.15%/0.39%`；
+S slip randomized 比 arc 高 `0.14%`、比 straight 高 `4.08%`。所有 1.2x/1.3x、
+slip 和 catastrophic termination gates 通过，明确归因 `not_s_curve_specific`。
+
+#### Randomization 因素归因
+
+pre-fix 但同矩阵的 ablation JSON 仅用于因素诊断；10-step settle 修复不改变主结论：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_matched_straight_arc_s_core_ablation_seed42_18slots_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_matched_straight_arc_s_observation_subfactors_seed42_18slots_2000steps.json
+```
+
+S action acceleration：clean `0.07524`，dynamics-only `0.07705` (`1.024x`)，
+push-only `0.07563` (`1.005x`)，observation-only `0.22738` (`3.022x`)，
+full-randomized `0.23265` (`3.092x`)。进一步拆分：actor corruption only
+`0.22810`，encoder bias only `0.07622`。因此动作加速度升高几乎完全由 actor
+observation corruption 主导，不是 friction/COM/payload/motor/push、encoder bias 或
+S 曲线本身。该结论是评估风险归因，不授权修改训练观测或启动 PPO。
+
+#### 复杂地形曲线 smoke
+
+新增 evaluation-only 18 x 18 m terrain curve patch，route start `(9,9)`；精确计算
+0.4 m corridor 和 yaw-aligned 1.6 x 1.0 m height-scan footprint。`r=4` S 的最小
+scan margin 仍约 `1.2718 m`。旧 8 x 4 m transition patch 明确拒绝且不缩放；
+continuous approach-feature-exit 和 stairs curves 未实现、未声称覆盖。Terrain 使用
+V7 slope up/down、random rough、discrete obstacle primitives，low/medium 对应 level
+0/1。random rough primitive 不使用 difficulty，JSON 明确标记该限制。
+
+有效 smoke JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_terrain_curves_arc_clean_low_medium_seed42_64env_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_terrain_curves_s_curve_clean_low_medium_seed42_64env_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_terrain_curves_s_curve_slope_up_low_r4v03_left_retry_seed42_1env_2400steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_terrain_curves_arc_randomized_low_medium_seed42_64env_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_terrain_curves_s_curve_randomized_low_medium_seed42_64env_2000steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/route_terrain_curves_s_curve_randomized_r4v03_retry_seed42_12env_2400steps.json
+```
+
+Clean arc 为 `64/64`，clean S 为 `63/64`，唯一 slow `r=4,v=0.3` 增加 horizon 后
+`1/1`；randomized arc `64/64`，randomized S `59/64`，五项均为 slow `r=4,v=0.3`
+step-limit，相关 2400-step 子矩阵 `12/12`。所有 rollout 零 reset/termination，terrain
+assignment error `5.96e-8`、route placement error `0`。Randomized arc/S mean action
+acceleration 为 `0.23888/0.23911`，再次表明曲线类型不是动作粗糙度来源。
+
+这些结果只能标记为可信 low/medium smoke：复用 rollout 当前只保留 mean slip/action
+acceleration 和 catastrophic contact terminations，没有 P95/max 或非终止 body-part
+contact rate；不能标记为完整 formal complex-terrain gate，也不覆盖 high difficulty、
+continuous transitions 或 stairs curves。
+
+结论：没有发现 controller 或 locomotion policy 的单一训练短板。**NO-GO，未启动
+训练；V7 `model_13600.pt` 继续作为默认模型。** 后续优先把 terrain rollout 接入
+matched P95/max 和非终止 contact 聚合，再扩大 high difficulty/transition 覆盖；不修改
+reward、sampler 或网络。
