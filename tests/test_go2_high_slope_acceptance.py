@@ -61,6 +61,19 @@ def _assert_inside(bounds: Any, patch: Any) -> None:
     raise AssertionError(f"bounds {bounds} leave patch {patch}")
 
 
+def _assert_failure_reason_semantics(scenario: Mapping[str, Any]) -> None:
+  """Completed rows use JSON null; failed rows name a real reason."""
+  completed = scenario.get("completed")
+  failed = scenario.get("failed")
+  reason = scenario.get("first_failure_reason")
+  if completed is True and reason is not None:
+    raise AssertionError("completed scenario first_failure_reason must be null")
+  if failed is True and (
+    not isinstance(reason, str) or not reason.strip() or reason == "none"
+  ):
+    raise AssertionError("failed scenario requires a nonempty failure reason")
+
+
 def _assert_formal_result(payload: Mapping[str, Any]) -> None:
   """Acceptance-only schema check used for post-GPU JSON review."""
   assert_recursive_json_finite(payload)
@@ -102,6 +115,7 @@ def _assert_formal_result(payload: Mapping[str, Any]) -> None:
         missing = required.difference(scenario)
         if missing:
           raise AssertionError(f"{profile_name}/{kind} missing {sorted(missing)}")
+        _assert_failure_reason_semantics(scenario)
         geometry = scenario["geometry"]
         if not (geometry["centerline_inside_patch"] and geometry["corridor_inside_patch"] and geometry["scan_footprint_inside_patch"]):
           raise AssertionError("an invalid route was emitted as a runnable scenario")
@@ -228,6 +242,26 @@ class PlacementControllerAndLifecycleAcceptanceTest(unittest.TestCase):
 
 
 class MetricsAndJsonAcceptanceTest(unittest.TestCase):
+  def test_completed_reason_is_null_and_failed_reason_is_explicit(self) -> None:
+    _assert_failure_reason_semantics({
+      "completed": True,
+      "failed": False,
+      "first_failure_reason": None,
+    })
+    _assert_failure_reason_semantics({
+      "completed": False,
+      "failed": True,
+      "first_failure_reason": "illegal_calf_contact",
+    })
+    for invalid in (
+      {"completed": True, "failed": False, "first_failure_reason": "none"},
+      {"completed": False, "failed": True, "first_failure_reason": None},
+      {"completed": False, "failed": True, "first_failure_reason": ""},
+      {"completed": False, "failed": True, "first_failure_reason": "none"},
+    ):
+      with self.subTest(invalid=invalid), self.assertRaises(AssertionError):
+        _assert_failure_reason_semantics(invalid)
+
   def test_p95_max_and_contact_rates_use_active_sample_denominator(self) -> None:
     metrics = OnlineTerrainRolloutMetrics(1, 3, device="cpu")
     metrics.update(sample_mask=torch.tensor([True]), action_acceleration=torch.tensor([1.0]), foot_slip_velocity=torch.tensor([2.0]), body_contacts={"base": torch.tensor([True]), "upper_leg": torch.tensor([False]), "calf": torch.tensor([True])}, catastrophic_termination=torch.tensor([False]))
