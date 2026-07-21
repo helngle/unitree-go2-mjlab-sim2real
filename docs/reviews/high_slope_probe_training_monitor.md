@@ -255,5 +255,85 @@ Result: PASS; V7 has the expected 2048 terrain state and no preexisting sampler 
 ```
 
 No training, evaluator, simulator environment, or GPU process was started by
-this Agent.  The next report update will use the stable run directory provided
-by the Integration Agent; it will not poll or claim GPU ownership.
+this Agent.  It does not poll or claim GPU ownership.
+
+## Live run audit: stages 13700 and 13800
+
+The Integration Agent supplied the stable read-only run directory:
+
+```text
+/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/
+2026-07-21_16-21-46_go2_rough_v7_high_slope_sampling_probe_2048env_400iter
+```
+
+No simulator, runner, evaluator, or GPU context was created for this audit.
+TensorBoard event data and fully written checkpoint files were read on CPU.
+
+### Checkpoint state
+
+| checkpoint | SHA256 | iter | common step | reset / hard | exact ratio | quota residual | population H |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `model_13700.pt` | `43a3823b3a26c9a7491332b931128653d410bd85d085e86c146dd8e3122c5d2f` | 13700 | 329088 | 5011 / 501 | 0.09998004 | 0.10000000 | 0.09765625 |
+| `model_13800.pt` | `6312ca929edb9d33953a4edcf4da66733711c825ddf147489e5113b089f34101` | 13800 | 331488 | 10040 / 1004 | 0.10000000 | approximately `4.6e-14` | 0.09814453 |
+
+Both files are 7,080,459 bytes and contain actor, critic, optimizer, iteration,
+V7 terrain state, and the complete sampler state.  For both checkpoints:
+
+```text
+schema_version == 1
+target_hard_case_ratio == 0.10
+histogram sum == total_reset_count
+hard histogram sum == total_hard_count
+saved ratio == hard count / reset count
+target error <= 1 / total_reset_count
+0 <= quota_residual < 1
+generator state exists, dtype uint8, length 16
+all saved sampler scalars finite
+changed ratio == abs(batch ratio - candidate ratio)
+terrain level/type arrays remain shape (2048,), ranges 0..9 / 0..19
+```
+
+The last reset represented in a checkpoint may be a very small partial-reset
+batch.  Thus `model_13700` legitimately records candidate/batch/changed ratios
+`0.0/0.5/0.5`, while `model_13800` records
+`0.3333/0.3333/0.0`.  These latest-batch values do not replace the exact
+cumulative counts above.
+
+The common-step offsets also confirm the RSL-RL iteration-label convention:
+relative to V7 step 326664, `model_13700` is `+2424 = 101 * 24` control steps
+and `model_13800` is `+4824 = 201 * 24`.  This is consistent with the new-run
+`model_13600` being the first update and the final `model_13999` representing
+all 400 requested updates.
+
+### TensorBoard snapshot through iteration 13817
+
+All 63 scalar tags are finite.  All 25 required core/sampler tags are present;
+none are missing.  The latest 20-iteration means are:
+
+| metric | probe mean20 | V7 pre-resume mean20 at 13600 | observation |
+| --- | ---: | ---: | --- |
+| mean reward | 49.293 | 51.901 | lower, but not a stop condition |
+| mean episode length | 978.25 | 990.30 | small decrease |
+| terrain level | 5.605 | 5.225 | increased |
+| linear tracking reward | 0.8136 | 0.8407 | about 3.2% lower |
+| angular tracking reward | 0.8999 | 0.9124 | about 1.4% lower |
+| pose reward | 0.8439 | 0.8600 | about 1.9% lower |
+| slip velocity | 0.08185 | 0.07649 | about 7.0% higher |
+| action acceleration | 0.7666 | 0.7211 | about 6.3% higher |
+| fell termination | 0.01875 | 0.00417 | warning: increased |
+| base termination | 0.01875 | 0.01250 | warning: increased |
+| upper-leg termination | 0.01875 | 0.01458 | warning: increased |
+| calf termination | 0.06042 | 0.02708 | warning: increased |
+| total FPS | 17409 | not used as model gate | training still advancing |
+
+Loss/value, surrogate, entropy, learning rate, and policy standard deviation are
+finite.  The latest 20 loss/value values are `0.0097..0.0364`, with no divergence.
+The latest TensorBoard sampler reset-ratio mean is `0.099951`; checkpoint counts,
+not this averaged plot, remain the formal ratio source.
+
+Status at this snapshot: **CONTINUE / HEALTHY STATE PERSISTENCE**, with an
+acceptance risk warning for increased slip, action acceleration, and physical
+terminations.  The increases do not meet a declared automatic-stop condition
+and may reflect the intended extra hard-slope exposure.  They must be judged by
+the fixed post-training route/contact regression gates; training reward or
+terrain level alone must not select the model.
