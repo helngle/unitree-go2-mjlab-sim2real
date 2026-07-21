@@ -1,10 +1,10 @@
 # Unitree RL Mjlab 本地实验日志
 
-最后更新：2026-07-14
+最后更新：2026-07-21
 
 ## 当前目标
 
-在 `/home/jensen/projects/unitree_rl_mjlab` 下沿 Unitree 官方路线优化 Go2 rough-terrain locomotion。当前默认 rough 模型为 V7 `model_13600.pt`；lateral-conditioned hip pose tolerance 单变量探针已完成，横移有小幅改善但仍未形成充分侧步。下一步重点是 command-conditioned foot-placement/step-length reward，而不是继续增加 lateral 采样或修改 trot phase。
+在 `/home/jensen/projects/unitree_rl_mjlab` 下优化统一 Go2 rough-terrain locomotion policy。当前默认模型仍为 V7 `model_13600.pt`。最新阶段聚焦 high/extreme slope 下 matched straight/arc/S 的归因；当前训练 gate 为 NO-GO，下一步先拆分 closed-loop controller saturation 与 policy 持续高坡执行能力，不直接修改 reward 或启动 PPO。
 
 ## 记录约定
 
@@ -14,7 +14,7 @@
 
 - 官方仓库：`https://github.com/unitreerobotics/unitree_rl_mjlab.git`
 - 本地路径：`/home/jensen/projects/unitree_rl_mjlab`
-- 当前分支：`main`
+- 当前分支：`exp/high-slope-attribution-integration`
 - 当前官方 HEAD：`1425b15 Fix the warnings during rough-terrain training.`
 - Conda 环境：`unitree_rl_mjlab`
 - 关键依赖修正：
@@ -2888,3 +2888,75 @@ level-9 stairs 暴露能力边界，但不反向否定 evaluator。本轮固定 
 提高 high/extreme slope hard-case terrain exposure；若只曲线失败，只增加高坡上的
 parameterized forward+yaw hard-case sampling。两种方案都冻结 reward、termination、
 gait、network 和其余通用 terrain 分布。
+
+### 2026-07-21 High-slope matched attribution（NO-GO，未训练）
+
+本阶段完成 strict matched high-slope evaluator、离线归因和 level-9 stairs 多 seed 复验。
+最终 integration HEAD 为 `8aba90d`；子任务提交为 evaluator `a766432`、归因
+`e85d0e0`、PRE-GPU acceptance `c4f1bbf`、failure-reason 修复 `174c19a`、验收回归
+`609eb06`。最终 PRE-GPU：全量 276 tests PASS（1 skipped）、compileall、V7
+registry/import/config load、CLI、diff-check、worktree/process/GPU clean 均 PASS。
+
+正式 V7 checkpoint：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+合法 r=2.5 clean matched JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_matched_clean_r2p5_seed42_2400steps_v2.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_matched_clean_r2p5_seed42_2400steps_v2_attribution.json
+```
+
+矩阵固定为 18×18 m patch、r=2.5、high/extreme slope up/down、v=0.3/0.5、左右
+slot、seed42、2400 steps、每个 route kind fresh environment。结果为 straight
+`4/16`、arc `3/16`、S `3/16`；平均 forward gain 约 `0.504/0.516/0.526`，
+progress ratio 约 `0.517/0.461/0.464`。方向误差较小，但出现 fell、upper-leg、base
+和 calf termination。arc/S controller saturation max 约 `0.384/0.352`，超过归因
+阈值 `0.1`，故严格归因输出 `inconclusive_no_training`，不授权训练。
+
+Matched slot 交叉审查进一步显示：clean 有 `12/16` 三路线共同失败，randomized 有
+`11/16` 共同失败；绝大多数失败 slot saturation <= 0.1，少数高 saturation slot 反而
+完成。`slope_up` high/extreme 两个 profile、三路线全部失败；`slope_down high` 基本
+通过，而 `slope_down extreme` 基本失败。2400 steps 高于理想最低约 883 steps，且无
+near-end retry candidate。定性证据更支持 sustained slope/contact-stability 短板，
+不支持普遍曲率耦合；正式 analyzer 仍按预声明规则保持 LOW/INCONCLUSIVE。
+
+randomized matched JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_matched_randomized_r2p5_seed42_2400steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_randomized_r2p5_seed42_stairs_seed42_43_44_attribution.json
+```
+
+randomized completion 为 straight `5/16`、arc `4/16`、S `4/16`，forward gain
+约 `0.505/0.566/0.557`；同样因 saturation/归因规则不满足而保持 NO-GO。
+
+Level-9 continuous randomized stairs（0.5 m/s、2400 steps）JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_stairs_level9_randomized_seed42_2env_2400steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_stairs_level9_randomized_seed43_2env_2400steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_stairs_level9_randomized_seed44_2env_2400steps.json
+```
+
+上楼梯只有 seed42 calf termination（1/3），下楼梯只有 seed43 calf termination
+（1/3）；其余通过，归因为 `heterogeneous_failures_require_more_diagnosis`，不是
+稳定的同方向楼梯风险。
+
+r=4 straight 的 scan footprint 在 18×18 m 中心 patch 越界约 0.1776 m，正式 evaluator
+如实拒绝，不能作为策略失败。failure-reason schema 已修复：completed 使用 JSON null，
+失败使用非空真实原因；首轮错误 JSON 仅留作审计。全阶段固定 **NO-GO，未启动训练，
+没有新 checkpoint**；V7 `model_13600.pt` 继续为默认模型。下一步先对 controller
+saturation/command 生成做 command-tape 对照，只有确认是 policy 执行短板后才设计单变量
+probe。
+
+POST-GPU Acceptance：Evaluator Gate **PASS**，所有正式 JSON finite/schema/identity/
+matched invariants 通过，重算 attribution 与保存 JSON 逐字段一致；Model Gate
+**FAIL**，因果归因置信度 LOW/INCONCLUSIVE。无残留 train/evaluate/play/rsl_rl 或
+GPU compute process。下一项只允许 evaluation-only controller-headroom A/B：聚焦
+`slope_up high` 与 `slope_down extreme`，保持 policy/seed/terrain/route/horizon 不变，
+只统一缩放 lateral/yaw controller limit 并记录分轴 saturation。若三路线仍共同欠速，
+再把 sustained slope 作为候选单变量训练方向；否则优先修 controller/curvature coupling。

@@ -1,5 +1,40 @@
 # 新聊天窗口交接摘要
 
+## 2026-07-21 High-slope matched attribution（最新）
+
+当前 integration 分支 `exp/high-slope-attribution-integration`，HEAD `8aba90d`。
+已实现并验收 strict high-slope matched straight/arc/S evaluator 和离线归因；
+PRE-GPU 全量 276 tests PASS（1 skipped），V7 注册、配置加载、CLI、compileall、
+diff-check、worktree/process/GPU clean 均通过。GPU 后发现 completed 场景曾输出
+`first_failure_reason="none"`，已修复为 JSON null 并完整重跑，正式使用 `_v2.json`。
+
+V7 `model_13600.pt` 在 r=2.5、high/extreme slope up/down、v=0.3/0.5、seed42、
+2400-step clean matched 中：straight `4/16`、arc `3/16`、S `3/16`；forward gain
+约 `0.504/0.516/0.526`。randomized 为 `5/16、4/16、4/16`，gain 约
+`0.505/0.566/0.557`。失败普遍存在，但 arc/S controller saturation 超过预声明
+阈值，clean/randomized 离线归因均为 `inconclusive_no_training`；无 3000-step retry
+候选。r=4 straight 因 scan footprint 越出 18×18 patch 约 0.1776 m 被几何拒绝，
+未计为策略失败。
+
+交叉分析显示 clean 有 `12/16` matched slot 三路线共同失败，randomized 有 `11/16`
+共同失败；绝大多数失败 slot 没有 saturation，少数高 saturation slot 甚至完成。
+因此定性证据更支持 sustained high-slope/contact-stability 边界，而非普遍曲率耦合；
+但正式 analyzer 按预声明 max-saturation gate 仍必须保持 LOW/INCONCLUSIVE。
+
+Randomized level-9 stairs seed42/43/44：上楼梯仅 seed42 calf failure，下楼梯仅
+seed43 calf failure，都是 1/3；结论为异质、低置信风险，不是稳定同方向楼梯缺陷。
+
+本阶段固定 **NO-GO，未训练、无新 checkpoint**。默认部署模型仍是：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+下一步优先做 controller/command-tape 对照，拆开 closed-loop saturation 与 policy
+高坡执行能力。建议只针对 slope-up high 与 slope-down extreme 做 controller-headroom
+A/B，冻结 policy、terrain、route、seed 和 horizon，只统一放宽 lateral/yaw controller
+limit 并记录分轴 saturation；未形成唯一归因前不得启动 hard-case sampling PPO。
+
 ## 2026-07-16 High terrain boundary 与完整 rollout metrics（最新）
 
 当前 integration 分支为 `exp/terrain-boundary-integration`，基线 `5d233f4`。本轮
