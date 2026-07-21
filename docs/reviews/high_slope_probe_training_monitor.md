@@ -337,3 +337,95 @@ terminations.  The increases do not meet a declared automatic-stop condition
 and may reflect the intended extra hard-slope exposure.  They must be judged by
 the fixed post-training route/contact regression gates; training reward or
 terrain level alone must not select the model.
+
+## Final training audit
+
+The fixed 400-iteration run completed in 18 minutes 37 seconds.  It produced
+the planned `model_13900.pt` stage and `model_13999.pt` final checkpoint without
+an OOM, traceback, NaN guard failure, missing scalar, or stalled iteration.
+
+### Final checkpoint state
+
+| checkpoint | SHA256 | iter | common step | reset / hard | exact ratio | quota residual | population H |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `model_13900.pt` | `52aa46dc1a7c1ac6ef54b89c777732a5fed93e2c396a75e13f4a22db20004eb5` | 13900 | 333888 | 15018 / 1501 | 0.09994673 | 0.80000000 | 0.09619141 |
+| `model_13999.pt` | `76c8f9017d7200fdf1477b89f35100a7dce9b8db3295ae424e1e6adfef339f4d` | 13999 | 336264 | 19966 / 1996 | 0.09996995 | 0.60000000 | 0.09814453 |
+
+Both files are 7,080,459 bytes.  Actor (13 keys), critic (12 keys), optimizer,
+terrain level/type arrays, and the complete sampler persistence schema are
+present.  Both pass the same finite, counter, hard-counter, histogram, exact
+ratio, quota, target-bound, RNG, and minimum-membership-change invariants used
+for stages 13700 and 13800.  The final common-step offset is
+`336264 - 326664 = 9600 = 400 * 24`, proving that the requested additional 400
+iterations completed.
+
+The final sampler ratio differs from 10% by only `0.00003005`; this is inside
+the deterministic quota bound `1/19966`.  The saved final latest partial-reset
+snapshot is candidate/batch/changed=`0.3333/0/0.3333`, which exactly satisfies
+the minimum membership-change identity.  It does not indicate a cumulative
+ratio failure.
+
+### Four-stage TensorBoard trend
+
+All 63 scalar tags contain 400 finite samples at steps `13600..13999`; all
+required tags are present.  The first interval contains expected startup
+transients from randomized initial episode lengths, so stage-to-stage model
+health is best read from intervals 13700 onward.
+
+| metric | 13600--13699 | 13700--13799 | 13800--13899 | 13900--13999 |
+| --- | ---: | ---: | ---: | ---: |
+| mean reward | 40.508 | 50.262 | 49.317 | 49.612 |
+| episode length | 776.64 | 984.71 | 981.70 | 985.85 |
+| terrain level | 5.261 | 5.504 | 5.605 | 5.676 |
+| linear tracking reward | 0.664 | 0.825 | 0.816 | 0.824 |
+| angular tracking reward | 0.725 | 0.906 | 0.896 | 0.901 |
+| slip velocity | 0.07484 | 0.08016 | 0.08316 | 0.08124 |
+| action acceleration | 0.7141 | 0.7513 | 0.7798 | 0.7792 |
+| fell termination | 0.00375 | 0.01083 | 0.00708 | 0.00500 |
+| base termination | 0.00792 | 0.00792 | 0.02167 | 0.01667 |
+| upper-leg termination | 0.02667 | 0.02042 | 0.02417 | 0.02083 |
+| calf termination | 0.03125 | 0.03708 | 0.04583 | 0.03667 |
+| TB cumulative reset ratio | 0.09752 | 0.09992 | 0.09996 | 0.09997 |
+| hard-case population ratio | 0.07138 | 0.09708 | 0.09696 | 0.09701 |
+| FPS | 17878 | 17451 | 17642 | 17459 |
+
+Terrain exposure increased steadily, while post-startup episode length and
+tracking remained stable.  Slip and action acceleration rose through the third
+interval; slip partially recovered in the final interval and action
+acceleration plateaued.  Base/upper/calf contact terminations also peaked or
+remained elevated in the third interval and then partially recovered.  There
+is no monotonic training collapse, but the roughness/contact changes remain a
+material model-acceptance risk.
+
+### Final tail100 versus V7 pre-resume window
+
+| metric | probe final tail100 | V7 mean20 at source 13600 | change/risk |
+| --- | ---: | ---: | --- |
+| reward | 49.612 | 51.901 | about 4.4% lower |
+| episode length | 985.85 | 990.30 | essentially retained |
+| terrain level | 5.676 | 5.225 | higher exposure/difficulty |
+| linear tracking reward | 0.8239 | 0.8407 | about 2.0% lower |
+| angular tracking reward | 0.9005 | 0.9124 | about 1.3% lower |
+| pose reward | 0.8477 | 0.8600 | about 1.4% lower |
+| slip velocity | 0.08124 | 0.07649 | about 6.2% higher |
+| action acceleration | 0.7792 | 0.7211 | about 8.1% higher |
+| fell termination | 0.00500 | 0.00417 | similar absolute level |
+| base termination | 0.01667 | 0.01250 | elevated |
+| upper-leg termination | 0.02083 | 0.01458 | elevated |
+| calf termination | 0.03667 | 0.02708 | elevated |
+
+The adaptive value loss has two notable post-startup isolated spikes:
+`1.7806` at iteration 13766 and `2.1359` at iteration 13965.  At 13965 the value
+loss returns from `2.1359` to `0.0127` on the next iteration and the reward
+recovers within two iterations.  Surrogate loss, learning rate, policy standard
+deviation, FPS, and subsequent value losses remain finite, so this is recorded
+as an optimizer/value-fit warning rather than sustained divergence.
+
+Final telemetry verdict: **TRAINING HEALTH PASS; MODEL ACCEPTANCE UNDECIDED**.
+The sampler executed the declared single variable accurately and checkpoint
+persistence is healthy.  Training did not collapse, but it traded higher
+terrain exposure for modestly worse tracking, slip/action roughness, and
+contact termination trends.  No checkpoint should become the default from
+training telemetry alone.  `model_13700`, `model_13800`, `model_13900`, and
+`model_13999` must now be ranked with the fixed high-slope evaluator and the
+unchanged stairs/flat/rough/obstacle regressions.
