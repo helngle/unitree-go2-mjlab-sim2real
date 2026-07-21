@@ -133,6 +133,55 @@ rank item.  They remain veto checks: non-finite JSON, placement error above `1e-
 identity, or slip/action above `1.2x` the matching V7 scene disqualifies a checkpoint.  This rule
 prevents selecting a visually attractive arc while straight or S remains collapsed.
 
+## Completed stage ranking
+
+The four fixed clean stage screens completed under:
+
+```text
+/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-21_16-21-46_go2_rough_v7_high_slope_sampling_probe_2048env_400iter
+```
+
+Independent CPU-only review loaded every JSON with the standard library JSON parser, recursively
+checked every float for finiteness, ran production
+`assert_recursive_json_finite()` and `validate_matched_result_invariants()`, and independently
+checked the declared config, task, checkpoint, matched slot order, route identities, geometry,
+placement, completion/failure lifecycle, sample count and termination counters.  All four files
+passed.  Maximum terrain and route placement errors were below `1e-4`.
+
+The independently recomputed score is:
+
+| checkpoint | straight/arc/S completed | total | minimum route | weighted vx gain | four termination counts | rank |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `model_13700.pt` | `0/1/3` | 4 | 0 | 0.507963 | 18 | 4 |
+| `model_13800.pt` | `4/2/3` | 9 | 2 | 0.452512 | 12 | 2 |
+| `model_13900.pt` | `3/3/3` | 9 | 3 | 0.548234 | 13 | **1** |
+| `model_13999.pt` | `3/2/3` | 8 | 2 | 0.458741 | 13 | 3 |
+
+The strict lexicographic order is therefore:
+
+```text
+model_13900.pt > model_13800.pt > model_13999.pt > model_13700.pt
+```
+
+`model_13900.pt` is the nominated full-matrix candidate.  This is not an ACCEPT decision: its
+stage screen is only `9/24` total and every route is `3/8`, so it must still pass the unchanged
+clean/randomized full matrix and all regressions below.
+
+Artifact SHA256:
+
+```text
+model_13700 stage JSON  82bec06d1e8a3a84728756ea3f19ce0687a45ec03b0b6d2b4d8d913d80adb903
+model_13800 stage JSON  a63eec5ca4de51350cb9dc75cd14eaea1ccecbc67123837553741e1770faac82
+model_13900 stage JSON  c22708ec7c9a9cac7eb13f90c173dc40d30c8ceee8654def618a79b6db865782
+model_13999 stage JSON  fa1b0d782c57cfddbd13c2a2eeafb26d4c3523c912d5091d2d4a1403f2f74e90
+```
+
+The `model_13700` JSON records git HEAD `1225a57`; the other three record `30dd6d9`.  The exact
+commit diff between those revisions changes only
+`docs/reviews/high_slope_probe_training_monitor.md`; no evaluator, environment, policy, config or
+test code changed.  The executable evaluation identity is therefore unchanged, but the provenance
+difference remains explicitly recorded rather than hidden.
+
 ## Full post-training commands
 
 Set these after stage ranking:
