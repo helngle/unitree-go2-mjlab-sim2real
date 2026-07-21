@@ -132,9 +132,87 @@ default, and this experiment does not authorize a second variable or additional
 training.  PRE-GPU PASS authorizes only the fixed 2048-env, 400-iteration,
 seed-42 training run; it does not pre-accept any resulting checkpoint.
 
-## Pending POST-training audit
+## POST-training independent audit
 
-No candidate checkpoint or post-training JSON was available during PRE-GPU.
-The final ACCEPT/REJECT section will be appended only after the integration HEAD,
-training telemetry, candidate-selection evidence, and complete matched matrices
-are supplied for independent review.
+The fixed run completed at:
+
+```text
+/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/
+2026-07-21_16-21-46_go2_rough_v7_high_slope_sampling_probe_2048env_400iter
+```
+
+This audit ran CPU-only from acceptance HEAD `f6f8ef0`, which contains integration
+HEAD `37639d1`.  It did not start a simulator, evaluator, PPO process, or CUDA
+context.  The stage ranking correctly nominated `model_13900.pt`; the final
+checkpoint is `model_13999.pt`.
+
+### Repository and artifact integrity: PASS
+
+- `CUDA_VISIBLE_DEVICES='' python -m unittest discover -s tests -p 'test*.py'`:
+  321 PASS and two skips.  One extra skip relative to the integration run is the
+  expected CUDA-disabled check in this CPU-only worktree.
+- `python -m compileall -q scripts src tests`: PASS.
+- `git diff --check`: PASS.
+- Exactly 20 required post-training JSON files and four stage-ranking JSON files
+  exist.  All 24 parse with strict JSON, are recursively finite, and pass their
+  schema, static evaluator identity, placement (`<=1e-4`), matched-slot, active
+  sample denominator, and original-attempt lifecycle checks.
+- Candidate/final high-slope matrices exactly match the V7 matrix identity after
+  excluding only checkpoint/output paths and dynamic rollout values.  Candidate
+  and final stairs, patch, continuous, and tracking matrices also preserve their
+  locked task, seed, profile, route, terrain, command, and scenario identities.
+
+All four checkpoints contain actor, critic, optimizer, terrain curriculum, and
+the complete sampler persistence state:
+
+| checkpoint | reset / hard | exact hard ratio | population H | result |
+| --- | ---: | ---: | ---: | --- |
+| `model_13700.pt` | `5011 / 501` | `0.09998004` | `0.09765625` | PASS |
+| `model_13800.pt` | `10040 / 1004` | `0.10000000` | `0.09814453` | PASS |
+| `model_13900.pt` | `15018 / 1501` | `0.09994673` | `0.09619141` | PASS |
+| `model_13999.pt` | `19966 / 1996` | `0.09996995` | `0.09814453` | PASS |
+
+For every checkpoint, histogram totals equal the counters, the six hard slots
+sum to the hard counter, target error is at most one reset, quota and RNG state
+are valid, and the saved changed-slot ratio equals the minimum membership
+change.  The 400 requested updates therefore completed and the single training
+variable was applied as declared.
+
+### Locked model gates
+
+| gate | candidate `model_13900.pt` | final `model_13999.pt` |
+| --- | --- | --- |
+| High-slope completion | **FAIL**: clean `5/3/5` and randomized `3/4/4` of 16 for straight/arc/S | **FAIL**: clean `2/4/4`, randomized `4/3/4` |
+| At least `+0.20` over V7 | **FAIL**: best clean change is only `+2/16`; randomized straight is `-2/16` | **FAIL**: clean straight is `-2/16`; no route reaches `+0.20` |
+| High-slope vx gain `>=0.80` | **FAIL**: aggregate clean/randomized `0.619/0.499` | **FAIL**: `0.576/0.500` |
+| Retained forward gain | **FAIL**: worst fixed-command terrain cell is randomized `forward_0.3` stairs, `0.681 -> 0.526` (`-0.155`) | **FAIL**: same cell `0.681 -> 0.541` (`-0.141`) |
+| Slip/action and contact safety | **FAIL**: clean high-slope slip-P95 violations in `4/7/9` slots and action-P95 violations in `3/3/4`; clean tracking yaw-left/flat slip is `1.50x` V7 | **FAIL**: weighted clean high-slope slip is `1.24x/1.28x/1.35x` V7 and several slot tails fail |
+| Level-9 stairs, seeds 42/43/44 | PASS: up/down both `3/3`, no catastrophic termination | **FAIL**: up `2/3`, down `1/3`, with one new base and two calf terminations |
+| Patch completion | PASS: clean/randomized both `48/48` | PASS: clean/randomized both `48/48` |
+| Continuous completion | PASS: clean/randomized both `12/12` | PASS: clean/randomized both `12/12` |
+| Sampler state and approximately 10% exposure | PASS | PASS |
+| Frozen candidate-selection order | PASS: stage order `13900 > 13800 > 13999 > 13700` | Not the nominated candidate |
+
+The continuous completion gain does not satisfy the safety gate.  Candidate
+non-terminating calf contact rises from V7 `11/10014` to `34/9414` active steps
+in clean and from `11/8769` to `37/9708` in randomized.  The final checkpoint is
+also not a fallback candidate: besides failing high-slope performance, it fails
+the independent stairs gate and introduces a base-contact termination.
+
+The high-slope completion floors were clean `12/16` per route and randomized
+`10/16` per route.  Neither trained checkpoint is close to those floors.  Lower
+aggregate termination counts in some high-slope rows, ordinary-patch retention,
+and improved continuous completion cannot override the earlier mandatory
+completion, gain, tail-risk, and contact gates.
+
+## Final decision: FAIL / REJECT
+
+Training execution and artifact integrity are **PASS**, but model acceptance is
+**FAIL**.  Reject both `model_13900.pt` and `model_13999.pt`; neither may replace
+the deployment baseline.  V7 `model_13600.pt` remains the default model.
+
+This result does not authorize extra iterations, a second PPO run, a relaxed
+threshold, or another simultaneous variable.  The experiment established that
+raising the selected high-slope reset exposure from about 3% to 10% is
+insufficient: it did not produce the required sustained high-slope capability
+and introduced material tail/contact regressions.
