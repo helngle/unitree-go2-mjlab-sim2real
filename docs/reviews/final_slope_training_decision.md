@@ -4,17 +4,21 @@ Date: 2026-07-21
 Scope: simulation-only Go2 locomotion; no vision, sim-to-real, reward redesign, or
 long training in this attribution round.
 
-## Decision status at the start of this review
+## Final decision
 
-The V7 `model_13600.pt` checkpoint remains the default model.  The current strict
-matched evidence is not sufficient to authorize PPO: clean matched completion is
-`straight 4/16`, `arc 3/16`, and `S 3/16`; randomized completion is
-`straight 5/16`, `arc 4/16`, and `S 4/16`.  The existing offline analyzer therefore
-remains `inconclusive_no_training` until the controller-headroom A/B is completed.
+The clean and randomized controller-headroom A/B both identify
+`sustained_slope_locomotion_limited` with HIGH attribution confidence.  At
+controller scale 1.5, clean straight/arc/S completion remains `0/4, 0/4, 0/4`,
+with mean `vx` gain `0.607/0.546/0.464` and maximum saturation
+`0.0101/0/0`.  Randomized completion also remains `0/4, 0/4, 0/4`, with gain
+`0.488/0.514/0.508` and maximum saturation `0.0076/0/0`.  Removing lateral/yaw
+controller saturation therefore does not recover any route; physical contact,
+fall, and low-progress failures remain.
 
-This document fixes the decision procedure and, only if the A/B identifies a
-sustained locomotion limitation, fixes the next training probe.  It does not
-implement that probe.
+The training design gate is `TRAINING-READY`.  The independent task and sampler
+described below are implemented and CPU-tested, but the 2048-env, 400-iteration
+probe has **not** been started in this round.  V7 `model_13600.pt` remains the
+default model until a trained checkpoint passes the unchanged acceptance matrix.
 
 ## Baseline terrain distribution (from the actual V7 configuration)
 
@@ -59,11 +63,11 @@ the checkpoint stores the current curriculum state rather than a stationary
 uniform row distribution.  Training logs must report the measured reset fraction,
 not infer it from a single checkpoint.
 
-There is currently no V7 field that targets `H` specifically.  Changing a
+The original V7 task has no field that targets `H` specifically.  Changing a
 `SubTerrainCfg.proportion` changes every difficulty row of that terrain family;
 it cannot, by itself, implement “slope-up high/extreme plus slope-down extreme”.
-The future probe therefore requires an independent level-aware reset/terrain-slot
-sampler while keeping the generated geometry unchanged.
+The independent probe therefore uses a level-aware reset event while keeping the
+generated geometry unchanged.
 
 ## Required controller-headroom A/B
 
@@ -135,27 +139,28 @@ Decision: `NO-GO`.  Record the smallest additional evaluation-only diagnostic;
 do not change reward, terrain proportions, command sampling, termination, gait, or
 network merely to force a training decision.
 
-## The only training probe allowed after result B
+## Implemented training probe for result B
 
-Create a new task/config, for example `Unitree-Go2-Rough-V7-HighSlopeProbe`, derived
-from V7.  Do not mutate the registered V7 config or the V7 checkpoint.  The new
-configuration should expose an explicit, auditable field such as:
+The new task `Unitree-Go2-Rough-V7-HighSlopeProbe` derives from V7 without
+mutating the registered V7 config or checkpoint.  Its explicit configuration is:
 
 ```python
-high_slope_sampling = HighSlopeSamplingCfg(
-    target_hard_case_ratio=0.10,
-    slope_up_levels=(8, 9),
-    slope_down_levels=(9,),
-    preserve_non_hard_case_distribution=True,
-)
+cfg.events["high_slope_sampling"].params = {
+    "target_hard_case_ratio": 0.10,
+    "slope_up_levels": (8, 9),
+    "slope_down_levels": (9,),
+    "seed_offset": 700,
+}
 ```
 
-`HighSlopeSamplingCfg` and its level-aware reset/slot sampler are design
-requirements for the next implementation round; they are intentionally not added
-in this commit.  The sampler must leave terrain meshes, terrain randomization,
-height scan, rewards, terminations, gait phase, command ranges, and network shape
-unchanged.  It may only alter which existing `(terrain_type, terrain_level)` slot
-is selected at reset/curriculum assignment.
+The event runs after the original `terrain_levels` curriculum computation and
+before `reset_base`.  It preserves every post-curriculum candidate whose hard/non-
+hard membership already matches the target quota and changes only the minimum
+number of mismatches.  Donor slots use the current group's conditional distribution,
+with the nominal V7 distribution only as a zero-mass fallback.  Telemetry records
+candidate, changed-slot, batch, cumulative-reset, and population hard-case ratios.
+Terrain meshes, randomization, height scan, rewards, terminations, gait phase,
+command ranges, observations, actions, and network shape remain unchanged.
 
 Let `q(s)` be the measured V7 baseline probability of a reset slot and `H` the set
 above.  Let `q_H = sum(q(s) for s in H)`.  For the recommended probe target
@@ -196,11 +201,12 @@ The only experimental variable is `target_hard_case_ratio=0.10`; use the V7
 checkpoint's optimizer and terrain state as the warm start.  With a 400-iteration
 continuation from iteration 13600, the expected periodic checkpoints are
 `model_13700.pt`, `model_13800.pt`, and `model_13900.pt`, with the final checkpoint
-`model_13999.pt` under the new run directory.  If the implementation cannot prove
-the measured reset ratio and unchanged non-hard distribution before the run, the
-command is not training-ready.
+`model_13999.pt` under the new run directory.  CPU contracts measure
+`204/2048 = 9.9609%` on the first full reset, verify that only the required
+membership mismatches change, preserve H/non-H conditional probabilities, and
+verify terrain-origin relocation before the base reset.
 
-## Post-training acceptance (same口径)
+## Post-training acceptance
 
 Run the exact pre-training matrices without changing route, seed, horizon, or
 metrics (the same acceptance protocol):
@@ -229,6 +235,8 @@ checkpoint, measured hard-case ratio, JSON paths, metrics, and PASS/FAIL decisio
 
 ## Current authorization
 
-Until the headroom A/B and Acceptance Agent POST-GPU review satisfy result B, the
-official status is **NO-GO; no training authorized**.  This document is the fixed
-decision contract for the next round; it does not itself change V7 or start PPO.
+The final A/B satisfies result B and the training design status is
+**TRAINING-READY** for the single 10% hard-case sampling probe.  This status does
+not accept a new model in advance: no training was started in this round, V7
+`model_13600.pt` remains default, and any next checkpoint must pass the complete
+post-training acceptance matrix above.

@@ -14,6 +14,7 @@ from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import TerminationTermCfg
 from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.metrics_manager import MetricsTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg, RayCastSensorCfg
@@ -29,6 +30,13 @@ from mjlab.terrains import (
 
 import src.tasks.velocity.mdp as mdp
 from src.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
+from .high_slope_sampling import (
+  HighSlopeHardCaseSampler,
+  SLOPE_DOWN_LEVELS,
+  SLOPE_UP_LEVELS,
+  TARGET_HARD_CASE_RATIO,
+  high_slope_sampling_metric,
+)
 
 TerrainType = Literal["rough", "obstacles"]
 
@@ -495,6 +503,42 @@ def unitree_go2_rough_v7_env_cfg(
     viz=deepcopy(old_twist_cmd.viz),
   )
   cfg.curriculum.pop("command_vel", None)
+  return cfg
+
+
+def unitree_go2_rough_v7_high_slope_probe_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create the V7 single-variable high-slope hard-case sampling probe."""
+  cfg = unitree_go2_rough_v7_env_cfg(play=play)
+  if play:
+    return cfg
+  cfg.events = {
+    "high_slope_sampling": EventTermCfg(
+      mode="reset",
+      func=HighSlopeHardCaseSampler,
+      params={
+        "target_hard_case_ratio": TARGET_HARD_CASE_RATIO,
+        "slope_up_levels": SLOPE_UP_LEVELS,
+        "slope_down_levels": SLOPE_DOWN_LEVELS,
+        "seed_offset": 700,
+      },
+    ),
+    **cfg.events,
+  }
+  for metric_name in (
+    "candidate_hard_ratio",
+    "changed_slot_ratio",
+    "hard_case_batch_ratio",
+    "hard_case_reset_ratio",
+    "hard_case_population_ratio",
+    "total_reset_count",
+    "total_hard_count",
+  ):
+    cfg.metrics[metric_name] = MetricsTermCfg(
+      func=high_slope_sampling_metric,
+      params={"metric_name": metric_name},
+    )
   return cfg
 
 
