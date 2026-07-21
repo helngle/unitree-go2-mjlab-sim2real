@@ -4,7 +4,7 @@
 
 ## 当前目标
 
-在 `/home/jensen/projects/unitree_rl_mjlab` 下优化统一 Go2 rough-terrain locomotion policy。当前默认模型仍为 V7 `model_13600.pt`。最新阶段聚焦 high/extreme slope 下 matched straight/arc/S 的归因；当前训练 gate 为 NO-GO，下一步先拆分 closed-loop controller saturation 与 policy 持续高坡执行能力，不直接修改 reward 或启动 PPO。
+在 `/home/jensen/projects/unitree_rl_mjlab` 下优化统一 Go2 rough-terrain locomotion policy。当前默认模型仍为 V7 `model_13600.pt`。controller-headroom A/B 已将 high/extreme slope 失败归因为 sustained locomotion/contact-stability 短板；独立 10% high-slope hard-case sampling probe 已通过 CPU 和真实 2048-env GPU 验收，当前训练 gate 为 `TRAINING-READY`。本轮未启动 PPO；下一轮只允许从 V7 warm start 运行固定 400-iteration 单变量 probe。
 
 ## 记录约定
 
@@ -14,7 +14,7 @@
 
 - 官方仓库：`https://github.com/unitreerobotics/unitree_rl_mjlab.git`
 - 本地路径：`/home/jensen/projects/unitree_rl_mjlab`
-- 当前分支：`exp/high-slope-attribution-integration`
+- 当前分支：`exp/final-slope-diagnosis-integration`
 - 当前官方 HEAD：`1425b15 Fix the warnings during rough-terrain training.`
 - Conda 环境：`unitree_rl_mjlab`
 - 关键依赖修正：
@@ -2960,3 +2960,135 @@ GPU compute process。下一项只允许 evaluation-only controller-headroom A/B
 `slope_up high` 与 `slope_down extreme`，保持 policy/seed/terrain/route/horizon 不变，
 只统一缩放 lateral/yaw controller limit 并记录分轴 saturation。若三路线仍共同欠速，
 再把 sustained slope 作为候选单变量训练方向；否则优先修 controller/curvature coupling。
+
+### 2026-07-21 Final high-slope attribution 与 training-ready probe（未训练）
+
+本阶段使用 1 个 Integration Agent 和 3 个独立 worktree Agent，integration 分支为
+`exp/final-slope-diagnosis-integration`。关键 integration commits：
+
+```text
+e1d75f6  final slope acceptance contracts
+6775908  final high-slope training decision contract
+0a9176f  controller-headroom A/B evaluator
+90a4701  separate static A/B identity from dynamic rollout values
+d40dfce  identity regression tests
+19bf43b  V7 high-slope sampling probe implementation
+```
+
+默认 checkpoint 全程固定为：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+#### Controller-headroom A/B
+
+唯一 evaluation 变量是 closed-loop controller 的 `max_lateral_speed` 和
+`max_yaw_rate` 同时从 scale `1.0` 放宽到 `1.5`。Checkpoint、seed42、terrain slot、
+route、r=2.5、v=0.5、2400-step horizon、policy 和 randomization profile 均严格匹配。
+首轮 GPU 运行因 validator 错把 fresh-env placement 动态浮点值纳入 exact static identity
+而 fail-fast，未产生 JSON，不用于结论；修复后 dynamic rollout fields 不参与静态身份，
+静态 GPU float 使用 `abs_tol=1e-5`，真实 mismatch 报完整字段路径。
+
+正式 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/final_high_slope_headroom_clean_seed42_r2p5_v0p5_2400steps.json
+SHA256 be2b583d6b72ca24c1df8464d0883022d73e52a2f864814ea68b259166527e5a
+
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/final_high_slope_headroom_randomized_seed42_r2p5_v0p5_2400steps.json
+SHA256 31e80f3812b2bb9c6c9766d65d724ffbfe55617b48ffce028038907018e9c578
+```
+
+结果：
+
+```text
+profile     scale  straight completion/gain  arc completion/gain  S completion/gain
+clean       1.0       0/4 / 0.587               0/4 / 0.462         0/4 / 0.704
+clean       1.5       0/4 / 0.607               0/4 / 0.546         0/4 / 0.464
+randomized  1.0       1/4 / 0.629               0/4 / 0.517         0/4 / 0.531
+randomized  1.5       0/4 / 0.488               0/4 / 0.515         0/4 / 0.508
+```
+
+Scale 1.5 后 clean/randomized route gain spread 分别为 `0.143/0.027`，且 randomized
+三路线 maximum saturation 均低于 `0.01`，但 completion 没有恢复。失败仍包含
+fall/base/upper-leg/calf contact 和 low-progress step-limit。因此最终归因为
+`sustained_slope_locomotion_limited`，controller-vs-policy 因果置信度 HIGH；这不是跨
+seed 的统计置信区间。Evaluator/Artifact Gate PASS，Model Gate FAIL，Training Design
+Gate 为 `TRAINING-READY`。r=4 straight 仍因 scan margin `-0.1775804 m` 在 GPU 前拒绝。
+
+Level-9 stairs seeds 42/43/44 维持既有结论：up/down 各 `2/3`，分别只有一个不同 seed
+的 calf failure，属于异质、低置信回归风险，不合并进训练变量。V7 regression 保持：
+patch matrix clean/randomized 均 `112/112`；continuous clean `12/12`、randomized
+`10/12`（既有两个 calf failures）。
+
+#### 唯一训练变量和实现
+
+Hard-case 集合固定为：
+
+```text
+H = slope_up levels 8/9 + slope_down level 9
+nominal V7 ratio = 3.0%
+model_13600 snapshot = 64/2048 = 3.125%
+probe target = 10.0%
+```
+
+新增任务 `Unitree-Go2-Rough-V7-HighSlopeProbe`。Sampler 在原
+`terrain_levels_vel` curriculum 之后、`reset_base` 之前执行；只改变达到 10% membership
+quota 所需的最少 slot，membership 已符合的 post-curriculum candidate 原样保留。H 和
+non-H donor 各自按当前条件分布采样，nominal V7 仅作 zero-mass fallback。Reward、command
+distribution、terrain geometry、termination、gait、randomization、observation、height
+scan、network 和 V7 task 均未改变。
+
+Sampler telemetry/state 包含 candidate/changed/batch/cumulative/population ratio、整数
+reset/hard count、sampled slot histogram、RNG 和 quota residual。Runner 在 probe
+checkpoint 中保存/恢复完整 sampler state；从旧 V7 checkpoint warm start 时，terrain
+state 恢复后重新 rebase，wrapper 的 preload reset 不计入正式统计。
+
+最终独立验收：PRE-GPU targeted `70/70` PASS；全量 `321` PASS、1 个既有无关 skip；
+compileall、CLI、task registry、RL cfg、runner load 和 diff-check 均 PASS。真实 GPU
+smoke 使用 probe task、2048 env、seed42 严格加载 `model_13600.pt`，不调用 `learn`：
+
+```text
+loaded iteration                         13600
+restore hard population                  64/2048 = 3.125%
+restore sampler reset/hard/hist count    0 / 0 / 0
+restore root-relative error max          3.81e-6
+first real full-reset candidate H        25/2048
+first real full-reset sampled H          204/2048 = 9.96094%
+changed slots                            179 (理论最小差额)
+non-H conditional max abs / TV           0.001848 / 0.03974
+terrain origin error                     0
+observations                             finite
+sampler state round-trip                 PASS
+```
+
+GPU 验收后无残留 train/evaluate/play/rsl_rl 进程，GPU `0 MiB/0%`。本阶段没有调用
+PPO learn、没有新训练 run、没有新 checkpoint；V7 `model_13600.pt` 继续为默认模型。
+
+#### 下一轮固定训练命令
+
+开始前再次确认 worktree/process/GPU clean，并把命令原样记录。只允许：
+
+```bash
+conda activate unitree_rl_mjlab
+cd /home/jensen/projects/unitree_rl_mjlab
+
+python scripts/train.py Unitree-Go2-Rough-V7-HighSlopeProbe \
+  --env.scene.num-envs=2048 \
+  --env.seed=42 \
+  --agent.seed=42 \
+  --agent.resume=True \
+  --agent.load-run=2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter \
+  --agent.load-checkpoint=model_13600.pt \
+  --agent.max-iterations=400 \
+  --agent.save-interval=100 \
+  --agent.logger=tensorboard \
+  --agent.run-name=go2_rough_v7_high_slope_sampling_probe_2048env_400iter
+```
+
+训练后必须使用完全相同的 clean/randomized high-slope matched matrix、stairs seeds
+42/43/44 和 V7 regression matrix。接受条件包括 high-slope completion 明显提高、mean
+forward gain 达到 `0.8`、保留场景 forward gain 不得比 V7 低 `0.05` 以上、slip/action
+acceleration 不超过同场景 V7 的 `1.2x`、contact/fall 不增加且 stairs/flat/rough/obstacle
+不退化。任一 gate 失败即拒绝新模型、保留 V7，不追加第二变量。

@@ -1,6 +1,53 @@
 # 新聊天窗口交接摘要
 
-## 2026-07-21 High-slope matched attribution（最新）
+## 2026-07-21 Final high-slope diagnosis 与训练就绪（最新）
+
+当前 integration 分支为 `exp/final-slope-diagnosis-integration`，probe implementation
+HEAD 为 `19bf43b`。默认部署模型仍是 V7：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+Controller-headroom A/B 已完成。只把 closed-loop lateral/yaw limits 从 scale 1.0
+放宽到 1.5 后，clean straight/arc/S 仍为 `0/4,0/4,0/4`，randomized 仍为
+`0/4,0/4,0/4`；scale 1.5 的 randomized mean vx gain 为 `0.488/0.515/0.508`，
+maximum saturation 均 `<0.01`。完成率没有恢复，contact/fall/low-progress failure 仍在，
+最终归因为 `sustained_slope_locomotion_limited`，controller-vs-policy confidence HIGH。
+Evaluator/Artifact Gate PASS，Model Gate FAIL。
+
+正式 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/final_high_slope_headroom_clean_seed42_r2p5_v0p5_2400steps.json
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/final_high_slope_headroom_randomized_seed42_r2p5_v0p5_2400steps.json
+```
+
+唯一允许的训练 probe 已实现并验收：task
+`Unitree-Go2-Rough-V7-HighSlopeProbe`，只把
+`H = slope_up levels 8/9 + slope_down level 9` 的 reset exposure 从 nominal `3.0%`
+（checkpoint `64/2048=3.125%`）提高到 target `10%`。Sampler 保留原
+`terrain_levels_vel`，在 curriculum 后、base reset 前只转换最少数量的 slot；H/non-H
+条件分布、V7 reward、command、terrain geometry、termination、gait、randomization、
+height scan、observation 和 network 均冻结。Sampler RNG/quota/count/histogram 已进入
+checkpoint state；V7 warm start 会在 terrain restore 后清除 preload reset 的幽灵统计。
+
+最终 Acceptance：targeted `70/70`、full `321` PASS（1 个既有无关 skip），compile、
+CLI、registry/config/runner 和 diff-check PASS。真实 2048-env GPU strict warm-start：
+restore 后 H=`64/2048`、sampler counters=0；首次真实 full reset 为
+`204/2048=9.96094%`，只改变理论最少的 `179` slot，origin error=0，root-relative
+error max=`3.81e-6`，observation finite，sampler state round-trip PASS。无残留进程，
+GPU 空闲。
+
+Training Gate 为 **TRAINING-READY**，但本轮没有调用 `learn`、没有新 run/checkpoint。
+下一轮直接从 V7 `model_13600.pt` warm start：2048 env、400 iterations、seed42、唯一
+变量 `target_hard_case_ratio=0.10`。固定命令和训练后完整验收口径见
+`docs/PROJECT_JOURNAL.md` 最新章节及
+`docs/reviews/final_slope_training_decision.md`。训练后必须重跑 clean/randomized
+high-slope matched、stairs seeds 42/43/44 和 V7 regression；slip/action acceleration
+不得超过 V7 `1.2x`。任一 gate 失败即拒绝新模型并继续保留 V7。
+
+## 2026-07-21 High-slope matched attribution（历史）
 
 当前 integration 分支 `exp/high-slope-attribution-integration`，HEAD `8aba90d`。
 已实现并验收 strict high-slope matched straight/arc/S evaluator 和离线归因；
