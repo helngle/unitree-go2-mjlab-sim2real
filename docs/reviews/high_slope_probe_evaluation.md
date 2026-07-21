@@ -182,6 +182,69 @@ commit diff between those revisions changes only
 test code changed.  The executable evaluation identity is therefore unchanged, but the provenance
 difference remains explicitly recorded rather than hidden.
 
+## Completed full high-slope matrix
+
+Candidate `model_13900.pt` and final `model_13999.pt` completed the fixed 16-slot clean and
+randomized matrices.  Independent CPU-only review ran both production validators, recursively
+checked finiteness, and verified exact V7 identity after excluding only checkpoint/output paths:
+
+```text
+task=Unitree-Go2-Rough-V7, seed=42
+slope_up/slope_down, levels=0/1, r=2.5, speeds=0.3/0.5
+left/right, repeats=1, steps=2400, settle=10
+16 identical matched slots per route; straight/arc/S fresh environments
+geometry/corridor/scan valid; placement <= 1e-4
+active metric samples == steps_sampled; success reason null; failure reason explicit
+```
+
+All schema, identity, finite, geometry, placement and lifecycle checks passed.  Completion, mean
+scenario vx gain and the summed `fell/base/upper-leg/calf` termination flags are:
+
+| profile | route | V7 completion / gain / terms | candidate 13900 | final 13999 |
+| --- | --- | --- | --- | --- |
+| clean | straight | `4/16 / 0.500 / 12` | `5/16 / 0.528 / 4` | `2/16 / 0.558 / 4` |
+| clean | arc | `3/16 / 0.516 / 9` | `3/16 / 0.634 / 8` | `4/16 / 0.566 / 10` |
+| clean | S | `3/16 / 0.526 / 10` | `5/16 / 0.693 / 9` | `4/16 / 0.605 / 9` |
+| randomized | straight | `5/16 / 0.499 / 10` | `3/16 / 0.461 / 8` | `4/16 / 0.495 / 6` |
+| randomized | arc | `4/16 / 0.546 / 10` | `4/16 / 0.515 / 9` | `3/16 / 0.498 / 11` |
+| randomized | S | `4/16 / 0.555 / 12` | `4/16 / 0.522 / 9` | `4/16 / 0.509 / 10` |
+
+Neither checkpoint approaches the acceptance floor: candidate clean is only `5/3/5` instead of
+at least `12/12/12`, randomized is `3/4/4` instead of `10/10/10`, and every route's vx gain remains
+below `0.80`.  Candidate randomized straight completion regresses from `5/16` to `3/16`; final
+also regresses clean straight and randomized straight/arc.  Reduced aggregate termination flags do
+not compensate for these earlier, mandatory gate failures.
+
+Slip and action cells below are `active-step-weighted mean / maximum scenario P95`:
+
+| profile | route | V7 slip | candidate slip | final slip | V7 action | candidate action | final action |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| clean | straight | `.0539/.380` | `.0570/.527` | `.0670/.587` | `.1865/1.074` | `.1290/.872` | `.1330/.652` |
+| clean | arc | `.0603/.463` | `.0567/.744` | `.0770/.567` | `.1147/.799` | `.0861/.715` | `.1339/1.109` |
+| clean | S | `.0594/.496` | `.0684/1.087` | `.0802/.723` | `.1136/.691` | `.0942/.729` | `.1280/.691` |
+| randomized | straight | `.0571/.439` | `.0563/.453` | `.0649/.329` | `.3362/1.061` | `.2961/.963` | `.3184/1.070` |
+| randomized | arc | `.0619/.371` | `.0595/.323` | `.0666/.468` | `.2903/2.222` | `.2780/.958` | `.2952/1.043` |
+| randomized | S | `.0590/.446` | `.0608/.343` | `.0648/.466` | `.2797/.836` | `.2810/.883` | `.2985/1.124` |
+
+The candidate's route-level weighted means remain within `1.2x` V7, but the stricter matched-slot
+tail audit does not: in clean straight/arc/S, slip P95 exceeds `1.2x` in `4/7/9` of 16 slots and
+action P95 in `3/3/4`; randomized violations also remain in several slots.  Final clean weighted
+slip itself is `1.24x/1.28x/1.35x` V7 for straight/arc/S.  Thus neither the aggregate locomotion
+gate nor the same-scene tail-risk gate passes.
+
+Full-matrix artifact SHA256:
+
+```text
+candidate clean       12b97cc85b63c30435ae545517cb985013c2a6bc1107811f9702a417972e9f6e
+candidate randomized  188869de2e011fabeae84ef1c96d0cdc3768f82ee573f730be4608e94a7d3bbc
+final clean           28ce6ce41386ac4a20870f17fc57103e3a7d824aad4fa1eef112a38b6c95756b
+final randomized      43d9244d4a41a0b870e29faa31e9b9b91d2d51028923fc2db37a80cc95c0837f
+```
+
+High-slope Model Gate is therefore **FAIL for both candidate and final**.  Remaining stairs,
+patch, continuous and fixed-command runs are regression documentation only; they cannot reverse
+this failure or authorize a second training variable.
+
 ## Full post-training commands
 
 Set these after stage ranking:
