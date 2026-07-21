@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import math
+import re
 import unittest
 from typing import Any, Mapping
 
@@ -34,6 +35,7 @@ try:
     per_axis_saturation,
     scale_controller_limits,
     summarize_axis_saturation,
+    validate_headroom_pair,
   )
 except ImportError:
   _HEADROOM_API_AVAILABLE = False
@@ -212,6 +214,171 @@ def _synthetic_row(*, scale: float, instance_id: str) -> dict[str, Any]:
     "slip_velocity_p95": 0.04,
   }
   return row
+
+
+def _production_identity_row(route_kind: str, slot: int) -> dict[str, Any]:
+  """Build the smallest row accepted by the production pair validator."""
+  direction = "slope_up" if slot < 2 else "slope_down"
+  level = 0 if slot in (0, 1) else 1
+  sign = 1 if slot % 2 == 0 else -1
+  completed = slot != 3
+  return {
+    "matched_slot": slot,
+    "slope_direction": direction,
+    "level": level,
+    "difficulty_label": "high" if level == 0 else "extreme",
+    "difficulty": 0.8 if level == 0 else 1.0,
+    "radius": 2.5,
+    "speed": 0.5,
+    "turn_sign": sign,
+    "repeat": 0,
+    "route_kind": route_kind,
+    "route_length": 2.0 * math.pi * 2.5 / 3.0,
+    "route_length_definition": "2*pi*radius/3",
+    "route_start_xy": [9.0, 9.0],
+    "route_endpoint_xy": [14.0, 9.0],
+    "route_endpoint_heading": 0.0,
+    "terrain_origin_xyz": [0.0, 0.0, 0.0],
+    "terrain_patch_origin_xyz": [-9.0, -9.0, 0.0],
+    "terrain_patch_size": [18.0, 18.0],
+    "terrain_type_index": 0 if direction == "slope_up" else 1,
+    "terrain_assignment_position_error": 0.0,
+    "route_placement_position_error": 0.0,
+    "effective_terrain_parameters": {"slope_gradient": 0.32},
+    "geometry": {
+      "centerline_inside_patch": True,
+      "corridor_inside_patch": True,
+      "scan_footprint_inside_patch": True,
+      "corridor_boundary_margin": 0.2,
+      "scan_boundary_margin": 0.1,
+    },
+    "initial_root_clearance": 0.35,
+    "completed": completed,
+    "failed": not completed,
+    "first_failure_reason": None if completed else "step_limit",
+    "steps_sampled": 100,
+    "controller_saturation_by_axis": {
+      "vx": {"count": 0, "rate": 0.0, "denominator": 100},
+      "vy": {"count": 5, "rate": 0.05, "denominator": 100},
+      "wz": {"count": 10, "rate": 0.10, "denominator": 100},
+    },
+  }
+
+
+def _production_scale_results() -> dict[str, dict[str, Any]]:
+  results: dict[str, dict[str, Any]] = {}
+  environment_index = 0
+  for scale in SCALES:
+    limits = scale_controller_limits(0.3, 0.7, scale)
+    routes: dict[str, Any] = {}
+    for route_kind in ROUTE_KINDS:
+      environment_index += 1
+      routes[route_kind] = {
+        "fresh_environment_identity": f"headroom-{environment_index}",
+        "route_kind_invariants": {
+          "checkpoint": "/logs/model_13600.pt",
+          "task_id": "Unitree-Go2-Rough-V7",
+          "seed": 42,
+          "profile": "clean",
+          "num_envs": 4,
+          "steps": 2400,
+          "settle_steps": 10,
+          "controller_limits": {
+            "cross_track_gain": 1.2,
+            "heading_gain": 1.0,
+            "max_lateral_speed": limits.max_lateral_speed,
+            "max_yaw_rate": limits.max_yaw_rate,
+            "cross_track_tolerance": 0.3,
+            "heading_tolerance": math.radians(20.0),
+          },
+        },
+        "profile_settings": {"profile": "clean", "control_dt": 0.02},
+        "scenarios": [
+          _production_identity_row(route_kind, slot) for slot in range(4)
+        ],
+      }
+    results[f"{scale:.1f}"] = {
+      "controller_scale": scale,
+      "effective_controller_limits": limits.as_dict(),
+      "route_results": routes,
+    }
+  return results
+
+
+@unittest.skipUnless(
+  _HEADROOM_API_AVAILABLE,
+  "headroom implementation commit has not yet been integrated",
+)
+class HeadroomIdentityRegressionAcceptanceTest(unittest.TestCase):
+  def test_dynamic_rollout_values_are_not_static_identity(self) -> None:
+    """A/B identity must ignore natural rollout/placement measurement noise."""
+    results = _production_scale_results()
+    control = results["1.0"]["route_results"]["arc"]["scenarios"][0]
+    probe = results["1.5"]["route_results"]["arc"]["scenarios"][0]
+
+    # These are measurements from separate fresh rollouts.  They can differ
+    # by floating-point noise, and terminal status/metrics are policy outputs,
+    # not experimental identity.
+    control["terrain_assignment_position_error"] = 0.0
+    probe["terrain_assignment_position_error"] = 4.0e-8
+    control["route_placement_position_error"] = 2.0e-8
+    probe["route_placement_position_error"] = 8.0e-8
+    control["initial_root_clearance"] = 0.3500000
+    probe["initial_root_clearance"] = 0.3499997
+    control["completed"] = False
+    control["failed"] = True
+    control["first_failure_reason"] = "step_limit"
+    control["steps_sampled"] = 97
+    control["termination_counts"] = {"step_limit": 1}
+    probe["completed"] = True
+    probe["failed"] = False
+    probe["first_failure_reason"] = None
+    probe["steps_sampled"] = 121
+    probe["termination_counts"] = {}
+    for row in (control, probe):
+      denominator = row["steps_sampled"]
+      for axis in AXES:
+        item = row["controller_saturation_by_axis"][axis]
+        item["denominator"] = denominator
+        item["rate"] = item["count"] / denominator
+    validate_headroom_pair(
+      results, base_lateral_speed=0.3, base_yaw_rate=0.7
+    )
+
+  def test_static_identity_mismatch_reports_exact_path(self) -> None:
+    mutations = (
+      ("checkpoint", "route_kind_invariants.checkpoint", "/other.pt",
+       "1.5.arc.route_kind_invariants.checkpoint"),
+      ("seed", "route_kind_invariants.seed", 43,
+       "1.5.arc.route_kind_invariants.seed"),
+      ("profile", "route_kind_invariants.profile", "randomized",
+       "1.5.arc.route_kind_invariants.profile"),
+      ("terrain", "scenarios[0].terrain_origin_xyz", [1.0, 0.0, 0.0],
+       "1.5.arc.scenarios[0].terrain_origin_xyz[0]"),
+      ("terrain_type", "scenarios[0].terrain_type_index", 9,
+       "1.5.arc.scenarios[0].terrain_type_index"),
+      ("route", "scenarios[0].route_length", 9.0,
+       "1.5.arc.scenarios[0].route_length"),
+      ("slot", "scenarios[0].matched_slot", 99,
+       "1.5.arc.scenarios[0].matched_slot"),
+      ("route_kind", "scenarios[0].route_kind", "straight",
+       "1.5.arc.scenarios[0].route_kind"),
+    )
+    for label, path, value, expected_path in mutations:
+      results = _production_scale_results()
+      route = results["1.5"]["route_results"]["arc"]
+      if path.startswith("route_kind_invariants."):
+        route["route_kind_invariants"][path.split(".", 1)[1]] = value
+        if label == "profile":
+          route["profile_settings"]["profile"] = value
+      else:
+        route["scenarios"][0][path.split(".", 1)[1]] = value
+      with self.subTest(label=label), self.assertRaisesRegex(
+        ValueError, re.escape(expected_path)
+      ):
+        validate_headroom_pair(
+          results, base_lateral_speed=0.3, base_yaw_rate=0.7
+        )
 
 
 @unittest.skipUnless(
