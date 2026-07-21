@@ -11,6 +11,7 @@ from scripts.evaluate_go2_high_slope_matched import (
   HighSlopeMatchedConfig,
   _OnlineRouteErrors,
   _contact_termination_summary,
+  _final_failure_reason,
   _scenarios,
   _validate_config,
 )
@@ -257,6 +258,25 @@ class ResultInvariantTest(unittest.TestCase):
     self.assertEqual(summary["base"]["non_terminating_count"], 1)
     self.assertEqual(summary["calf"]["termination_count"], 4)
     self.assertEqual(summary["calf"]["non_terminating_count"], 3)
+
+  def test_failure_reason_is_null_on_success_and_required_on_failure(self) -> None:
+    self.assertIsNone(_final_failure_reason(
+      completed=True, failed=False, reason=None
+    ))
+    self.assertEqual(
+      _final_failure_reason(
+        completed=False, failed=True, reason="illegal_calf_contact"
+      ),
+      "illegal_calf_contact",
+    )
+    for kwargs in (
+      {"completed": True, "failed": True, "reason": "reset"},
+      {"completed": False, "failed": True, "reason": None},
+      {"completed": False, "failed": True, "reason": ""},
+      {"completed": False, "failed": False, "reason": "step_limit"},
+    ):
+      with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+        _final_failure_reason(**kwargs)
 
 
 if __name__ == "__main__":

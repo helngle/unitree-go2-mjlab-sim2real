@@ -331,6 +331,23 @@ def _termination_reason(env: ManagerBasedRlEnv, index: int) -> str:
   return names[0] if names else "reset"
 
 
+def _final_failure_reason(
+  *, completed: bool, failed: bool, reason: str | None
+) -> str | None:
+  """Enforce null-on-success and a nonempty reason on every failed row."""
+  if completed and failed:
+    raise ValueError("scenario cannot be both completed and failed")
+  if completed:
+    return None
+  if failed:
+    if reason is None or not reason.strip():
+      raise ValueError("failed scenario must provide a nonempty failure reason")
+    return reason
+  if reason is not None:
+    raise ValueError("unfinished scenario cannot provide a failure reason")
+  return None
+
+
 def _contact_termination_summary(
   termination_counts: dict[str, int],
   body_contacts: dict[str, Any],
@@ -789,7 +806,11 @@ def _evaluate_route_kind(
         ),
         "termination_counts": scenario_termination_counts,
         "reset_count": int(reset_count[index]),
-        "first_failure_reason": first_reason[index] or "none",
+        "first_failure_reason": _final_failure_reason(
+          completed=bool(success[index]),
+          failed=bool(failed[index]),
+          reason=first_reason[index],
+        ),
         "initial_root_clearance": float(placement["clearance"][index]),
       })
     return {
