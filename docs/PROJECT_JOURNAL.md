@@ -4,7 +4,7 @@
 
 ## 当前目标
 
-在 `/home/jensen/projects/unitree_rl_mjlab` 下优化统一 Go2 rough-terrain locomotion policy。当前默认模型仍为 V7 `model_13600.pt`。controller-headroom A/B 已将 high/extreme slope 失败归因为 sustained locomotion/contact-stability 短板；独立 10% high-slope hard-case sampling probe 已通过 CPU 和真实 2048-env GPU 验收，当前训练 gate 为 `TRAINING-READY`。本轮未启动 PPO；下一轮只允许从 V7 warm start 运行固定 400-iteration 单变量 probe。
+在 `/home/jensen/projects/unitree_rl_mjlab` 下优化统一 Go2 rough-terrain locomotion policy。当前默认模型仍为 V7 `model_13600.pt`。10% high-slope hard-case sampling probe 已完成 2048-env、400-iteration 正式训练和完整验收；sampler/训练管线 PASS，但 candidate/final 的 high-slope completion、forward gain 和 tail-risk gate FAIL，final 另有楼梯退化，因此两个新 checkpoint 均已 REJECT。本轮不追加 PPO；下一步先诊断持续高坡落脚/步长不足，再决定新的单变量机制。
 
 ## 记录约定
 
@@ -14,7 +14,7 @@
 
 - 官方仓库：`https://github.com/unitreerobotics/unitree_rl_mjlab.git`
 - 本地路径：`/home/jensen/projects/unitree_rl_mjlab`
-- 当前分支：`exp/final-slope-diagnosis-integration`
+- 当前分支：`exp/high-slope-probe-integration`
 - 当前官方 HEAD：`1425b15 Fix the warnings during rough-terrain training.`
 - Conda 环境：`unitree_rl_mjlab`
 - 关键依赖修正：
@@ -3142,3 +3142,131 @@ python scripts/train.py Unitree-Go2-Rough-V7-HighSlopeProbe \
 训练前主 Agent targeted tests `29/29 PASS`；独立 Acceptance PRE-GPU 结果在实际训练
 开始前追加。训练 run 目录、checkpoint、sampler telemetry、TensorBoard tail、正式 JSON
 和最终 ACCEPT/REJECT 将在本节续写。
+
+#### 正式训练结果
+
+PRE-GPU 独立验收 PASS：全量 `321 PASS + 1` 个既有无关 skip，high-slope targeted
+`82/82 PASS`，compileall、task-aware CLI、registry/config/runner、单变量 diff、V7
+checkpoint 和两份 baseline JSON 合约全部通过。正式 run：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-21_16-21-46_go2_rough_v7_high_slope_sampling_probe_2048env_400iter
+耗时: 18m37s
+model_13700.pt SHA256 43a3823b3a26c9a7491332b931128653d410bd85d085e86c146dd8e3122c5d2f
+model_13800.pt SHA256 6312ca929edb9d33953a4edcf4da66733711c825ddf147489e5113b089f34101
+model_13900.pt SHA256 52aa46dc1a7c1ac6ef54b89c777732a5fed93e2c396a75e13f4a22db20004eb5
+model_13999.pt SHA256 76c8f9017d7200fdf1477b89f35100a7dce9b8db3295ae424e1e6adfef339f4d
+```
+
+所有 checkpoint 均含 actor、critic、optimizer、terrain state 及 sampler
+RNG/quota/counter/histogram。Final common-step delta 为 `9600 = 400 * 24`，确认完整跑完
+400 iterations；final sampler 为 `1996/19966 = 9.996995%`，目标误差在 deterministic
+quota bound 内。TensorBoard 400 个 samples、63 tags 全部 finite，无 OOM、NaN、stall
+或持续 loss divergence。Final tail100：
+
+```text
+reward 49.612, episode length 985.85, terrain 5.676
+linear tracking 0.8239, angular tracking 0.9005
+slip 0.08124, action acceleration 0.7792
+fell/base/upper/calf 0.00500/0.01667/0.02083/0.03667
+```
+
+训练健康 gate PASS，但相对 V7 source window，tracking 约低 2%，slip 高 6.2%，action
+acceleration 高 8.1%，base/upper/calf termination 偏高，必须由固定 evaluator 决定。
+
+#### 阶段 checkpoint 筛选
+
+固定 clean r=2.5、v=0.5、8 slots/route、2400 steps 的 lexicographic 结果：
+
+```text
+checkpoint  total complete  min route  weighted vx gain  physical terms  routes straight/arc/S
+13700           4/24            0          0.508              18             0/1/3
+13800           9/24            2          0.453              12             4/2/3
+13900           9/24            3          0.548              13             3/3/3
+13999           8/24            2          0.459              13             3/2/3
+```
+
+按预声明顺序选择 `model_13900.pt` 为 candidate；final `model_13999.pt` 仍独立跑完整
+矩阵。四份 stage JSON 均通过 finite/schema/matched/geometry/placement/lifecycle 验证，
+文件前缀为 `stage_rank_high_slope_clean_...`。
+
+#### 完整 high-slope 结果
+
+正式 JSON：
+
+```text
+post_candidate_high_slope_matched_clean_seed42_r2p5_v0p3_0p5_16slots_2400steps.json
+post_candidate_high_slope_matched_randomized_seed42_r2p5_v0p3_0p5_16slots_2400steps.json
+post_final_high_slope_matched_clean_seed42_r2p5_v0p3_0p5_16slots_2400steps.json
+post_final_high_slope_matched_randomized_seed42_r2p5_v0p3_0p5_16slots_2400steps.json
+```
+
+Completion / mean scenario vx gain / physical termination flags：
+
+```text
+profile     route       V7                    candidate 13900          final 13999
+clean       straight    4/16 / .500 / 12       5/16 / .528 / 4        2/16 / .558 / 4
+clean       arc         3/16 / .516 / 9        3/16 / .634 / 8        4/16 / .566 / 10
+clean       S           3/16 / .526 / 10       5/16 / .693 / 9        4/16 / .605 / 9
+randomized  straight    5/16 / .499 / 10       3/16 / .461 / 8        4/16 / .495 / 6
+randomized  arc         4/16 / .546 / 10       4/16 / .515 / 9        3/16 / .498 / 11
+randomized  S           4/16 / .555 / 12       4/16 / .522 / 9        4/16 / .509 / 10
+```
+
+Candidate 要求 clean 每路线至少 `12/16`、randomized 至少 `10/16`、gain `>=0.80`，
+实际全部失败；相对 V7 也未达到每路线 `+0.20`。Candidate clean 的 matched-slot slip
+P95 在 straight/arc/S 分别有 `4/7/9` 个 slot 超过 V7 `1.2x`，action P95 有
+`3/3/4` 个违反；final clean weighted slip 已是 V7 的 `1.24x/1.28x/1.35x`。
+High-slope Model Gate 对 candidate 和 final 均 FAIL。
+
+#### 楼梯、通用地形和 tracking 回归
+
+所有正式 JSON 位于上述 run 目录，命名组为：
+
+```text
+post_{candidate,final}_stairs_level9_randomized_seed{42,43,44}_2env_2400steps.json
+post_{candidate,final}_patch_flat_rough_obstacle_{clean,randomized}_seed42_48env_700steps.json
+post_{candidate,final}_continuous_straight_{clean,randomized}_levels7_9_seed42_12env_2400steps.json
+post_v7_candidate_final_tracking_{clean,randomized}_seed42_1120env_1000steps.json
+```
+
+回归结果：
+
+```text
+matrix                              V7 baseline        candidate 13900       final 13999
+stairs up seeds42/43/44                 2/3                 3/3                  2/3
+stairs down seeds42/43/44               2/3                 3/3                  1/3
+patch clean flat/rough/obstacle         48/48               48/48                48/48
+patch randomized                       48/48               48/48                48/48
+continuous clean                       12/12               12/12                12/12
+continuous randomized                  10/12               12/12                12/12
+```
+
+Candidate 楼梯六次全部通过；final 出现 seed42/44 两次 stairs_down calf failure 和
+seed43 stairs_up base failure，违反 no-new-base 和 stairs-down `>=2/3` gate。普通 patch
+与 continuous 能力没有遗忘。
+
+Fixed-command tracking（V7 / candidate / final）：
+
+```text
+profile     linear error       overall gain       yaw error          slip              action acc
+clean       .1170/.1219/.1190  .6253/.6153/.6162  .0498/.0530/.0497  .0346/.0361/.0356  .0781/.0762/.0788
+randomized  .1387/.1431/.1425  .5985/.5815/.5857  .0754/.0786/.0753  .0442/.0447/.0450  .2412/.2353/.2399
+```
+
+Aggregate command gain/slip/action 看似接近 V7，但按锁定的 retained-scene cell gate，
+randomized `forward_0.3` stairs 从 `0.681 -> 0.526`，下降 `0.155`；candidate clean
+tracking 的 yaw-left/flat slip 也达到 V7 `1.50x`。Continuous completion 虽为 `12/12`，
+candidate non-terminating calf contact 从 V7 clean `11/10014` 升到 `34/9414` active steps，
+randomized 从 `11/8769` 升到 `37/9708`，因此 tracking/contact safety 也 FAIL。
+
+#### 最终决定
+
+独立 POST Acceptance：repository/artifact integrity PASS；24 份 stage/post JSON 全部通过
+strict JSON、finite、schema、identity、placement 和 lifecycle；模型 gate FAIL。
+**REJECT `model_13900.pt` 和 `model_13999.pt`。** 10% high-slope exposure sampler 与
+训练管线本身验证正确，但该单变量不足以解决 sustained high-slope locomotion，且 final
+出现明确 stairs regression。不得追加训练或提高 hard-case ratio；默认部署模型继续是
+V7 `model_13600.pt`。下一步应先分析为何高坡 exposure 增加后 straight forward gain
+仍低于约 0.56，再决定新的单变量机制；优先候选是 command/terrain-conditioned
+foot-placement 或 step-length shaping，但必须先做离线/短诊断，不直接改 reward 并训练。

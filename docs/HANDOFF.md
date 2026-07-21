@@ -1,6 +1,63 @@
 # 新聊天窗口交接摘要
 
-## 2026-07-21 Final high-slope diagnosis 与训练就绪（最新）
+## 2026-07-21 High-slope 10% sampling probe 训练结果（最新）
+
+本轮从 V7 `model_13600.pt` warm start，正式完成
+`Unitree-Go2-Rough-V7-HighSlopeProbe`：2048 env、400 iterations、seed42，唯一变量是
+`H = slope_up levels 8/9 + slope_down level 9` 的 reset exposure 从 checkpoint
+`3.125%` 提高到 target `10%`。Run：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-21_16-21-46_go2_rough_v7_high_slope_sampling_probe_2048env_400iter
+```
+
+训练耗时 `18m37s`，无 NaN/OOM/stall。Final sampler 为
+`1996/19966=9.996995%`，所有 checkpoint 的 optimizer、terrain state、sampler
+RNG/quota/counter/histogram 完整。训练管线和单变量合同 PASS。
+
+阶段筛选按预声明 lexicographic 规则选出 `model_13900.pt`，不是 final：
+
+```text
+checkpoint  total/min-route/weighted-vx/terms  straight/arc/S
+13700       4/0/.508/18                        0/1/3
+13800       9/2/.453/12                        4/2/3
+13900       9/3/.548/13                        3/3/3   <- candidate
+13999       8/2/.459/13                        3/2/3
+```
+
+完整 high-slope completion：
+
+```text
+                 candidate 13900     final 13999       required
+clean            5/16,3/16,5/16     2/16,4/16,4/16   >=12/16 each
+randomized       3/16,4/16,4/16     4/16,3/16,4/16   >=10/16 each
+```
+
+Candidate gain 为 clean `.528/.634/.693`、randomized `.461/.515/.522`，均未达到
+`.80`；相对 V7 completion 也未达到每路线 `+0.20`。Candidate 多个 matched slot 的
+slip/action P95 超过 V7 `1.2x`，final clean weighted slip 达到 V7 的
+`1.24x/1.28x/1.35x`。High-slope Model Gate 对 candidate/final 均 FAIL。
+
+通用回归方面，candidate 的 patch clean/randomized 都是 `48/48`，continuous 都是
+`12/12`，stairs up/down seeds42/43/44 均 `3/3`，没有通用遗忘。Final 虽也保持 patch
+和 continuous，却把 stairs 降到 up `2/3`、down `1/3`，新增一次 base 与两次 calf
+failure。Aggregate fixed-command tracking 看似只小幅下降，但 retained-scene 审查发现
+randomized `forward_0.3` stairs gain 从 `0.681 -> 0.526`，candidate continuous calf
+contact rate 约为 V7 的 3 倍，因此安全与保留场景 gate 也 FAIL。
+
+最终结论：**REJECT `model_13900.pt` 和 `model_13999.pt`，不追加训练。** 默认部署模型
+继续是：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+```
+
+这次失败说明单纯把高坡 exposure 从约 3% 提到 10% 不足以解决持续高坡欠速。下一步先
+诊断高坡 straight forward gain 为什么仍低于约 0.56；若确认是落脚/步长不足，再设计
+command/terrain-conditioned foot-placement 或 step-length 单变量 probe。不要继续提高
+hard-case ratio，不同时改 reward、termination、gait 或网络。
+
+## 2026-07-21 Final high-slope diagnosis 与训练就绪（历史）
 
 当前 integration 分支为 `exp/final-slope-diagnosis-integration`，probe implementation
 HEAD 为 `19bf43b`。默认部署模型仍是 V7：
