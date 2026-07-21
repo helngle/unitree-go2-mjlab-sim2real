@@ -26,6 +26,7 @@ HEADROOM_SCALES = (1.0, 1.5)
 TARGET_STRATA = (("slope_up", 0), ("slope_down", 1))
 SATURATION_AXES = ("vx", "vy", "wz")
 ONLY_CHANGED_CONTROLLER_FIELDS = ("max_lateral_speed", "max_yaw_rate")
+IDENTITY_FLOAT_ABS_TOLERANCE = 1.0e-5
 
 
 @dataclass(frozen=True)
@@ -161,13 +162,86 @@ def _scenario_identity(row: Mapping[str, Any]) -> dict[str, Any]:
     "route_length", "route_length_definition", "route_start_xy",
     "route_endpoint_xy", "route_endpoint_heading", "terrain_origin_xyz",
     "terrain_patch_origin_xyz", "terrain_patch_size", "terrain_type_index",
-    "terrain_assignment_position_error", "route_placement_position_error",
     "effective_terrain_parameters", "geometry", "initial_root_clearance",
   )
   missing = [key for key in keys if key not in row]
   if missing:
     raise ValueError(f"scenario identity is missing {missing}")
   return {key: row[key] for key in keys}
+
+
+def _compare_identity(
+  expected: Any,
+  actual: Any,
+  *,
+  path: str,
+  float_abs_tolerance: float = IDENTITY_FLOAT_ABS_TOLERANCE,
+) -> None:
+  """Recursively compare static identity and report its first exact path.
+
+  Integer/string/boolean identity is exact.  Floating values produced by GPU
+  placement and geometry tensors use a small absolute tolerance; this avoids
+  rejecting matched reconstructions solely due to float32 round-off while
+  still rejecting a meaningful initial-state or terrain mismatch.
+  """
+  if isinstance(expected, Mapping):
+    if not isinstance(actual, Mapping):
+      raise ValueError(f"A/B identity mismatch at {path}: mapping type changed")
+    expected_keys = tuple(expected)
+    actual_keys = tuple(actual)
+    if set(expected_keys) != set(actual_keys):
+      missing = sorted(set(expected_keys) - set(actual_keys))
+      extra = sorted(set(actual_keys) - set(expected_keys))
+      raise ValueError(
+        f"A/B identity mismatch at {path}: missing={missing}, extra={extra}"
+      )
+    for key in expected_keys:
+      _compare_identity(
+        expected[key], actual[key], path=f"{path}.{key}",
+        float_abs_tolerance=float_abs_tolerance,
+      )
+    return
+  if isinstance(expected, Sequence) and not isinstance(expected, (str, bytes)):
+    if not isinstance(actual, Sequence) or isinstance(actual, (str, bytes)):
+      raise ValueError(f"A/B identity mismatch at {path}: sequence type changed")
+    if len(expected) != len(actual):
+      raise ValueError(
+        f"A/B identity mismatch at {path}: length {len(expected)} != {len(actual)}"
+      )
+    for index, (left, right) in enumerate(zip(expected, actual, strict=True)):
+      _compare_identity(
+        left, right, path=f"{path}[{index}]",
+        float_abs_tolerance=float_abs_tolerance,
+      )
+    return
+  if isinstance(expected, bool) or isinstance(actual, bool):
+    if type(expected) is not type(actual) or expected != actual:
+      raise ValueError(
+        f"A/B identity mismatch at {path}: {expected!r} != {actual!r}"
+      )
+    return
+  if isinstance(expected, float) or isinstance(actual, float):
+    if (
+      isinstance(expected, (int, float))
+      and not isinstance(expected, bool)
+      and isinstance(actual, (int, float))
+      and not isinstance(actual, bool)
+      and math.isfinite(float(expected))
+      and math.isfinite(float(actual))
+      and math.isclose(
+        float(expected), float(actual), rel_tol=0.0,
+        abs_tol=float_abs_tolerance,
+      )
+    ):
+      return
+    raise ValueError(
+      f"A/B identity mismatch at {path}: {expected!r} != {actual!r} "
+      f"(abs_tol={float_abs_tolerance})"
+    )
+  if type(expected) is not type(actual) or expected != actual:
+    raise ValueError(
+      f"A/B identity mismatch at {path}: {expected!r} != {actual!r}"
+    )
 
 
 def _validate_axis_summary(row: Mapping[str, Any]) -> None:
@@ -278,11 +352,11 @@ def validate_headroom_pair(
       ):
         if not math.isclose(float(limits.pop(field)), value, abs_tol=1.0e-12):
           raise ValueError(f"{field} is not the requested scaled limit")
+      invariant["controller_limits"] = limits
       arm_identity[route_kind] = {
-        "invariants_without_limits": invariant,
-        "unscaled_controller_fields": limits,
+        "route_kind_invariants": invariant,
         "profile_settings": result["profile_settings"],
-        "scenario_identity": [
+        "scenarios": [
           _scenario_identity(row) for row in result["scenarios"]
         ],
       }
@@ -290,10 +364,33 @@ def validate_headroom_pair(
         _validate_axis_summary(row)
     if reference is None:
       reference = arm_identity
-    elif arm_identity != reference:
-      raise ValueError(
-        "A/B identity mismatch outside max_lateral_speed/max_yaw_rate"
-      )
+    else:
+      for route_kind in ROUTE_KINDS:
+        _compare_identity(
+          reference[route_kind]["route_kind_invariants"],
+          arm_identity[route_kind]["route_kind_invariants"],
+          path=f"{key}.{route_kind}.route_kind_invariants",
+        )
+        _compare_identity(
+          reference[route_kind]["profile_settings"],
+          arm_identity[route_kind]["profile_settings"],
+          path=f"{key}.{route_kind}.profile_settings",
+        )
+        expected_scenarios = reference[route_kind]["scenarios"]
+        actual_scenarios = arm_identity[route_kind]["scenarios"]
+        if len(expected_scenarios) != len(actual_scenarios):
+          raise ValueError(
+            f"A/B identity mismatch at {key}.{route_kind}.scenarios: "
+            f"length {len(expected_scenarios)} != {len(actual_scenarios)}"
+          )
+        for index, (expected, actual) in enumerate(zip(
+          expected_scenarios, actual_scenarios, strict=True
+        )):
+          _compare_identity(
+            expected,
+            actual,
+            path=f"{key}.{route_kind}.scenarios[{index}]",
+          )
 
 
 def validate_headroom_result(payload: Mapping[str, Any]) -> None:
@@ -328,7 +425,8 @@ def validate_headroom_result(payload: Mapping[str, Any]) -> None:
 
 __all__ = [
   "ControllerLimits", "HEADROOM_SCALES", "ONLY_CHANGED_CONTROLLER_FIELDS",
-  "SATURATION_AXES", "TARGET_STRATA", "build_headroom_scenarios",
+  "IDENTITY_FLOAT_ABS_TOLERANCE", "SATURATION_AXES", "TARGET_STRATA",
+  "build_headroom_scenarios",
   "per_axis_saturation", "scale_controller_limits",
   "summarize_axis_saturation", "validate_headroom_pair",
   "validate_headroom_result",

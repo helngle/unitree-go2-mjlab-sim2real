@@ -15,6 +15,7 @@ from scripts.evaluate_go2_high_slope_headroom import (
 )
 from src.tasks.velocity.evaluation.high_slope_headroom import (
   HEADROOM_SCALES,
+  IDENTITY_FLOAT_ABS_TOLERANCE,
   ONLY_CHANGED_CONTROLLER_FIELDS,
   ROUTE_KINDS,
   TARGET_STRATA,
@@ -205,6 +206,28 @@ class PairAndFormalResultTest(unittest.TestCase):
       _scale_results(), base_lateral_speed=0.3, base_yaw_rate=0.7
     )
 
+  def test_gpu_exposed_dynamic_results_and_float_noise_do_not_break_identity(self) -> None:
+    values = _scale_results()
+    row = values["1.5"]["route_results"]["arc"]["scenarios"][0]
+    row.update({
+      "completed": False,
+      "failed": True,
+      "first_failure_reason": "step_limit",
+      "steps_sampled": 120,
+      "progress_ratio": 0.72,
+      "terrain_assignment_position_error": 8.0e-5,
+      "route_placement_position_error": 9.0e-5,
+      "termination_counts": {"fell_over": 0},
+    })
+    for axis in ("vx", "vy", "wz"):
+      item = row["controller_saturation_by_axis"][axis]
+      item["denominator"] = 120
+      item["rate"] = item["count"] / 120
+    row["route_endpoint_xy"][0] += IDENTITY_FLOAT_ABS_TOLERANCE * 0.5
+    validate_headroom_pair(
+      values, base_lateral_speed=0.3, base_yaw_rate=0.7
+    )
+
   def test_pair_rejects_terrain_identity_or_fresh_env_reuse(self) -> None:
     terrain_mismatch = _scale_results()
     terrain_mismatch["1.5"]["route_results"]["arc"]["scenarios"][0][
@@ -214,6 +237,14 @@ class PairAndFormalResultTest(unittest.TestCase):
       validate_headroom_pair(
         terrain_mismatch, base_lateral_speed=0.3, base_yaw_rate=0.7
       )
+    try:
+      validate_headroom_pair(
+        terrain_mismatch, base_lateral_speed=0.3, base_yaw_rate=0.7
+      )
+    except ValueError as exc:
+      self.assertIn("1.5.arc.scenarios[0].terrain_origin_xyz[0]", str(exc))
+    else:
+      self.fail("static terrain mismatch was not rejected")
     reused = _scale_results()
     reused["1.5"]["route_results"]["straight"][
       "fresh_environment_identity"
@@ -222,6 +253,30 @@ class PairAndFormalResultTest(unittest.TestCase):
     ]
     with self.assertRaisesRegex(ValueError, "reused"):
       validate_headroom_pair(reused, base_lateral_speed=0.3, base_yaw_rate=0.7)
+
+  def test_static_mismatch_reports_route_slot_and_invariant_paths(self) -> None:
+    route = _scale_results()
+    route["1.5"]["route_results"]["s_curve"]["scenarios"][1][
+      "route_length"
+    ] += IDENTITY_FLOAT_ABS_TOLERANCE * 2.0
+    with self.assertRaisesRegex(
+      ValueError, r"1\.5\.s_curve\.scenarios\[1\]\.route_length"
+    ):
+      validate_headroom_pair(route, base_lateral_speed=0.3, base_yaw_rate=0.7)
+    slot = _scale_results()
+    slot["1.5"]["route_results"]["straight"]["scenarios"][0][
+      "matched_slot"
+    ] = 9
+    with self.assertRaisesRegex(
+      ValueError, r"1\.5\.straight\.scenarios\[0\]\.matched_slot"
+    ):
+      validate_headroom_pair(slot, base_lateral_speed=0.3, base_yaw_rate=0.7)
+    seed = _scale_results()
+    seed["1.5"]["route_results"]["arc"]["route_kind_invariants"]["seed"] = 43
+    with self.assertRaisesRegex(
+      ValueError, r"1\.5\.arc\.route_kind_invariants\.seed"
+    ):
+      validate_headroom_pair(seed, base_lateral_speed=0.3, base_yaw_rate=0.7)
 
   def test_pair_rejects_bad_axis_denominator_or_failure_reason(self) -> None:
     bad_denom = _scale_results()
