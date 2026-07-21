@@ -3092,3 +3092,53 @@ python scripts/train.py Unitree-Go2-Rough-V7-HighSlopeProbe \
 forward gain 达到 `0.8`、保留场景 forward gain 不得比 V7 低 `0.05` 以上、slip/action
 acceleration 不超过同场景 V7 的 `1.2x`、contact/fall 不增加且 stairs/flat/rough/obstacle
 不退化。任一 gate 失败即拒绝新模型、保留 V7，不追加第二变量。
+
+### 2026-07-21 High-slope 10% sampling probe 正式训练启动记录
+
+启动时间：`2026-07-21 16:09:52 +0800`。Integration 分支：
+`exp/high-slope-probe-integration`，起始 HEAD `b102a42`。本轮二选一终点固定为
+ACCEPT 新 checkpoint 或 REJECT 并保留 V7；第一次 probe 失败后不补训、不增加变量。
+
+唯一变量：
+
+```text
+target_hard_case_ratio: nominal V7 3.0% / checkpoint 3.125% -> probe 10.0%
+H: slope_up levels 8/9 + slope_down level 9
+```
+
+Warm start：
+
+```text
+checkpoint: logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+SHA256: 73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff
+size: 7077833 bytes
+task: Unitree-Go2-Rough-V7-HighSlopeProbe
+num_envs: 2048
+iterations: 400
+seed: 42
+logger: tensorboard
+```
+
+Reward、command distribution、terrain geometry、termination、gait、randomization、
+observations/height scan、actor/critic network、PPO 参数全部冻结。正式命令：
+
+```bash
+conda activate unitree_rl_mjlab
+cd /home/jensen/projects/unitree_rl_mjlab
+
+python scripts/train.py Unitree-Go2-Rough-V7-HighSlopeProbe \
+  --env.scene.num-envs=2048 \
+  --env.seed=42 \
+  --agent.seed=42 \
+  --agent.resume=True \
+  --agent.load-run=2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter \
+  --agent.load-checkpoint=model_13600.pt \
+  --agent.max-iterations=400 \
+  --agent.save-interval=100 \
+  --agent.logger=tensorboard \
+  --agent.run-name=go2_rough_v7_high_slope_sampling_probe_2048env_400iter
+```
+
+训练前主 Agent targeted tests `29/29 PASS`；独立 Acceptance PRE-GPU 结果在实际训练
+开始前追加。训练 run 目录、checkpoint、sampler telemetry、TensorBoard tail、正式 JSON
+和最终 ACCEPT/REJECT 将在本节续写。
