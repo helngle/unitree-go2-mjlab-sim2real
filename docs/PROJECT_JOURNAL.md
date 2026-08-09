@@ -1,6 +1,201 @@
 # Unitree RL Mjlab 本地实验日志
 
-最后更新：2026-07-21
+最后更新：2026-07-22
+
+## 2026-07-22：V7 triggered actuator-headroom（只评估，正式 INCONCLUSIVE）
+
+本阶段固定 V7 `model_13600.pt`，只测试 actuator-headroom activation timing：control
+始终 1.0x，probe 在 control 同一 joint 连续 3 个有效饱和 step 后的下一 step 才切到
+1.25x。没有训练、reward/task/asset/PPO 修改，也没有切 branch 或 commit。
+
+三路只读审计结论：actuator 路径确认 `actuator_forcerange` 可在 rollout 中原位更新，
+无需重建 CUDA graph，且必须记录逐 step limit；branch 审计要求复制 qpos/qvel/time/
+warmstart/ctrl/applied force、manager/action/observation 和 contact histories，再做
+`forward -> sense`；schema 审计要求 probe 提前失败作为 harm、窗口以 apply 为零点、
+无样本写 null/status。复核正式 v1 后又发现原实现错误地依赖未使用 probe 存活，并把
+no-trigger divergence 和 horizon censor 误标为 harm/failure，均已在专用 evaluator 修正。
+
+正式命令：
+
+```bash
+conda run -n unitree_rl_mjlab python \
+  scripts/audit_go2_actuator_headroom_triggered.py \
+  --output-file logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/actuator_headroom_triggered_clean_seed42_64worlds_1200steps_v4.json
+```
+
+最终 evaluator SHA256 为
+`156da8db2f78ec21fd8e38648547ed76990c6a7e0dbc04b8217ed62bdea2bd41`，artifact
+SHA256 为 `3f1ad2a52b57690a5af5379a6208bc3f1610e05197b1c86343e0f8e2f8fd16f2`。
+Checkpoint/baseline/旧 evaluator SHA 均匹配。CPU 全量回归 349 tests PASS、1 skip；
+forced smoke strict pass；正式 JSON recursive finite、runtime/branch identity、placement、
+lifecycle 和 baseline compatibility 均 pass。
+
+正式矩阵 flat/slope-up、`.3/.5 m/s`、8 repeats、seed42、100 warmup + 1200 sample。
+Flat 16 对均不触发且完成。Slope-up 有 10 个 applied trigger，完整 post-50/post-100
+只有 5/4，对比 hard gate 各 8 不足。可评估 saturation 下降 `93.3%/90.5%`；2 win、
+1 loss、1 explicit harm；applied completion delta `.3=0/.5=+2`，但 primary gait/risk
+路径不通过。正式结论 **`INCONCLUSIVE`**。方向上证明 1.25x 能解除大部分触发 joint
+饱和，但尚不能证明它能稳定阻止失败，也不能正式归类为 downstream。
+
+MuJoCo-Warp 在高坡接触中有运行间非确定性：未触发 slope probe 可在同 1.0x 下分叉，
+多次 clean invocation 的 trigger/coverage 也变化。下一步唯一变量建议为 1.0x matched
+sham-branch sentinel；先量化 full-copy 后自然分叉，再决定是否扩大 clean cohort。
+Randomized 未运行，因为 clean 已形成 10 个 triggered cohort，且当前 startup
+randomization 含 motor-strength 等额外变量，会破坏本轮 single-variable contract。
+
+## 2026-07-22：V7 actuator/force Gate 1（只评估，拒绝 reward probe）
+
+本阶段先按 Gate 1 完成 actuator/force 能力审计。三路只读调查分别确认：
+
+- Go2 动作链是 `target = raw * 0.25 + default_joint_pos - encoder_bias`，wrapper
+  `clip_actions=None`；hip/thigh 的 position actuator limit 为 `23.5 Nm`，calf 为
+  `45 Nm`。现有 gait JSON 没有 processed target/actuator force，静态结论只能是
+  `INCONCLUSIVE`，必须新增 rollout instrumentation。
+- 单变量 reward 的只读候选是只在 slope-up high/extreme、forward-dominant command
+  激活的完整 lift-off→touchdown local-tangent step-placement event；flat/rough/stairs/
+  obstacle/lateral/yaw/standing 严格 inactive，不碰 clearance/slip/gait/termination。
+- 正式 gait v2 JSON、V7 SHA、matched/placement/lifecycle/finite 均通过；稳定 gait
+  tail 与失败前 50/100 步必须分开，不能把失败前缀当稳定 gait 均值。
+
+主 Agent 新增 evaluation-only 工具：
+
+```text
+scripts/audit_go2_high_slope_actuators.py
+tests/test_go2_high_slope_actuator_audit.py
+```
+
+工具复用 gait evaluator 的 checkpoint、matched slot、terrain assignment 与 reset
+逻辑，并在环境实例的 `_reset_idx` 入口保存 reset 前终态。每控制步采集 raw action、
+processed `joint_pos_target`、joint position/velocity、`actuator_force`、未裁剪 PD demand、
+hard/soft joint margin、pitch、body contact、foot normal/tangent force 和 stance slip。
+声明的 saturation mask 为 `abs(force)/limit >= .98` 且 `abs(PD demand) >= limit`；
+持续至少 3 个 control steps 或占 failure_last_50 至少 10% 即确认。
+
+短 GPU smoke（3 slots、20 steps）通过 runtime mapping、shape、strict JSON 和 force sign。
+正式命令：
+
+```bash
+conda activate unitree_rl_mjlab
+python scripts/audit_go2_high_slope_actuators.py \
+  --output-file logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_actuator_audit_clean_seed42_48slots_1200steps_v1.json
+```
+
+正式 artifact：
+
+```text
+path: logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_actuator_audit_clean_seed42_48slots_1200steps_v1.json
+artifact SHA256: e73a40f996839099b1f788bdf06c24a978549340f51ecb1aae6f4429c24bc537
+evaluator source SHA256: 07a957ffe8dc01178932c5993006201b315b44e5ca9b287e793d2755842dcc76
+checkpoint SHA256: 73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff
+```
+
+结果：
+
+```text
+condition             vx   success  failure reasons
+flat                  .3   8/8      none
+flat                  .5   8/8      none
+slope_up_high         .3   6/8      calf 1, upper-leg 1
+slope_up_high         .5   2/8      fell 3, upper-leg 3
+slope_down_extreme    .3   0/8      base 4, fell 2, upper-leg 2
+slope_down_extreme    .5   0/8      upper-leg 4, base 4
+```
+
+flat stable windows 的 joint P95 utilization 最大约 `.268`，near-limit fraction 为 0。
+8 个 slope-up 失败 attempt 全部有持续 saturation evidence；最强 `RL_thigh` 在最后
+50 步的 saturation fraction `.54`、最长连续 `27` 步。extreme-down 高速 8 个失败
+全部出现 calf saturation，最后 50 步典型 fraction `.14–.16`、最长连续 7–8 步。
+artifact 合计 91 条 evidence：slope-up 27、slope-down 64、flat 0。24 个失败 row
+全部有完整 50/100 步 pre-reset window；三项必需 stable control count 为 `8/8/6`，
+无 coverage shortfall。terrain assignment/placement max 为 `5.36e-7/2.38e-7`。
+
+ContactSensor 的 netforce 是作用在 secondary terrain 上的力，loaded contact 对向上
+terrain normal 的 signed projection 预期为负；正式窗口实测 `.984–1.0`，与实现一致。
+termination 使用 force norm，因此不是 sign 误判。JSON strict/recursive finite、source
+SHA、checkpoint SHA、matched slots、placement 和 lifecycle 均 PASS。验证结果为
+`332 tests PASS, 2 existing skips`，compileall、CLI、py_compile、diff-check PASS。
+
+Gate 1 最终为 **`SATURATION_CONFIRMED`**。因此 Gate 2 不开放：没有编辑 rewards.py、
+没有注册 reward task、没有运行 reward unit test、没有启动 200–300 iteration PPO，
+没有新训练 run/checkpoint/TensorBoard。A 仍描述上坡短步症状，C 仍是强伴随项；D
+现在是明确的失败前执行器边界，B 不支持，E 的 evaluator/asset mapping 未发现错误。
+默认模型继续是 V7 `model_13600.pt`；不得采用 `model_13900.pt`、`model_13999.pt`、
+`model_14099.pt`。
+
+下一步唯一变量建议：先做 evaluation-only matched actuator-headroom counterfactual，
+只改变 effort limit，检查失败率、step length、slip/contact 和 saturation 是否同步改善，
+用来区分“执行器能力硬限制”与“策略在失稳后才撞限”。在该因果检查前不改 reward、不训练。
+
+## 2026-07-22：V7 持续高坡步态诊断（只评估，未训练）
+
+本阶段固定使用 V7 `model_13600.pt`，没有使用被拒绝的 `model_13900.pt`、
+`model_13999.pt` 或 `model_14099.pt`，没有启动训练，也没有修改 reward、
+training terrain、termination、gait、network 或 PPO。
+
+新增：
+
+```text
+scripts/diagnose_go2_high_slope_gait.py
+tests/test_go2_high_slope_gait.py
+```
+
+诊断使用 evaluation-only 18×18 m generator，对 `flat`、`slope_up_high`
+（gradient `+0.32`）和 `slope_down_extreme`（gradient `-0.40`）做 clean
+matched 对比。每个 condition 固定 `vx=0.3/0.5 m/s`、`vy=0`、`yaw=0`、
+seed42、8 repeats、100 warmup 和 1200 control steps。三个 condition 的 16 个
+matched slots 完全一致。脚端输出顺序固定为 `FR/FL/RR/RL`；ContactSensor 的
+XML 自然顺序 `FL/FR/RL/RR` 使用 permutation `[1,0,3,2]` 重排。
+
+正式 v2 JSON：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/high_slope_gait_diagnostics_clean_seed42_48slots_1200steps_v2.json
+```
+
+JSON recursive finite、strict serialization、schema/lifecycle、matched slot、
+sensor permutation 和 terrain placement 均通过。assignment error 最大约
+`5.36e-7 m`，placement error 最大约 `2.38e-7 m`。产物内记录的 evaluator source
+SHA256 为 `084ad11c8dcbdab357cfe977e0d4b868dbfb733551747219e6ee2678d004443b`，
+V7 checkpoint SHA256 为
+`73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff`。
+CPU unittest `41` 项通过，CLI、py_compile、diff-check、短 GPU smoke 和正式矩阵
+均通过；结束后 GPU 空闲且无残留进程。
+
+on-incline 关键结果：
+
+```text
+condition             vx   gain   step       clearance  slip   Ft     pitch P95/action P95
+slope_up_high         .3   .207   .051 m     .060 m     .115   20.5N  .328 rad / .890
+slope_up_high         .5   .200   .072 m     .071 m     .162   24.6N  .508 rad / .893
+slope_down_extreme    .3   .920   .068 m     .070 m     .389   31.6N -.048 rad / 1.213
+slope_down_extreme    .5   .786   .052 m     .059 m     .299   28.9N -.040 rad / .774
+```
+
+flat 完整 swing displacement 为 `0.131/0.233 m`，gain 为 `.778/.836`，零 reset、
+零 body contact。上坡完整 swing displacement 明显缩短，clearance 没有降低，
+slip、切向力、pitch、动作二阶差分和 termination 明显升高。上坡 `vx=.3` 有
+`3/8` 失败，`vx=.5` 为 `8/8` 失败；下坡两速度均 `8/8` 失败，主要为
+upper-leg/base contact。下坡存活窗口和后足 incline exposure 很短，不能把其 gain、
+步长或 clearance 当作稳定下坡能力。
+
+当前 A–E 结论只适用于这三个 clean matched condition：
+
+- 主类别 **A**：持续上坡出现明显短步和推进不足。
+- 强伴随 **C**：坡面 slip 和切向载荷显著升高；接触力 signed projection 的符号
+  与向上法向相反，不能直接声称 friction-cone margin。
+- **D 是风险信号，不是已证明的 actuator saturation**：坡面 pitch、raw-action
+  second difference 和 joint-relative amplitude 明显增加，仍需最小 actuator/
+  effort-limit 核验。
+- **B 不支持**：clearance 没有下降，坡上高速反而高且更离散。
+- **E 的 evaluator/geometry 路径通过**：placement、finite、matched slot、reset
+  freeze 和 sensor permutation 正确；下坡真实 contact failure 仍受短存活窗口限制。
+
+因此本阶段不训练。若后续授权单变量 probe，优先在 force-sign 与 actuator-limit
+最小核验后，从 V7 warm start 只测试 high-slope forward-dominant、
+terrain-conditioned foot-placement/step-length reward；high-slope exposure、其他
+reward、terrain、termination、gait、randomization、observation、network 和 PPO
+继续冻结。验收必须同时比较 on-incline step、slip/action/contact、失败前窗口和
+V7 retained-scene 回归。
 
 ## 当前目标
 
@@ -3270,3 +3465,1107 @@ strict JSON、finite、schema、identity、placement 和 lifecycle；模型 gate
 V7 `model_13600.pt`。下一步应先分析为何高坡 exposure 增加后 straight forward gain
 仍低于约 0.56，再决定新的单变量机制；优先候选是 command/terrain-conditioned
 foot-placement 或 step-length shaping，但必须先做离线/短诊断，不直接改 reward 并训练。
+
+## 2026-07-22：V7 actuator-headroom matched counterfactual（只评估）
+
+固定 V7 `model_13600.pt`，在单次 evaluator invocation 内为每个 matched slot
+交错构造 control `1.00x` 和 headroom `1.25x` world。唯一干预是 Warp per-world
+`actuator_forcerange`：hip/thigh `23.5 -> 29.375 Nm`，calf
+`45.0 -> 56.25 Nm`。没有修改 task config、robot asset、reward、terrain、command、
+termination、gait、observation、network 或 PPO。
+
+新增：
+
+```text
+scripts/audit_go2_actuator_headroom_counterfactual.py
+tests/test_go2_actuator_headroom_counterfactual.py
+```
+
+正式 artifact：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/actuator_headroom_counterfactual_clean_seed42_96worlds_1200steps_v2.json
+artifact SHA256: bbe25e739367d05a254be077274cdbbb00e2b459637066d78e951618328c1e4e
+evaluator SHA256: acf3a710ce0be858d0e0fbddd238717ba58c7e277ad9e3901c6636bcf229a116
+checkpoint SHA256: 73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff
+baseline SHA256: e73a40f996839099b1f788bdf06c24a978549340f51ecb1aae6f4429c24bc537
+```
+
+Completion：
+
+```text
+condition             vx    control    headroom
+flat                  .3      8/8        8/8
+flat                  .5      8/8        8/8
+slope_up_high         .3      5/8        5/8
+slope_up_high         .5      2/8        2/8
+slope_down_extreme    .3      0/8        0/8
+slope_down_extreme    .5      0/8        0/8
+```
+
+Runtime identity、strict recursive finite、matched slot/order、initial state/
+observation/action identity、placement、reset freeze、单 arm failure-last-50/100、
+source/checkpoint/baseline provenance 全部 PASS。三地形 range drift 为 0；坡上
+control/headroom demand-over-limit 到界数为 `134/59`，坡下为 `129/108`，全部实际
+force 到达对应 bound 且无越界。terminal reset-hook snapshot 的 force 比 q/qd 旧一个
+physics substep；该 row 保留在终态 force/contact 中，但明确从 PD demand、clip residual
+和 saturation persistence 的 demand 条件/分母排除。
+
+14 个 eligible persistent-saturation pair 的 saturated joint-steps 从 `112 -> 2`
+（`-98.2%`），说明 1.25x 确实大幅消除了原边界饱和。但 slope-up 两档 completion
+净增均为 0；`.3 m/s` 的 common-survivor gain/step 仅 `+2.25%/+0.58%`，`.5 m/s`
+没有 common survivor。10 个 pair 违反 1.2x slip/action/contact guardrail，3 个
+control survivor 变成 headroom failure。5 个 headroom attempt 早于 control 终止，
+无法覆盖以 control 失败时刻对齐的 primary 100-step window。
+
+因此按预声明 hard-gate 顺序，正式判断为 **INCONCLUSIVE**。若只看通过 identity 的
+方向性结果而忽略 coverage hard gate，则更接近 `SATURATION_DOWNSTREAM`：饱和大降，
+但完成率、gain/step 和接触风险没有实质改善。不能判 `ACTUATOR_CAUSAL`，也不是
+`HEADROOM_INSUFFICIENT`。MuJoCo-Warp 跨独立 invocation 非 bitwise deterministic；
+control 相对正式 v1 的每 cell completion 差为 `0,0,-1,0,0,0`，仍在预声明 `±2`
+compatibility gate 内。
+
+验证通过：CLI help、py_compile、compileall、18 项 targeted unittest、diff-check、
+12-world smoke 和 96-world/condition 正式 clean 矩阵。结束后 GPU/相关进程空闲。
+本次没有启动训练，没有修改 reward，没有生成候选模型；V7 `model_13600.pt` 继续为
+默认部署模型。若继续做单变量诊断，建议只改变 1.25x headroom activation timing：
+在 matched control 在线首次出现持续 saturation 时开启，并使用事件后固定窗口，避免
+再次把 control 终止时刻的缺失覆盖变成 hard gate；其余变量继续冻结。
+
+## 2026-07-23：V7 全量复杂地形因果诊断与 triplet 复核
+
+本阶段固定 checkpoint `model_13600.pt`（SHA256
+`73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff`），完成
+evaluation-only 全量因子诊断。没有训练、没有 reward/task/asset 修改，也没有切换默认
+模型。
+
+新增 evaluator/test：
+
+```text
+scripts/diagnose_go2_complex_terrain_causes.py
+tests/test_go2_complex_terrain_causes.py
+scripts/audit_go2_actuator_headroom_triplet.py
+tests/test_go2_actuator_headroom_triplet.py
+```
+
+因子 artifact：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/complex_terrain_causal_diagnostic_v2.json
+SHA256 9f09d35229c6ab235df3445aa5133d4451984d78128e2cbe3f552a2e2f118520
+evaluator SHA256 efe76d8dd7ccd22aaed4893689fad53e2b1ec0f35aa8e4abe1cf2921158bfde9
+```
+
+矩阵为 friction `0.3/0.6/1.2`、height-scan masked、flat/high-slope-up/extreme-
+slope-down、`vx=.3/.5`、8 repeats、seed42、100 warmup+1200 steps。`1.2-0.6` 在
+slope-up `.5` 达到 completion `+7/8`、gain `+249%`、step `+227%`、slip `-47%`；
+slope-down `.5` 达到 `+8/8`、gain `+23.7%`、step `+54.3%`。clearance 未系统性
+降低。Mask height scan 后 flat 全部失败，说明 scan 是全局关键输入，但不能将其解释为
+坡地专有感知错误。主分类为 **C（摩擦/接触/支撑稳定性）**；A 为下游短步症状，B 不支持，
+D 仅为放大器，E 保留为真实 actuator 限制和 GPU/MJWarp 非确定性边界。
+
+Triplet artifact：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/actuator_headroom_triplet_clean_seed42_48worlds_1200steps_v1.json
+SHA256 740c6613473ba28e2b81fc20c764e7ae33a7cbf9bb8de3ff0cf23dc1a33f5511
+evaluator SHA256 37344f637a2bf6270fdbdeabf1f06b7d4eca9fc59994f8c347bc1ce28681abcc
+```
+
+Triplet strict gate 为 true，但完整 post-100 只有 `2/8` 对；source/sham/probe
+saturation=`19/10/10`，表面 reduction `47.4%` 与 source-sham 自然差异相同，
+probe-vs-sham lifecycle 为 `1/1`，故 verdict=`INCONCLUSIVE`。`training_ready=false`，
+不得把 actuator headroom 当作已证明根因。
+
+验证完成：py_compile、两个 CLI help、定向测试、strict recursive finite/allow_nan=False、
+diff-check 和全量 `python -m unittest discover -s tests -p 'test_*.py'`（`364 PASS、1
+skip`）。本轮唯一后续建议是扩大 matched 1.0x sham/trigger cohort；若最终获准训练，
+只选择 terrain-relative stance/contact-stability 或 local-tangent slip shaping 一个变量，
+不提高 sampling ratio、不同时修改 reward/terrain/termination/command/gait/observation/
+network/PPO。GPU 为空，本轮没有启动训练；V7 `model_13600.pt` 仍为默认模型。
+
+## 2026-07-23：V7 causal coverage 16/32/64 扩容复核
+
+本阶段新增专用 `scripts/audit_go2_actuator_headroom_causal_coverage.py` 和对应
+unittest，保留既有 triplet 的 3-step hard-saturation trigger，不修改旧 formal
+evaluator、训练配置、reward、terrain、termination、gait、observation、network 或 PPO。
+统一使用 V7 `model_13600.pt`、seed42、warmup100、sample horizon1600，并额外记录
+post-300；source/sham/probe 仍为 `1.00/1.00/1.25x`。
+
+扩容必须按独立 invocation 逐档判断，不能合并不同 world count 的 GPU 结果：
+
+```text
+repeats   high-slope vx=.3 valid post-100   high-slope vx=.5 valid post-100
+16        5/8 gate                         3/8 gate
+32        1/8 gate                         5/8 gate
+64        6/8 gate                         17/8 gate
+```
+
+64-repeat 的 artifact 为：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/actuator_headroom_causal_coverage_clean_seed42_64repeats_1600steps_v1.json
+SHA256 070567402548cf1200a6dd199be7f85d6daac0071165ce9961a1df7e5f4896ee
+```
+
+runtime configured/compiled/clipping identity、placement、matched slot/repeat、checkpoint
+SHA、recursive finite 和 strict JSON 均通过。关键 `.3` cell 只有 6 个完整 post-100
+triplet，低于硬门槛 8；`.5` cell 有 17 个。post-300 分别为 3 和 8。不同 batch size
+产生明显 MJWarp 分叉，因此没有把 16/32/64 合并以凑 coverage。
+
+统计层新增 per-cell source/sham/probe fraction、source-sham noise、probe-sham effect、
+whole-slot bootstrap 和外部 manifest，但现有 legacy triplet 仍不保存 paired slip、pitch、
+contact、gain、step 及逐事件 onset，故无法满足 actuator 时间先后或严格 CONTACT_CAUSAL
+门槛。最终 verdict=`INCONCLUSIVE`，`training_ready=false`。
+
+验证：新增 targeted tests、全量 unittest `369 PASS、1 skip`、CLI help、py_compile、
+diff-check、strict finite/allow_nan=False、manifest SHA 均通过；GPU/训练/评估进程为空。
+本轮没有启动训练，V7 `model_13600.pt` 继续为默认模型。下一步唯一诊断建议是从 rollout
+起点同步运行 friction `0.6` source、`0.6` sham、`1.2` probe，补齐 C 类的严格 matched
+因果证据；在该 gate 通过前不得训练。
+
+## 2026-07-23 17:54：V7 多因素因果测试阶段性停机
+
+按用户要求结束本阶段，不再继续 GPU 测试。已终止未完成的 action-recovery 正式 rollout
+以及残留的 friction `0.8` evaluator；结束复核为 GPU `0% / 0 MiB`，无 Go2 train、
+evaluate、audit、play 或 TensorBoard 任务。被中断的 invocation 不产生正式 artifact，
+不得在后续与其他 invocation 合并或作为 matched 证据。
+
+本阶段保留的正式结果如下：friction `1.2/0.9/0.8` 对 `vx=.5` 有明显改善，但在
+`vx=.3` 重复出现 completion/failure-risk 恶化；foot-placement `+0.05 rad` probe 在两档
+速度下均有害；action-recovery blend `0.5` 只完成 smoke。旧 friction v10 的 provisional
+`CONTACT_CAUSAL=true` 已因安全 gate 审计失败而作废。因此当前正式状态仍为：
+
+```text
+verdict = INCONCLUSIVE
+training_ready = false
+```
+
+定向合约测试最后为 `13 PASS`，相关 evaluator 已通过 py_compile、CLI help、strict JSON
+和 diff-check。本阶段没有启动训练、没有生成候选部署模型；固定 checkpoint SHA256 为
+`73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff`，V7
+`model_13600.pt` 仍为默认模型。下次如恢复，应先复核 Git/GPU/checkpoint/source SHA，
+再从头独立运行 action-recovery 正式矩阵，不复用本次中断状态。
+
+## 2026-07-24：V7 high-slope CONTACT_CAUSAL / training-ready acceptance
+
+继续昨日 evaluation-only 因果覆盖工作。固定 checkpoint 为 V7 `model_13600.pt`，SHA256
+`73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff`。没有修改训练
+task/reward/terrain/termination/command/gait/observation/network/PPO，没有启动训练。
+
+首先补强 action-recovery evaluator：准确登记 0.5 两抽头 FIR、验证 source/sham no-op，
+并加入 actuator-demand mediation、action onset、flat sentinel 与 strict top-level schema。
+32-repeat 正式结果在 `.3/.5` 分别造成 completion `-10/-5`、gain `-12.1%/-13.5%`，同时
+增加 pitch/contact/failure risk，故拒绝简单 action smoothing。Artifact full SHA256：
+`742e8487833ffd528a430aa6b3c9235658c662c798d802c5a2bab35b324f2351`。
+
+随后新增 loaded-stance local-tangent stabilizer，固定 `20 N/(m/s)`、cap=`0.20*mu*Fn`。
+runtime identity 与 flat sentinel 通过，但 32-repeat 高速 completion `-6`、failure risk
+`1.24`，因此该简单 oracle wrench 也未通过。Artifact full SHA256：
+`43a6db374320f01a39186a6b33e0fb7d19aa082b3e1e7171314e79ef6929dc2c`。
+
+最终对注册 friction source/sham/probe=`0.6/0.6/1.2` 进行一个全新、独立、不可与旧
+artifact 池化的 64-repeat confirmatory invocation。两个 slope-up speed cell 各有 64
+matched triplets：
+
+```text
+cell      completion source/sham/probe   gain probe-vs-sham   failure-risk ratio
+vx=.3     39/42/45                       +30.6%                0.864
+vx=.5     11/10/49                       +74.1%                0.278
+```
+
+两 cell 的 slip、friction-cone utilization、gain direction 均远超 75%；whole-slot
+bootstrap effect CI 与 effect-minus-source-sham-noise CI 全部严格大于 0；contact onset、
+placement、lifecycle、runtime identity、recursive finite、checkpoint/evaluator/artifact
+provenance 全部通过。Action、pitch、swing-clearance、base/upper-leg/calf contact 和
+failure-risk 的 1.2x guardrail 也全部通过。
+
+正式 artifact：
+
+```text
+friction_contact_causal_strict_clean_seed42_64repeats_probe12_v13.json
+full SHA256 a48bb9de4a9f7e168d0e7f9b40913cca10debd4554854a391b39b3c45accc30b
+canonical artifact field 96141319b56b4385ae273c1b56692e5fe01ab933b3994fb240506223a4a68eb6
+evaluator SHA256 e7172b83a50c1b15b3a7b851548185f02e7ffcfd47a74a1e0ca2dc3c845b8a80
+```
+
+最终状态：
+
+```text
+verdict = CONTACT_CAUSAL
+training_ready = true
+primary_cause = foot-contact sliding-friction/traction limitation under the evaluator's MuJoCo contact model
+next_training_variable = terrain-relative local-tangent stance-slip/contact-stability shaping
+```
+
+测量边界：geom friction identity 不等于读取最终 effective contact-pair friction；onset gate
+使用 friction-cone threshold；结论是 MuJoCo 仿真机制证据，不覆盖真实硬件的 thermal、
+latency、battery、motor torque-speed/power envelope。19 项相关定向 unittest、diff-check、
+strict JSON/finite 和 SHA sidecar 通过。GPU 最终为空。本轮没有训练或生成新 checkpoint，
+V7 `model_13600.pt` 继续是默认模型。
+
+## 2026-07-24：local-tangent loaded-stance slip 单变量训练前准备
+
+在正式 v13 `CONTACT_CAUSAL/training_ready=true` 基础上，完成下一训练阶段的 reward、
+独立任务、合约测试、无训练 GPU preflight、训练矩阵和回归 gate。没有启动 PPO。
+
+新任务 `Unitree-Go2-Rough-V7-StanceSlip` 相对 V7 恰好新增一个 reward：按最近有效
+terrain ray 法向计算足端局部切向速度，只对 `contact && ray_valid && Fn>=15 N` 的
+loaded stance 生效；`Fn=max(0,-F_contact·n)`。cost 使用 `0.03 m/s` deadband、
+`0.10 m/s` scale、clip `4`，并按法向载荷归一化。第一轮唯一训练变量固定为 weight
+`-0.05`，不进行多权重 sweep；原 V7 `foot_slip` 保留。
+
+实现与记录：
+
+```text
+src/tasks/velocity/mdp/rewards.py
+src/tasks/velocity/config/go2/env_cfgs.py
+src/tasks/velocity/config/go2/__init__.py
+scripts/preflight_go2_stance_slip_training.py
+tests/test_go2_stance_slip_reward.py
+docs/reviews/stance_slip_training_design.md
+```
+
+新 reward 测试 `9 PASS`，相关定向矩阵 `25 PASS`，全量 unittest `397 PASS、1 skip`；
+py_compile、task-aware CLI、JSON parse 和 diff-check 通过。第一次 runtime calibration 发现
+`SceneEntityCfg` 默认不 preserve requested site order，导致 site/contact permutation 错配；
+已改为 `preserve_order=True` 并删除无效 v1 artifact。修正后的 32-env v2 raw cost
+mean/p95=`0.1567/0.8462`，weight 后 reward-rate mean=`-0.00784`。
+
+2048-env、seed42、V7 full-resume、8-step、no-learning preflight 严格恢复 iteration
+`13600` 和 terrain mean level `5.275`；actor/critic shape `234/261`，动作、总 reward 和
+新 reward 全部 finite，零 reset，`learn_called=false`：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/stance_slip_training_preflight_seed42_2048env_8steps_fullresume_v3.json
+SHA256 348377defa91a940d4683d9b2188642dc423e757b6c3fae36d12f0b495e9bc9d
+```
+
+正式训练只允许从 V7 `model_13600.pt` full resume，2048 env、400 iterations、seed42，
+task=`Unitree-Go2-Rough-V7-StanceSlip`。预期 stage 为 13700/13800/13900/final13999；按
+预登记 high-slope safety/route lexicographic 规则选 candidate，不能按 TensorBoard 或 final
+自动选择。训练后必须通过 clean/randomized high-slope、flat/rough/obstacle、stairs
+seeds42/43/44 和 line/arc/S；slip/action/pitch/body-contact/failure-risk 均不得超过 matched
+V7 `1.2x`。当前 **TRAINING-READY，未启动训练**，默认仍为 V7 `model_13600.pt`。
+
+## 2026-07-27：V7 stance-slip 单变量正式训练与多目标验收（REJECT）
+
+按预登记合同完成唯一训练 arm：`Unitree-Go2-Rough-V7-StanceSlip`，2048 env、seed42、
+从 V7 `model_13600.pt` full resume、400 iterations。唯一训练变量为新增
+`terrain_tangent_stance_slip` reward，weight=`-0.05`；其余合同项均冻结。训练从
+`2026-07-27T09:57:40+08:00` 开始，final artifact 于 `10:16:04+08:00` 写出：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-27_09-58-02_go2_rough_v7_local_tangent_stance_slip_2048env_400iter
+```
+
+训练完整结束，无 NaN/Inf、OOM、resume/telemetry/simulator 错误。TensorBoard 62 tags、
+24800 values 全部有限，step `3..13999`；final reward `50.28495`、episode length `990.5`、
+local-tangent stance slip `0.072481`、cost `0.330645`、ray valid `1.0`。stage SHA256：
+
+```text
+13700 02f9e821739babb844598b735da5aaac4d42d8a88f203431d28689d06519f2fc
+13800 5c0b909232e2df6e5b0616731acecdee567e00c7bda4842ccbe99ae650ab04bd
+13900 4ab8740c7170b25923d4130b850fc77407f365923ad1634bb96a92ebf2eb8dea
+13999 db46dcc1272cb0a722b695568c8cdf4d086af1075cd4d0b53da7a75a643563e3
+```
+
+V7 baseline 与四 stages 均完成相同的 clean/randomized high-slope line/arc/S、vx=.3/.5、
+16 slots/route、2400 steps 矩阵。completion（straight/arc/S）：
+
+```text
+checkpoint  clean       randomized
+V7          4/2/3       6/4/4
+13700       5/2/4       4/2/4
+13800       4/4/4       5/3/4
+13900       4/4/4       6/4/4
+13999       4/4/4       5/4/5
+```
+
+全部 stage 低于 clean `12/16`、randomized `10/16`，最低 weighted forward gain 仅
+`0.3691/0.2480/0.2486/0.3990`，均低于 `0.80`。逐 profile/route 先执行 1.2x safety
+guardrail 后，四 stage 分别有 `9/13/7/25` 个 metric groups 违规；全部被剔除，
+`survivor_count=0`，没有 candidate 可进入 retained scene/stairs/path 完整套件。
+
+```text
+acceptance/stance_slip_checkpoint_selection.json
+SHA256 52e42466b10be55e55a74df1c0d368902eba118b6fd59b2f41eb08ed8f9a88bd
+selection_status = NO_SAFE_SURVIVOR
+```
+
+最终 **REJECT**，不追加第二变量、不补训、不改变默认/部署路径。V7 `model_13600.pt`
+（SHA256 `73f68beb...dff`）继续为默认模型。完整报告见
+`docs/reviews/stance_slip_training_acceptance_20260727.md`。结束时 GPU 空闲，无相关进程。
+
+## 2026-07-27：stance-slip 训练失败机制诊断
+
+在不启动 PPO、不修改训练任务/friction/terrain/termination/command/network/PPO 的前提下，
+完成三个只读子审计、正式 acceptance/TensorBoard 离线复核，以及 V7、13700、13900、13999
+四模型 evaluation-only 定向 GPU 诊断。新矩阵固定 clean slope-up high/extreme、
+`vx=.3/.5`、4 matched repeats、seed42、100 warmup + 2400 sample steps；逐足 gait 使用明确
+区分于 reward 的 `20/10 N` hysteresis，actuator 窗口在 `_reset_idx` 内捕获真实 pre-reset
+terminal state。正式 signed `15 N` slip/cost 仍以旧 matched line/arc/S JSON 为准。
+
+首次把全部模型置于单 Python 进程时，重复构建 MuJoCo-Warp 环境触发 CUDA graph capture/
+allocation 错误，未写出 partial artifact。保持全部实验参数不变后，改为每 checkpoint 一个
+独立进程并由 CPU 严格合并；四段均 finite、2400-step 配置一致，checkpoint/source/dirty
+provenance 与 chunk SHA 均写入最终 JSON：
+
+```text
+diagnostics/stance_slip_failure_mechanism_clean_seed42_r4_2400steps_v1.json
+SHA256 27c9042870c065731aebf9038ea93ed55970bff97e93dbc1ef9bc4d03601655d
+```
+
+离线 96-cell 均值中，13700 相对 V7 的 gain `0.5475 -> 0.4609`、exact slip
+`0.06136 -> 0.06073`、cost `0.3506 -> 0.3358`，但 progress 未降、loaded fraction
+`0.5604 -> 0.5727`，故“卸载避罚”不支持。新 extreme `.3` 的 4/4 共同 2400-step
+pair 都出现 slip/gain/step-length 同向下降，但 high 没有共同 full-horizon pair，且该模式
+未在 13900/13999 重复；缺 preregistered onset 顺序。因此正式结论为：
+
+```text
+REWARD_AVOIDANCE = INCONCLUSIVE
+  reduced-speed/short-step avoidance = SUGGESTIVE at 13700
+  unloading avoidance = NOT SUPPORTED
+OBJECTIVE_CONFLICT = INCONCLUSIVE
+PHYSICAL_AUTHORITY_LIMIT = SUPPORTED for V7 in evaluator MuJoCo model
+  candidate-specific persistence = INCONCLUSIVE
+next_training_action = DO_NOT_TRAIN
+```
+
+四模型 high actuator 窗口均有 saturation 样本，但旧 1.25x headroom 已将其显著降级为
+单独主因；V7 friction v13 仍是 contact-authority 的正式因果证据。没有为 candidates
+运行新的 friction 探针，也没有新增训练变量。默认继续为 V7 `model_13600.pt`，完整报告：
+`docs/reviews/stance_slip_failure_mechanism_diagnosis.md`。
+
+## 2026-07-27 proprioceptive sim2real student 训练就绪
+
+在 stance-slip arm 被拒绝后，按三智能体审计完成新的可部署本体感知 student 架构。本轮只做
+训练准备和无学习验证，未启动正式 BC/PPO，未替换默认模型。
+
+最终冻结 student actor 为 425 维：`base_ang_vel(3x10)`、
+`projected_gravity(3x10)`、当前 `command(3)`、当前 `phase(2)`、
+`joint_pos(12x10)`、`joint_vel(12x10)`、`previous_action(12x10)`；term-major，
+history oldest-to-newest，50 Hz 十帧首尾跨度 0.18 s。Actor 不含 height scan、contact、
+base linear velocity 或 dynamics truth。Privileged critic 为 261 维，V7 teacher 为 234 维，
+action 为 12 维。Canonical schema SHA256：
+
+```text
+c0b80faccc897cb77290ed55832cefd6ed97432831898129598df996486f87ae
+```
+
+初始化严格分两阶段：先在 terrain levels 0-6 用 deterministic V7 teacher rollout 做 300
+iteration BC，完整消费每次 24-step rollout 的 mean Huber；再只把完整 student actor 转入
+fresh critic/optimizer/iteration-0 PPO，纯 PPO 4000 iterations，不保留 teacher group 或
+auxiliary imitation loss。唯一入口：
+
+```bash
+python scripts/train_go2_proprioceptive.py
+```
+
+正式 2048-env、seed42、distill/PPO 各 8 步 no-learning GPU preflight 通过：shape
+`425/261/234/12`，全部 finite，zero resets，`learn_called=false`、
+`optimizer_step_called=false`、无 candidate checkpoint；teacher 13 个 state keys 和
+normalizer bitwise unchanged，teacher rollout action exact match；ONNX 仅 `[1,425] actor`
+输入与 `[1,12]` 输出，PyTorch/ONNX max error `3.725290298461914e-08`。Artifact：
+
+```text
+docs/reviews/go2_proprioceptive_student_preflight_2048env.json
+SHA256 1fe5b626e68816f6408b97efc9739cbd187de0dff0004ce03b543cbc2503c489
+```
+
+定向 Python `15/15 PASS`，全量 `418 PASS、1 skip`，C++ history smoke PASS。使用官方
+Unitree SDK2 HEAD `21d0a3b2c46ee48c8fdf2783becb6be3beb0a59b` 在 `/tmp` 隔离依赖下完整
+编译 `unitree_mujoco` 与 `go2_ctrl`；新增 headless bridge smoke 在 DDS `lo` 上验证 12
+电机 LowCmd→MuJoCo control、sensor→LowState、IMU/tick 和 10 步 finite，PASS。图形窗口在
+当前非交互会话不可创建，但不影响 headless bridge 证据；训练后仍须用实际训练 ONNX 完成
+图形闭环验收。
+
+门禁结论：G0-G6 PASS，G7 无硬件部分 PASS，具体 Go2/固件低层模式、实测 SDK 时延抖动、
+编码器/IMU 校准、热/电池/力矩响应和实机急停效果为 `HARDWARE_PENDING`。因此：
+
+```text
+PROPRIOCEPTIVE_SIM2REAL_TRAINING_READY=true
+HARDWARE_READY=false
+FORMAL_TRAINING_STARTED=false
+DEFAULT_MODEL_CHANGED=false
+```
+
+完整证据和预登记验收合同见：
+
+```text
+docs/reviews/go2_proprioceptive_student_readiness.md
+docs/reviews/go2_proprioceptive_student_readiness.json
+docs/reviews/go2_proprioceptive_student_training_contract.md
+docs/reviews/go2_proprioceptive_deploy_build_check_20260727.json
+```
+
+## 2026-07-27 proprioceptive formal launch revalidation
+
+正式启动前修复了两个 provenance 阻塞和一个 processed-action 安全阻塞。唯一
+orchestrator 现在持有覆盖 BC+PPO 全周期的非阻塞 `fcntl` 独占锁；canonical source
+manifest 记录 branch/HEAD、运行环境及全部训练关键文件，且内嵌 untracked 训练源码原文，
+manifest SHA 会写入每个 checkpoint/ONNX，并原样复制进两个 run。逐关节 MJCF 限位进入
+schema 和 C++ fail-closed runtime；首次有效推理前不发布 RL 动作，ActionManager 和 policy
+thread 状态已同步，quaternion normalization 与 Python 一致。
+
+新 schema SHA256：
+
+```text
+379d982c61c839286fe7a566fee40160f599831752041250dbd804709a6e4b10
+```
+
+重跑 2048-env no-learning preflight PASS，artifact SHA256：
+
+```text
+fff95311e3e0335ab244594c98891e7cc1d0a1569ebb3758857554bc251560a0
+```
+
+PyTorch/ONNX max error `4.842877388000488e-08`，GPU peak allocated/reserved
+`326579712/367001600` bytes，teacher bitwise unchanged，zero reset。最终启动前验证为
+targeted `17/17`、provenance/retry `9/9`、full `429 PASS, 2 skip`、compileall、C++ history、
+`go2_ctrl` rebuild 和 `git diff --check` PASS。Teacher SHA 精确匹配；GPU `0 MiB/0%`；
+无相关进程、无同名 run。正式命令仍唯一且训练变量未改变。
+
+首次 formal launch 在任何 rollout/optimizer/checkpoint 之前因 RSL-RL distillation
+logger 无条件读取未初始化的 `student.output_std` 失败。失败 run、88-byte TensorBoard
+header、params、git diff 和完整 traceback 均保留，登记 marker SHA256
+`837a14f4a6aef0bcab6b4f541b16ec38566624c22dee8d1b5398b0bc7a0b3ba1`，状态为
+`TECHNICAL_FAILURE_PRE_LEARNING`。修复仅在 BC learn 前初始化 student logging
+distribution，不采样、不改 normalizer/loss/rollout/optimizer；32-env、1-iteration discard
+smoke 完整通过并生成 provenance checkpoint。修复后 source manifest 预计算 SHA256：
+
+```text
+18ed1acd1de0b6932c6e04ece4244e37a7117179c68fa8ccd1fa30281ddca24a
+```
+
+仅该固定 marker、零 checkpoint、零 learning iteration 的失败目录获准技术重试；其余
+同名 run 仍阻塞启动。
+
+## 2026-07-27 proprioceptive formal training active
+
+byte-identical 技术重试于 `2026-07-27 16:27:19 CST` 创建正式 distillation run，并于
+`2026-07-27 16:39:54 CST` 完成全部 300 iterations：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-27_16-27-06_go2_sim2real_proprio_v1_v7_teacher_distill_2048env_300iter/model_299.pt
+SHA256 f63b6ec244833572e2017243b8b032b9f23040a20b92030d987502b06f839565
+```
+
+最终 BC loss 约 `0.0034`；checkpoint student tensors finite，iteration=`299`，stage、
+teacher、schema 和 source-manifest provenance 全部精确匹配。checkpoint 内 teacher 的
+13 个 state tensors 与锁定 V7 actor bitwise equal；run 内 source-manifest 副本 SHA256
+为 `18ed1acd1de0b6932c6e04ece4244e37a7117179c68fa8ccd1fa30281ddca24a`。
+
+Orchestrator 完成阶段边界 source revalidation 后自动启动唯一 PPO run：
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-27_16-40-03_go2_sim2real_proprio_v1_ppo_2048env_4000iter
+```
+
+PPO 从 iteration 0、fresh critic/optimizer 开始；checkpoint 仅含 actor/critic/optimizer，
+没有 teacher/student distillation group。`model_250.pt` SHA256 为
+`1dd699c2ba6c7e394cb1251fce4a6d6c55db6a4f3bf58d25cbb3a934bce3db8c`，结构、finite、
+schema/source-manifest provenance 和静态 ONNX `[1,425] -> [1,12]` 均通过。训练仍在运行，
+不得启动并行 GPU evaluator，也尚未选择或推广任何 checkpoint。
+
+部署 CPU 审计同时补上 RL state enter 的同步 latch reset 和 measured-position hold；hold 的
+q/Kp/Kd/dq/tau 按 SDK joint map 一致映射，非法映射 fail closed。Python targeted `17/17`、
+C++ history、C++ runtime safety/fault injection 和 go2_ctrl rebuild PASS。当前 controller
+SHA256 为 `e61ea9c68361ddb52be7adbf1bf9f997c5a717ad138abc8b05928de7264ed2f5`。
+policy inference stale watchdog、trained ONNX parity 和完整 DDS/MuJoCo closed loop 仍是
+训练后 gate；`HARDWARE_READY=false`。
+
+## 2026-07-29 proprioceptive formal training completion and rejection
+
+Stage 1 distillation and Stage 2 pure PPO both completed. Stage 1 remains:
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-27_16-27-06_go2_sim2real_proprio_v1_v7_teacher_distill_2048env_300iter/model_299.pt
+SHA256 f63b6ec244833572e2017243b8b032b9f23040a20b92030d987502b06f839565
+```
+
+The original PPO process was externally interrupted after iteration 1642. Its
+last formal checkpoint was `model_1500.pt`, SHA256
+`9e104aa0b1dd46b168235e2e2d824ff6be9c52189d4ada0b9d7145e7bf58f089`.
+To avoid replaying iteration 1500, exact resume used an anchor identical to that
+checkpoint except for the persisted cursor `1500 -> 1501`:
+
+```text
+resume_anchor_iter_1501_from_model_1500.pt
+SHA256 521fa520b4750fddb2e41bf06909d611464b42e9a73cd222d7a96f070332cfca
+
+logs/rsl_rl/go2_velocity/2026-07-29_10-10-14_go2_sim2real_proprio_v1_ppo_2048env_4000iter_exact_resume_1501_3999/model_3999.pt
+SHA256 d48d08188c0823e42610a9ffd5de4cead2093af2cc9171517bb7099c40bb4760
+exact-resume start 2026-07-29 10:10:14 CST
+final checkpoint written 2026-07-29 11:58:53 CST
+```
+
+The exact-resume log contains every iteration `1501..3999`; cumulative optimizer
+and environment counters match 4000 PPO iterations. Checkpoint tensors and
+TensorBoard scalars are finite, with no NaN/Inf/OOM or simulator error. The
+technical run that replayed iteration 1500 remains retained but excluded. The
+17-checkpoint split-run lineage is:
+
+```text
+logs/rsl_rl/go2_velocity/proprioceptive_acceptance_20260729/checkpoint_lineage.json
+SHA256 166727662f222c6036b66859e343cb957a2068352df209d009b925e960f38ffa
+```
+
+All 17 checkpoints passed tensor, lifecycle, provenance, exact 425-D schema,
+static `[1,425] -> [1,12]` ONNX and PyTorch/ONNX parity (`<=3.8147e-6`). A
+fail-open acceptance bug was then found: the screener recorded nonzero normalized
+or processed-target action faults while unconditionally writing
+`action_limits_valid=true`. The implementation now derives that boolean from
+the count, and bundle/selector validation rejects a count/boolean mismatch.
+Targeted acceptance tests pass `14/14`.
+
+The same frozen 16 CPU screening inputs per checkpoint were rerun without GPU in
+a new, non-overwriting directory. Every checkpoint has `4..14` action-faulting
+inputs; total `127/272`. All 17 therefore fail the preregistered third screening
+hard gate. Formal evidence:
+
+```text
+logs/rsl_rl/go2_velocity/proprioceptive_acceptance_20260729/screening_v2_action_gate_fixed
+logs/rsl_rl/go2_velocity/proprioceptive_acceptance_20260729/selection_screening_hard_gate.json
+selection SHA256 b61bda30158c64ba2a88a4409e7cc2e715b78b5be7e6e4c008f4244697588359
+selection_status NO_SAFE_SURVIVOR
+```
+
+The planned rollout matrix was `18 models x 14 invocations = 252`. Ten V7 raw
+JSON artifacts completed before the fail-open discovery. The remaining 242
+were deliberately not executed: the frozen contract requires hard gates before
+ranking and states that any hard-gate failure rejects a checkpoint, so no PPO
+candidate could survive regardless of later rollout metrics. Existing raw
+artifacts and the interrupted evaluator log are retained. No rollout bundle or
+lexicographic checkpoint selection was performed, and survivor-only stand/basic
+tracking, final ONNX deployment packaging and trained-policy DDS/MuJoCo gates
+were correctly skipped.
+
+Final decision:
+
+```text
+TRAINING_COMPLETED=true
+TRAINING_REJECTED
+SELECTED_CHECKPOINT=null
+DEFAULT_MODEL_CHANGED=false
+HARDWARE_READY=false
+HARDWARE_PENDING
+```
+
+The simulation default remains V7 `model_13600.pt`, SHA256
+`73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff`.
+No second training variable or follow-on training was started. Final GPU state
+was `0 MiB / 0%`, with no training, evaluator, TensorBoard or unitree_mujoco
+process.
+
+The unused post-screening rollout selector was also audited. Before any future
+training arm can reach GPU rollout selection, it must bind and verify the exact
+scene/profile/route inventory, freeze quantitative stand/basic tracking gates,
+and resolve whether body-contact metrics are guardrails only or also ranking
+tie-breakers. These gaps did not affect this decision because screening produced
+zero survivors and the rollout selector was never invoked.
+
+Final verification: selector CLI/py_compile, strict recursive-finite and artifact
+SHA checks, `git diff --check`, targeted `14/14`, and full unittest `444 OK,
+1 skipped`. Branch remains `exp/high-slope-probe-integration` at HEAD
+`0a204b645a2325cb06264725c58cc5745da64a43`; all pre-existing dirty worktree
+changes were preserved and no commit was created.
+
+## 2026-07-29 model_3999 actual-rollout action safety diagnosis
+
+Ran an evaluation-only matched diagnostic to determine whether the rejected
+checkpoint's action-limit failures were confined to synthetic CPU inputs. The
+candidate covered flat line/arc/S, continuous ordinary rough/obstacle/stairs and
+high-slope line/arc/S under clean and randomized profiles. Existing same-scene
+V7 JSON was reused; GPU execution was serial.
+
+The synthetic-only explanation is rejected. Candidate flat routes had zero
+faults in `108` scenarios, but continuous stairs produced `6` clean and `23`
+randomized fault steps. High slope produced `933` clean and `973` randomized
+fault steps, with maximum normalized actions `8.5521/10.7027`. Scenarios with a
+fault and maximum action below `4.0` confirm processed per-joint target-limit
+violations as well as global normalized-action violations.
+
+The candidate materially improves over V7 on high-slope completion and safety,
+but still fails the absolute zero-fault deployment gate. It remains rejected and
+unselected; V7 remains the simulation default and is itself not hardware-ready.
+No training or configuration change was made. Full report:
+
+```text
+docs/reviews/go2_action_rollout_safety_diagnostic_20260729.md
+```
+
+## 2026-07-30 safe-action V2 formal-training preflight
+
+Implemented the preregistered bounded asymmetric per-joint policy distribution:
+`z -> tanh(z) -> a_applied -> q0 + 0.25*a_applied`. The V7 teacher remains the
+legacy Gaussian and its raw deterministic action is transformed exactly once
+for both the distillation rollout and BC label. PPO storage, previous-action
+history, rewards, evaluation, ONNX and deployment use `a_applied`.
+
+Focused V1/V2 regression tests pass `65/65`; `compileall` and
+`git diff --check` pass. The 2048-env, 8-step, no-learning preflight passes
+teacher strict-load/freeze, dimensions `425/261/234/12`, finite rollout,
+applied previous-action, per-joint bounds, joint targets and Torch/ONNX parity.
+Evidence:
+
+```text
+docs/reviews/go2_safe_action_v2_preflight_2048env.json
+SHA256 8df87825a14fda313cc645e70c94db29e4e1966bfe7bf75d98cc01c81286eec7
+```
+
+An initial same-process 2048-env preflight hit OOM when the PPO environment was
+created after distillation. The retained ActionTerm reference and Warp pool were
+released between stages; the identical 2048-env preflight then passed. This is
+a preflight lifecycle fix only; formal stages already run in separate processes.
+
+Two non-candidate 32-env, 2-iteration smoke runs exercised real optimizer steps,
+checkpoint and ONNX export. TensorBoard contains finite scalar/histogram records
+for latent/raw, `u`, `a_applied`, `q_target` and limit margin. Both runs report
+zero action-bound and joint-target fault rows:
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-30_10-38-58_go2_safe_action_v2_distill_smoke_32env_2iter_20260730
+logs/rsl_rl/go2_velocity/2026-07-30_10-39-39_go2_safe_action_v2_ppo_smoke_32env_2iter_20260730
+```
+
+Formal training source manifest:
+
+```text
+logs/rsl_rl/go2_velocity/provenance/go2_safe_action_v2_source_manifest_40cfd6951f4c187f050d02f24f03188af0ff3744a68fe727cefe0b6874fe43e4.json
+SHA256 40cfd6951f4c187f050d02f24f03188af0ff3744a68fe727cefe0b6874fe43e4
+```
+
+Startup state: branch `exp/high-slope-probe-integration`, HEAD
+`0a204b645a2325cb06264725c58cc5745da64a43`; V7 teacher SHA verified; RTX
+5060 Laptop 8 GB idle; no formal V2 run or train/evaluate process; 879 GB disk
+free. The frozen formal arm is 2048 env, seed 42, V7 -> 300-iteration
+distillation -> 4000-iteration fresh PPO. Existing dirty changes are preserved.
+
+Stage 1 completed at `2026-07-30 10:59 CST`. Its final checkpoint is:
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-30_10-45-47_go2_sim2real_proprio_v2_safe_action_v7_teacher_distill_2048env_300iter/model_299.pt
+SHA256 92d5d07266cdcec395eeab1634cbeb374e363f04aa0c6fe45d12f84ec4df9021
+```
+
+All checkpoint tensors and TensorBoard scalars are finite; action and target
+fault-row maxima are zero. Stage 2 started fresh at iteration 0 in
+`2026-07-30_10-59-52_go2_sim2real_proprio_v2_safe_action_ppo_2048env_4000iter`.
+That process was externally interrupted after logging finite iteration 386,
+without traceback, OOM, NaN or telemetry fault. Its last checkpoint was
+`model_250.pt`, SHA256
+`70a0467d3bca26fa5b2f9be8c079561d3956148ff24fe7cd8a3f196f033e7c4a`.
+
+Exact technical recovery uses an anchor bitwise identical to `model_250.pt`
+except for persisted cursor `250 -> 251`:
+
+```text
+resume_anchor_iter_251_from_model_250.pt
+SHA256 cec64e1f4af2c4b7414ba0c408bfd8237881dc4764087b2563cff3a6416bff31
+```
+
+The isolated background recovery run is
+`2026-07-30_11-21-28_go2_sim2real_proprio_v2_safe_action_ppo_2048env_3749iter_exact_resume_251_3999`.
+Its log begins at iteration 251 and will cover through 3999 with the same
+2048-env/seed/action/PPO configuration. The interrupted run and all evidence are
+retained; neither is independently promoted without the final split-run lineage.
+## 2026-07-30 safe-action V2 probability correction and replacement run
+
+The first V2 PPO run and its `model_250.pt` exact-resume line are rejected as
+an implementation failure, not a locomotion result. The recovery reached a
+finite logged iteration 395 and then raised CUDA error 710. A single-process
+`CUDA_LAUNCH_BLOCKING=1` diagnostic isolated the actual assertion in
+`AsymmetricBoundedGaussianDistribution.update`: the actor latent mean became
+non-finite during the PPO minibatch update. Immediately before failure the
+surrogate loss escalated to `27992.5636`; rollout telemetry itself remained
+finite with zero applied-action and joint-target fault rows. The apparent PPO
+KL stack in the asynchronous run was only a later synchronization point.
+
+The probability implementation now freezes the Gaussian mean as
+`5*tanh(raw_mean/5)` before sampling. The executed interface remains
+`z -> tanh(z) -> asymmetric per-joint applied action`; deterministic export,
+screening metadata, schema, ONNX and checkpoint validation share the same
+mean bound. No reward, observation, terrain, command, randomization, actuator,
+network size or PPO hyperparameter changed. The old V2 checkpoint line cannot
+seed the replacement run.
+
+Evidence before replacement training:
+
+```text
+73 focused CPU tests: PASS
+2048-env no-learning preflight: docs/reviews/go2_v2_meanbound5_preflight_2048env.json
+preflight SHA256: 2f06204beef9f69c8d3df17d7a583cd681a2f6f300dcbe25de4b69804b2b258f
+20-iteration PPO smoke: finite, action faults 0, target faults 0
+replacement schema SHA256: 2c6da479c6c833f127c672b774e877e0fc6b14967e39b06ff2333dd241b87c3f
+replacement source manifest: logs/rsl_rl/go2_velocity/provenance/go2_safe_action_v2_source_manifest_aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e.json
+source manifest SHA256: aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e
+```
+
+The unique replacement orchestrator started at 2026-07-30 12:18 CST. Its
+first stage run is
+`2026-07-30_12-18-36_go2_sim2real_proprio_v2_safe_action_meanbound5_v7_teacher_distill_2048env_300iter`;
+after validating `model_299.pt`, it will start the fresh 4000-iteration PPO
+run with suffix
+`go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter`.
+
+## 2026-07-30 safe-action V2 replacement training complete and acceptance pause
+
+The replacement formal arm completed both stages. Stage 2 is the monolithic
+run:
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter
+```
+
+All 17 scheduled checkpoints (`0`, `250..3750`, `3999`) are present, have the
+expected embedded iteration and provenance, and contain finite tensors. The
+TensorBoard event has exactly 4000 samples for each action telemetry gate:
+`finite=1`, action fault rows `0`, and joint-target fault rows `0` throughout.
+Maximum applied-action magnitude was `3.9999990463`; minimum processed-target
+limit margin was positive at `5.9604645e-08`. Final checkpoint:
+
+```text
+model_3999.pt
+SHA256 1d4e8502ed13b40197bc5e6c00a95aa8a7cf8f955d05d280eea11ea6324cd28b
+```
+
+Formal monolithic lineage:
+
+```text
+docs/reviews/go2_v2_meanbound5_formal_checkpoint_lineage.json
+SHA256 cb1300431299041bcfcbc6aed23be596f337c5a7573740448afccc0aa1ac8421
+```
+
+CPU/ONNX screening produced 15 survivors. `model_1000.pt` and
+`model_2250.pt` were rejected because max absolute PyTorch/ONNX error was
+`1.1920929e-05` and `1.0430813e-05`, respectively, above the frozen `1e-5`
+gate. The formal screening decision SHA256 is
+`409e33636768ed51377f5d47ea5d774c78f347fd54a7ea7e83ed9e39bd618679`.
+
+The exact serial 252-invocation acceptance matrix was started and then paused
+at the user's request on 2026-07-30 17:44 CST. Exactly 57 complete raw JSON
+artifacts are retained under
+`docs/reviews/go2_v2_meanbound5_formal_acceptance_raw`; the interrupted
+`model_750/flat_matched_routes.json` was not written, so there is no partial
+artifact. All evaluator processes exited and the GPU returned to 0 MiB/0%
+utilization. Resume with a new immutable plan filename plus
+`--resume-existing`; do not overwrite the original plan or rerun the 57
+complete artifacts.
+
+## 2026-08-03 safe-action V2 full acceptance complete: TRAINING_REJECTED
+
+The serial formal matrix resumed without overwriting prior evidence and
+completed all `252/252` registered GPU invocations (`18` checkpoint/reference
+identities x `14` artifacts). All raw JSON artifacts are parseable and finite;
+the GPU phase completed without NaN/Inf, OOM, simulator error, or duplicate
+formal job.
+
+The first CPU aggregation attempt correctly exposed a fail-closed edge case:
+`model_250.pt` and `model_500.pt` catastrophically terminated after only a few
+steps in many scenarios and had zero loaded-stance foot samples. Their
+`terrain_tangent_stance_slip_mean` is therefore unavailable, not zero. The
+aggregation-only implementation now records per-metric availability, omits
+partial/unavailable means, and hard-rejects affected checkpoints through
+`unified_metrics_valid=false`. No rollout value was synthesized, substituted,
+or changed, and no GPU evaluation was rerun. The focused acceptance suite passes
+`19/19`; the combined acceptance/screening/safe-action/provenance/distribution
+unittest command and compileall also exit zero.
+
+The CPU-only `resume4` pass reused all 252 raw artifacts and generated 17
+acceptance bundles plus the final selection:
+
+```text
+docs/reviews/go2_v2_meanbound5_formal_acceptance_resume4_plan.json
+SHA256 6f3556dfc464704a44654e21e28187167d746ce840dcd239b566aab5ea07e7e2
+docs/reviews/go2_v2_meanbound5_formal_acceptance_resume4_plan.inventory.json
+SHA256 e01a2c5e4ac4f78449aa1164ba9de4a62242442a20e7556149ef2a6b60c68d3e
+docs/reviews/go2_v2_meanbound5_formal_selection.json
+SHA256 4861770ccdcf0ff52eff7a79b58bb015dcd681b9ff009025efb14734a47174e1
+selection_status NO_SAFE_SURVIVOR
+survivor_count 0
+selected_checkpoint null
+```
+
+Every one of the 17 candidate checkpoints violates at least one completion gate
+and at least one matched 1.2x safety guardrail. All 17 violate failure risk;
+additional checkpoint-level safety failures include calf contact `16/17`, base
+pitch `15/17`, mechanical power `14/17`, energy/slip/upper-leg contact `13/17`,
+actuator effort `10/17`, base contact `9/17`, and action acceleration `6/17`.
+Ten checkpoints also miss the mean forward-gain gate; `model_1000.pt` and
+`model_2250.pt` retain their preregistered ONNX parity rejection; `model_250.pt`
+and `model_500.pt` are additionally rejected for unavailable loaded-stance slip.
+The bounded action/joint-target contract itself remains finite and fault-free.
+
+There is no final candidate path or SHA because there is no survivor. Survivor-
+only Python/ONNX/C++ parity and deployment-bundle promotion were intentionally
+not run. The formal result is `TRAINING_REJECTED`; V7 remains the default:
+
+```text
+logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt
+SHA256 73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff
+```
+
+Final state at `2026-08-03 17:22 CST`: RTX 5060 Laptop GPU `0% / 12 MiB`;
+no train/evaluate/TensorBoard/play/audit/unitree_mujoco process. Existing dirty
+worktree changes remain preserved; no reset, checkout, clean, branch switch,
+commit, or default-model replacement was performed. `HARDWARE_READY=false` and
+`HARDWARE_PENDING`.
+## 2026-08-04 V8 privileged linear-velocity teacher probe: REJECT
+
+Both matched 2048-env arms completed the registered 400-update probe with
+finite checkpoints and telemetry. The 9/9 high-slope screening artifacts then
+completed and the paired selector reported `NO_CAUSAL_SURVIVOR`; no checkpoint
+passed the hard safety/completion gates plus the required candidate-over-control
+causal delta. The 237-D candidate was therefore not sent to the 42-invocation
+full acceptance matrix, and no model was promoted.
+
+Evidence:
+
+```text
+docs/reviews/go2_privileged_teacher_high_slope_selection.json
+docs/reviews/go2_privileged_linvel_teacher_acceptance.json
+```
+
+The appended actor columns were used during learning: first-layer new-column
+norms at updates 100/200/300/400 were 1.3138/2.3456/3.1303/3.5861. This rules
+out a missing-input or checkpoint-mapping explanation; the rejection is due to
+behavioral and safety regressions in the matched high-slope matrix. V7
+`model_13600.pt` remains the default. A 241-D foot-contact experiment is not
+started automatically and requires a separate preregistration.
+
+## 2026-08-09：下一 Teacher actor 输入诊断与 238-D 单变量合同
+
+三个只读子智能体分别复核了接触因果证据、observation/transfer schema 和验收门槛；本轮未
+启动训练或评估。结论一致：如果下一轮只给 V7 actor 增加一种输入，应优先验证
+`foot_contact(4)`，但必须把它表述为更有依据、尚未验证的单变量假设。
+
+关键纠正是：相对锁定 V7 234-D actor 的候选应为 `238-D = 234 + foot_contact(4)`，而不是
+旧记录中的 241-D。241-D 会保留 V8 已拒绝的 `base_lin_vel(3)`，相对 V7 同时改变两个变量；
+也不得从 V8 237-D checkpoint/optimizer 继续训练。新增 actor slice 为 `[234:238]`；
+normalizer 必须从 V7 critic `foot_contact [245:249]` 复制，不能误用 critic `[234:238]`。
+
+后续运行时审计纠正了足序：`feet_ground_contact` 自然槽序实际为 `FL/FR/RL/RR`，已有 gait
+artifact 需用 `[1,0,3,2]` 才转换为 site canonical `FR/FL/RR/RL`。本探针选择直接复用 critic
+term 并冻结自然槽序，不额外引入重排函数；actor `[234:238]` 必须逐元素等于 critic
+`[245:249]`。
+
+选择 contact 而非新增落脚/地形输入的依据为：V7 actor 已有 187-D height scan；mask scan
+导致平地也全部失败，只证明它全局必要，不能证明高坡需要更多地形输入。正式 64-repeat
+friction triplet 已得到 `CONTACT_CAUSAL`，而固定 `+0.05 rad` foot-placement counterfactual、
+contact stabilizer 和 stance-slip reward arm 均未产生安全支持。另一方面，contact 机制证据
+并不证明瞬时二值 contact bit 含有 actor 无法从 phase/proprioception 推断的增量信息。
+
+因此在 PPO 前新增 evaluation-only 可观测性门：按 matched seed/route/slot 分组比较
+`234-only`、`234+contact4` 与精确定义的 `234+terrain-relative clearance4` 对未来
+10--50 steps 的 slip/contact-transition/failure/progress 预测增益，禁止 step-level 数据泄漏。
+只有 contact 在 clean/randomized 和 `vx=.3/.5` 上方向一致且 bootstrap CI 排除无增益，才
+允许准备 matched `control_234/candidate_238`；否则 `INCONCLUSIVE_DO_NOT_TRAIN`。
+
+已写：
+
+```text
+docs/reviews/go2_foot_contact_teacher_input_diagnosis_20260809.md
+SHA256 222f001729e8c1db891b50cf715184a38092d2af88883503a57324ae019519b8
+docs/reviews/go2_foot_contact_teacher_probe_multi_agent_instruction.md
+SHA256 0451e1625a7970bb5987f7578252fe37220dfb1dbd9e244835164433240cbc61
+```
+
+当前 `FORMAL_TRAINING_STARTED=false`、默认 checkpoint 未替换，student 与 running teacher
+仍在本轮范围外。`2026-08-09 19:38 CST` GPU 为 `0% / 0 MiB`，没有项目训练或评估任务。
+
+## 2026-08-09：foot-contact 可观测性正式诊断 — INCONCLUSIVE / DO NOT TRAIN
+
+按预注册合同完成了 evaluation-only 正式诊断，没有调用 PPO `learn()`，也没有改变 V7
+权重。矩阵为 seeds `42/43/44` × profiles `clean/randomized` × routes
+`straight/arc/s_curve`，共 `18` 个 fresh-process chunk、`288` 条轨迹和 `319162`
+条 observed raw rows（合同上限 `691200`）。全部 chunk 通过 checkpoint、维数、原生足序
+`FL/FR/RL/RR`、critic contact slice、pre-action 时序、terminal reset hook、finite、SHA 和
+provenance 校验。
+
+正式 reducer 的结论为：
+
+```text
+decision INCONCLUSIVE_DO_NOT_TRAIN
+analysis_status coverage_inconclusive
+technical_failures []
+metrics_not_run true
+FORMAL_TRAINING_STARTED false
+```
+
+失败不是技术完整性问题，而是预注册 coverage gate：
+
+- 四个 `profile × speed` 分层的瞬时二值 contact 最大 chatter fraction 为
+  `0.1997 / 0.2752 / 0.2023 / 0.3175`，全部高于硬门槛 `0.10`；
+- `H=10` catastrophic-failure positive anchors 分别仅
+  `54 / 101 / 52 / 92`，低于每层 `200`；
+- `H=25` 的 clean/randomized `vx=.3` 也仅 `135 / 130`；
+- 其他 clusters、slip、unexpected-transition、progress 和 clearance-ray coverage 足够，
+  但合同规定任一 coverage gate 失败即不得拟合/比较模型，防止对未覆盖 endpoint 做事后选择。
+
+独立复核未发现 timeline、reset/censor、足序或计数实现错误，但发现预注册 coverage 合同的
+一处功效设计错误：每个 `profile × speed` 只有 `72` 条 trajectory，anchor stride 为 `5`，
+所以 H10 每个失败事件最多贡献 `2` 个 positive anchor；即使 `72/72` 全部失败，理论上限也
+只有 `144`，`positive_anchors >= 200` 在 H10 数学上不可达。该错误要求未来合同重做功效/
+可达性审计，不能通过事后下调当前门槛改判。本次停止决定仍有独立依据：四层 raw-contact
+chatter 均显著超过 `0.10`。
+
+因此本次结果既不能证明 `foot_contact(4)` 有 actor 增量价值，也不能证明它没有价值；它明确
+否决了“直接把原始 `found>0` 瞬时二值 contact 加进 actor 后马上长训”的当前方案。未实现
+238-D task/transfer，未执行 32-env/2048-env PPO preflight，未产生新 checkpoint，V7
+`model_13600.pt` 继续作为默认模型。
+
+正式证据：
+
+```text
+docs/reviews/go2_foot_contact_observability_contract_20260809.json
+SHA256 cc8c0dc49f6abec8d1e99d031d8742ec265869a4bd0aca14fab947f773492517
+docs/reviews/go2_foot_contact_observability_raw_20260809/manifest.json
+SHA256 bbcdb4eb754e54d26186762e1a0353e542ac09890d98df5ce61a425349327c6b
+docs/reviews/go2_foot_contact_observability_summary_20260809.json
+SHA256 8232f7944eaf1a7d9721d6154e364699483ba72956d26400a73c5f0910db724b
+docs/reviews/go2_foot_contact_observability_summary_20260809.md
+SHA256 eacbaffdcd0b9d5d467bd9177740942c2bcc1f70bd48fbd99d21fac8fbf22425
+```
+
+实现与验证：collector/runner/analyzer、纯 CPU evaluation module 和 `20/20` 单测均通过
+`py_compile`；`git diff --check` 退出 0。前置诊断和多智能体指令的当前 SHA 分别为
+`371ba4a15dccbf8c384207de70cefd6608df84b6fe657ab2b3e08d1606a210de` 与
+`54dc4b0c1edeb2499a9673d0a5f93639319ff5e0a77f155320f01a8cc281d458`。
+`2026-08-09 22:28 CST` 没有 collect/analyze/evaluate/train 项目进程。
+
+## 2026-08-09：causal debounced-contact V2 首次正式采集技术中断
+
+第二轮 evaluation-only 诊断预注册为严格因果的 2-tick confirmed contact：每足只有在
+连续两个 actor 可见的 pre-action tick 观察到新 raw contact 值时，才在第二个 tick 翻转；
+禁止回填、未来信息和跨 reset 确认。正式统计使用全新 seeds `1042--1045`、24 chunks、
+384 trajectories；合同 SHA256 为
+`033ed364510dd6b77b7b60160287374bfb2b7e3b49be52516a483bc10ca54240`。
+
+首个 formal attempt 使用 collector SHA
+`cfef9170b19f9e068628710a8c672f09f9da8b71d501b70b1a7522b1d9fa33e2`，完成 2/24
+chunks 后在第三个 S-curve chunk 中因吞吐异常慢而人工中断。没有生成 manifest，两个完整
+chunk 被保留为 excluded technical evidence，禁止 resume、池化或分析。排除记录：
+
+```text
+docs/reviews/go2_causal_debounced_contact_observability_raw_20260809_v2/ABORTED_TECHNICAL_PERFORMANCE.md
+status ABORTED_TECHNICAL_PERFORMANCE
+FORMAL_TRAINING_STARTED false
+```
+
+最初怀疑每 tick CUDA→CPU→CUDA 的 causal-filter 往返是主瓶颈；随后将状态机改为 device-
+resident，并用冻结 CPU oracle 做 chunk-end bitwise parity。匹配 V1/V2 的 2-env/100-step
+基准在当前运行时均约 37 秒，因此后续证据纠正为：同步路径确有不必要开销，但当前整体
+simulator/GPU throughput 才是已观察到的主要慢点，不能把慢速单独归因于滤波器。
+
+修复后的 collector SHA 为
+`848b02704c3c01d8f2300a14185ec4581a72fca3179c1ddadddbc3a6e39c7d85`；CPU/CUDA
+状态机 parity、clean smoke 和 forced-timeout terminal hook 均通过。正式采集已在全新
+`..._v2_restart1` 目录从 24/24 重启。统计合同、seeds、labels、coverage、models 和 pass
+gates 未改变。该事件不是 PPO 训练失败：没有调用 `learn()`、没有创建 238-D task 或新
+checkpoint，V7 默认模型未替换。
+
+## 2026-08-10：用户否决无直接参考的 causal two-tick 输入；建立 Reference Gate
+
+用户明确不认可把“严格因果连续两帧 contact”作为 RL Teacher 候选输入推进正式大规模
+测试，因为没有论文或 GitHub 开源库直接采用这一具体组合。项目内 friction/contact 因果
+证据、V7 critic schema、raw-contact chatter，以及“Teacher 使用 contact state”或“接触
+估计采用 debounce”的相关论文，均不足以证明固定 2-tick preprocessing 适合作为 Teacher
+actor 输入。此前将它从工程假设推进到 24-chunk formal diagnostic 的判断被用户否决。
+
+`..._v2_restart1` formal attempt 在完成 6/24 chunks 后停止，第 7 chunk 未写出；没有
+manifest，禁止 resume、池化、正式分析或据此训练 238-D Teacher。排除记录：
+
+```text
+docs/reviews/go2_causal_debounced_contact_observability_raw_20260809_v2_restart1/ABORTED_USER_REJECTED_UNREFERENCED_HYPOTHESIS.md
+status ABORTED_USER_REJECTED_UNREFERENCED_HYPOTHESIS
+FORMAL_TRAINING_STARTED false
+```
+
+从本条起建立强制 `REFERENCE_GATE`，适用于所有智能体和以下任何创新性变更：新 observation
+或 preprocessing/filter、新 reward、新网络/记忆/估计器、新 loss/curriculum、新
+Teacher/Student 接口，以及新的训练或验收机制。执行代码修改、GPU smoke、正式诊断或训练前，
+必须同时满足：
+
+1. 至少提供一篇直接相关的原始论文，或一个公开、可审计的 GitHub 实现；
+2. 写清引用方法的准确组件、输入输出、时间语义及与本项目拟议实现的差异；GitHub 参考还要
+   记录仓库 URL、commit/tag 和许可；
+3. 不能把“相关但不等价”的论文包装成直接依据，不能只凭项目日志或智能体推理越过此门；
+4. 在用户明确确认参考和差异之前，只允许只读检索与方案汇报，禁止实现、评估或训练；
+5. 若找不到直接参考，结论必须是 `NO_DIRECT_REFERENCE_DO_NOT_IMPLEMENT`。
+
+本规则不追溯删除既有文件；被否决的 V2 scripts/contract/smoke/raw 仅保留审计用途，不得
+作为默认训练路径。V7 `model_13600.pt` 继续作为默认模型，student/running teacher 均未推进。
+
+## 2026-08-10：reference-backed contact-force Teacher — 训练完成，update 100 初筛不通过
+
+用户批准以 Lee et al., *Learning Quadrupedal Locomotion over Challenging Terrain*
+（Science Robotics 2020，DOI `10.1126/scirobotics.abc5986`，
+`https://arxiv.org/abs/2010.11251`）中的 privileged Teacher foot-contact-force 输入为直接参考，
+并批准采用通用 function-preserving transfer 工程适配：从锁定 V7 `model_13600.pt` 扩展
+Actor 第一层、复制旧 234-D 参数、将新增输入列精确置零，再以 fresh optimizer 继续 PPO。
+声明差异包括 Go2/MJLab/PPO/12-D joint-position action、仅做 contact-force 单变量消融、直接
+MLP append，以及使用项目现有 world-frame netforce 的 `sign(F)*log1p(abs(F))` 预处理。
+
+实验严格匹配两臂：`control_234` 保持 V7 234-D Actor；`candidate_246` 仅追加四足三维接触力
+12-D，Actor slice `[234:246]` 对应锁定 Critic `[249:261]`；Critic 261-D、reward、terrain、
+curriculum、command、action、PPO、seed 42、2048 env 和 400 updates 均不变。两臂都从相同
+V7 checkpoint、terrain state 和 common step 开始，optimizer/iteration 不恢复，检查点只保存
+100/200/300/400。
+
+32-env optimizer smoke 首次在学习前 fail closed：检查器遍历 ContactSensor 私有 slots 时把
+`found/force` 两种字段各自的 foot slot 当成八只脚，错误得到
+`FL/FL/FR/FR/RL/RL/RR/RR`。实际 `force` tensor 仍为四足 12-D；检查器改为只读取
+`field_name == "force"` 后重跑通过。该事件不是训练失败、OOM 或输入合并错误。smoke 证明
+Actor/critic force slice exact equality、新列初始为零、一次 PPO 后新列范数为 `0.1298283`，
+Actor/Critic/optimizer 均更新且 finite。
+
+最终 2048-env paired no-learning preflight 通过：环境状态、旧 Actor 参数、Critic、normalizer
+映射、自然足序 `FL/FR/RL/RR` 和所有 observation/action 均 finite；两臂初始 234-D prefix 与
+确定性动作 SHA 完全相同，`initial_action_max_abs_difference=0.0 <= 1e-6`。最终冻结 source
+manifest SHA 为 `df068d90fd6cef674e4c98ddba71c909fe81086831a436687379013afc00e39a`。
+
+正式训练于 `2026-08-10 01:42:59 CST` 完成并正常退出。run 目录：
+
+```text
+logs/rsl_rl/go2_velocity/2026-08-10_01-05-52_go2_contact_force_teacher_v1_control_234_2048env_400iter
+logs/rsl_rl/go2_velocity/2026-08-10_01-24-25_go2_contact_force_teacher_v1_candidate_246_2048env_400iter
+```
+
+8 个 checkpoint 均通过 metadata/provenance/recursive-finite/optimizer/env-state/TensorBoard CPU
+screening。候选新增列 weight norm 在 update `100/200/300/400` 分别为
+`1.1241/1.6648/1.9943/2.3210`，证明策略确实使用了新增输入，但不代表行为通过验收。
+
+高坡 matched 初筛复用与当前 evaluator/dependency SHA 完全一致的既有 V7 baseline；每个模型
+覆盖 clean/randomized × straight/arc/S 共 96 scenarios。用户要求完成 update 100 pair 后暂停，
+因此只完成以下两项：
+
+| model | macro completion | mean forward gain | mean progress | mean slip |
+|---|---:|---:|---:|---:|
+| locked V7 | 0.218750 | 0.429108 | 0.509031 | 0.058547 |
+| control 234 @100 | 0.208333 | 0.349154 | 0.503169 | 0.056164 |
+| candidate 246 @100 | 0.156250 | 0.325402 | 0.489578 | 0.054139 |
+
+因此 update 100 上，contact-force candidate 虽降低平均 slip，但 completion、forward gain 和
+progress 均低于 V7 与同 update control，明确 `UPDATE_100_REJECTED`。这不能替代尚未运行的
+update 200/300/400 评估，整个实验状态仍为 `PARTIAL_SCREENING_PAUSED`，不得选择或替换默认
+V7。runner 已在下一项 `control_234@200` 初始化阶段收到人工 SIGINT；没有写出该项 JSON，
+GPU 随后为 `0 MiB / 0%`，后台没有 train/evaluate 进程。后续可用 `--resume-existing` 跳过
+今天两份完整 artifact，从 control@200 继续。
+
+关键证据 SHA：
+
+```text
+docs/reviews/go2_contact_force_teacher_candidate_32env_optimizer_smoke.json
+81a0bde407c8aa269e47d61a921e29e7ecb979a2e817bc1f21035ee265e9d28f
+docs/reviews/go2_contact_force_teacher_control_preflight_2048env_formal.json
+2ccc02aad3d48d0a3c05a741d3ce6b226ebe4e8e6c2c1e886a960ae3882a67b7
+docs/reviews/go2_contact_force_teacher_candidate_preflight_2048env_formal.json
+17beb04c05b998304af22746d562218ad556e7888d9b85b69d113b85596696c3
+docs/reviews/go2_contact_force_teacher_formal_training.json
+6cca4b07aa54c80644698eeeb1da217d692b8a86341f80d6f2084f76678ea53e
+docs/reviews/go2_contact_force_teacher_high_slope/control_234_model_100/high_slope_matched.json
+5bbb4e29a860b5d39cf8dcf343d336a7358a78184d43c2c18bc9043215b7b82b
+docs/reviews/go2_contact_force_teacher_high_slope/candidate_246_model_100/high_slope_matched.json
+dfdc4c44d6cfa7c76a348edd64a421a8dc7d8b4128c0ca5d6e8e019ea6e9f42c
+```

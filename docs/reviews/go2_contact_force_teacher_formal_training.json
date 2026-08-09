@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-08-10T01:05:45.786540+08:00",
+  "source_manifest": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/provenance/go2_contact_force_teacher_source_manifest_df068d90fd6cef674e4c98ddba71c909fe81086831a436687379013afc00e39a.json",
+  "source_manifest_sha256": "df068d90fd6cef674e4c98ddba71c909fe81086831a436687379013afc00e39a",
+  "preflight": {
+    "paths": {
+      "control_234": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_contact_force_teacher_control_preflight_2048env_formal.json",
+      "candidate_246": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_contact_force_teacher_candidate_preflight_2048env_formal.json"
+    },
+    "initial_actor_prefix_sha256": "18e74772be87bda3225ca87376dd80f9bf97ac2bf9143911165c6277eec844d0",
+    "initial_deterministic_action_sha256": "c7edc93766f8d6162d369475972329f64d1952f557931c11b23fafb7c4b56aae",
+    "initial_action_max_abs_difference": 0.0,
+    "parity_threshold": 1e-06,
+    "passed": true
+  },
+  "arms": [
+    {
+      "arm": "control_234",
+      "run": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-05-52_go2_contact_force_teacher_v1_control_234_2048env_400iter",
+      "checkpoints": [
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-05-52_go2_contact_force_teacher_v1_control_234_2048env_400iter/model_100.pt",
+          "sha256": "9ffa886d723fab0c0076fd0ebc67653b42f2958f5e324a5b9c5e97889bfd2969",
+          "update": 100
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-05-52_go2_contact_force_teacher_v1_control_234_2048env_400iter/model_200.pt",
+          "sha256": "613430f86ed92c3326089f8faaf4f92a76600e539e32f65aebc840a1bb4b5b5b",
+          "update": 200
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-05-52_go2_contact_force_teacher_v1_control_234_2048env_400iter/model_300.pt",
+          "sha256": "3d08d9f51efa707dfe785d94274fe4cd1858a2e359562bacd12e41cbd9199c28",
+          "update": 300
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-05-52_go2_contact_force_teacher_v1_control_234_2048env_400iter/model_400.pt",
+          "sha256": "df55cdf9d59d66903dac25861ba4200ca2c2ace5b7b216a526992146b7f10329",
+          "update": 400
+        }
+      ]
+    },
+    {
+      "arm": "candidate_246",
+      "run": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-24-25_go2_contact_force_teacher_v1_candidate_246_2048env_400iter",
+      "checkpoints": [
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-24-25_go2_contact_force_teacher_v1_candidate_246_2048env_400iter/model_100.pt",
+          "sha256": "aedfcfd5299667b229aff9a677a04bef4d6794ccf1ad607555731b1b0766363f",
+          "update": 100
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-24-25_go2_contact_force_teacher_v1_candidate_246_2048env_400iter/model_200.pt",
+          "sha256": "92e56f82d6e98961b60e135c5b1f45fb977c000987430931c445751f52463a3d",
+          "update": 200
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-24-25_go2_contact_force_teacher_v1_candidate_246_2048env_400iter/model_300.pt",
+          "sha256": "73567c06b2c7fc9b53e1fea75562a20bb137b9a10c935e0648bc413a51bb00d8",
+          "update": 300
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-10_01-24-25_go2_contact_force_teacher_v1_candidate_246_2048env_400iter/model_400.pt",
+          "sha256": "85468bf796fa59a3af8435fc032d9aba8176047b22e8df011723d38e614f8ba6",
+          "update": 400
+        }
+      ]
+    }
+  ],
+  "completed_at": "2026-08-10T01:42:59.694974+08:00"
+}

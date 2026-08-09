@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "experiment": "go2_contact_force_teacher_v1",
+  "status": "PARTIAL_SCREENING_PAUSED",
+  "decision": "UPDATE_100_REJECTED",
+  "source_manifest_sha256": "df068d90fd6cef674e4c98ddba71c909fe81086831a436687379013afc00e39a",
+  "baseline": {
+    "label": "locked_v7_model_13600",
+    "macro_completion": 0.21875,
+    "mean_forward_gain": 0.42910785940136015,
+    "mean_progress": 0.5090305483900011,
+    "mean_slip": 0.05854740414808881
+  },
+  "control_234_model_100": {
+    "macro_completion": 0.20833333333333334,
+    "mean_forward_gain": 0.3491537782248322,
+    "mean_progress": 0.5031690446970364,
+    "mean_slip": 0.056164277969270184,
+    "raw_artifact": "docs/reviews/go2_contact_force_teacher_high_slope/control_234_model_100/high_slope_matched.json",
+    "raw_artifact_sha256": "5bbb4e29a860b5d39cf8dcf343d336a7358a78184d43c2c18bc9043215b7b82b"
+  },
+  "candidate_246_model_100": {
+    "macro_completion": 0.15625,
+    "mean_forward_gain": 0.3254021857982509,
+    "mean_progress": 0.48957807663828135,
+    "mean_slip": 0.05413858140069761,
+    "raw_artifact": "docs/reviews/go2_contact_force_teacher_high_slope/candidate_246_model_100/high_slope_matched.json",
+    "raw_artifact_sha256": "dfdc4c44d6cfa7c76a348edd64a421a8dc7d8b4128c0ca5d6e8e019ea6e9f42c"
+  },
+  "candidate_minus_control": {
+    "macro_completion": -0.05208333333333334,
+    "mean_forward_gain": -0.023751592426581287,
+    "mean_progress": -0.01359096805875504,
+    "mean_slip": -0.002025696568572573
+  },
+  "remaining_evaluations": [
+    "control_234_model_200",
+    "candidate_246_model_200",
+    "control_234_model_300",
+    "candidate_246_model_300",
+    "control_234_model_400",
+    "candidate_246_model_400"
+  ],
+  "resume_command": "/home/jensen/anaconda3/envs/unitree_rl_mjlab/bin/python scripts/run_go2_contact_force_teacher_high_slope.py --output-dir docs/reviews/go2_contact_force_teacher_high_slope --resume-existing",
+  "training_complete": true,
+  "full_selection_complete": false,
+  "default_model_replaced": false,
+  "background_process_running": false
+}
