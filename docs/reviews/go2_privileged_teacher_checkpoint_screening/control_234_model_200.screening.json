@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "checkpoint": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_200.pt",
+    "sha256": "0dc6f4eae158e2129ea5c94ddc3673a2519e922aa2834c54fc61a372529b042c"
+  },
+  "checkpoint_update": 200,
+  "arm": "control_234",
+  "actor_dim": 234,
+  "critic_dim": 261,
+  "action_dim": 12,
+  "provenance_valid": true,
+  "formal_metadata_valid": true,
+  "recursive_finite": true,
+  "optimizer_present_finite": true,
+  "formal_environment_state_valid": true,
+  "tensorboard": {
+    "event_file": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/events.out.tfevents.1785814795.LAPTOP-GDNQLSJT.42316.0",
+    "event_file_sha256": "61fb2b0491d156e98df702396c592d245b125de4d29ced80352f087ddc410043",
+    "scalar_tags": 56,
+    "scalar_events": 22400,
+    "histogram_tags": 0,
+    "histogram_events": 0,
+    "tensor_tags": 0,
+    "tensor_events": 0,
+    "all_finite": true
+  },
+  "tensorboard_finite": true,
+  "rollout_screening_pending": true
+}

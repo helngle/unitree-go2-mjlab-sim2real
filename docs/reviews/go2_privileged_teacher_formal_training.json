@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-08-04T11:39:37.015831+08:00",
+  "source_manifest": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/provenance/go2_privileged_teacher_source_manifest_c884d8b6fad90ba10f7dfd0f300a6641541df761a5623e64d0eacff04c3c9848.json",
+  "source_manifest_sha256": "c884d8b6fad90ba10f7dfd0f300a6641541df761a5623e64d0eacff04c3c9848",
+  "arms": [
+    {
+      "arm": "control_234",
+      "run": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter",
+      "checkpoints": [
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_100.pt",
+          "sha256": "d501638b7814d1516b12a9244550eab11b8280cb7dcb727cc199d8df611e4200",
+          "update": 100
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_200.pt",
+          "sha256": "0dc6f4eae158e2129ea5c94ddc3673a2519e922aa2834c54fc61a372529b042c",
+          "update": 200
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_300.pt",
+          "sha256": "2f7ba65e7a44281cdf0e39e8ab85931c62400fe933e04cf3013e4240a6776c2b",
+          "update": 300
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_400.pt",
+          "sha256": "6cf64bd5fc4c33964dfe46fc572a6066d7983b1a4d81baa6ce84259dce2e190a",
+          "update": 400
+        }
+      ]
+    },
+    {
+      "arm": "candidate_237",
+      "run": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter",
+      "checkpoints": [
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter/model_100.pt",
+          "sha256": "010ddbb3dd81286a040b70e4f930ea8d82e6002d26d904d8509a87bf993cda7f",
+          "update": 100
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter/model_200.pt",
+          "sha256": "07ef2c4ffd363b74c1ed25c65c2ebc10f9e6dfb6f173289a58f7f3b1dda9ff54",
+          "update": 200
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter/model_300.pt",
+          "sha256": "374c1e0ff67e45f91fe127ad46b414535f31b50dc0b1a2c961143ba645acc100",
+          "update": 300
+        },
+        {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter/model_400.pt",
+          "sha256": "270083c716a92637a83dbe0efe0069affeaa99cfe96c947888bc333b5663f550",
+          "update": 400
+        }
+      ]
+    }
+  ],
+  "completed_at": "2026-08-04T12:15:08.672221+08:00"
+}

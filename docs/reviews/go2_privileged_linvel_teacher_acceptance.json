@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "evaluation_suite": "go2_privileged_teacher_high_slope_screening",
+  "decision": "REJECT",
+  "selection_status": "NO_CAUSAL_SURVIVOR",
+  "weighted_score_used": false,
+  "full_acceptance_started": false,
+  "reason": "No same-update 234-D control / 237-D candidate pair passed the registered high-slope hard gates and causal delta gate.",
+  "selection_file": "docs/reviews/go2_privileged_teacher_high_slope_selection.json",
+  "selection_file_sha256": "610fd0405e50c81302cc89701f2972dec36360a9f0a5119974779bdeb6bf5dab",
+  "source_checkpoint": "logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt",
+  "source_checkpoint_sha256": "73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff",
+  "candidate_schema": {
+    "actor": 237,
+    "critic": 261,
+    "action": 12,
+    "new_actor_slice": [234, 237],
+    "new_actor_inputs": ["base_lin_vel.vx", "base_lin_vel.vy", "base_lin_vel.vz"]
+  },
+  "diagnostics": {
+    "candidate_actor_first_layer_new_column_norm": {
+      "model_100": 1.3137863874435425,
+      "model_200": 2.34560489654541,
+      "model_300": 3.1303040981292725,
+      "model_400": 3.5861313343048096
+    },
+    "interpretation": "The appended columns received nonzero learned weights; failure is behavioral/safety regression, not an unused-input or transfer-shape failure."
+  },
+  "default_model_replaced": false,
+  "default_model": "logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt",
+  "next_experiment": "Do not start 241-D automatically. Preregister and run the independent foot_contact(4) intervention only after reviewing the stored diagnostics."
+}

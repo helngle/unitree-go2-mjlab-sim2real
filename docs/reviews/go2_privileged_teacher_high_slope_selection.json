@@ -1,0 +1,1225 @@
+{
+  "schema_version": 1,
+  "selection_method": "hard_gates_then_lexicographic_then_control_delta",
+  "weighted_score_used": false,
+  "baseline": {
+    "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt",
+    "sha256": "73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff",
+    "evaluation": {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/v7/high_slope_matched.json",
+      "sha256": "3dcba7c31ee234832dfd9e4e8522453d7368da49172edcaa377ddb48d3f99f5b"
+    },
+    "summary": {
+      "routes": {
+        "clean": {
+          "straight": {
+            "completion": 0.25,
+            "progress": 0.5090172849595547,
+            "forward_gain": 0.3432239764748911,
+            "slip": 0.05456163736716398,
+            "action_acceleration": 0.19326399855959367,
+            "base_pitch": 0.09287718596106719,
+            "base_contact": 0.0,
+            "upper_leg_contact": 5.4887754541961686e-05,
+            "calf_contact": 5.4887754541961686e-05,
+            "failure_risk": 0.75,
+            "action_fault_rate": 0.04100115264284538,
+            "joint_target_fault_rate": 0.04133047917009715
+          },
+          "arc": {
+            "completion": 0.125,
+            "progress": 0.4415657529607415,
+            "forward_gain": 0.4611273413804684,
+            "slip": 0.04781364653000828,
+            "action_acceleration": 0.10154422056877753,
+            "base_pitch": 0.09158033321401261,
+            "base_contact": 0.0,
+            "upper_leg_contact": 0.00014549687181725592,
+            "calf_contact": 0.00043649061545176777,
+            "failure_risk": 0.875,
+            "action_fault_rate": 0.020442310490324456,
+            "joint_target_fault_rate": 0.02109704641350211
+          },
+          "s_curve": {
+            "completion": 0.1875,
+            "progress": 0.4656064361333847,
+            "forward_gain": 0.47962630089479313,
+            "slip": 0.05088547379932156,
+            "action_acceleration": 0.09792417613308058,
+            "base_pitch": 0.09405048522063189,
+            "base_contact": 0.0,
+            "upper_leg_contact": 0.0001445817971517386,
+            "calf_contact": 0.00021687269572760788,
+            "failure_risk": 0.8125,
+            "action_fault_rate": 0.023639123834309262,
+            "joint_target_fault_rate": 0.02392828742861274
+          }
+        },
+        "randomized": {
+          "straight": {
+            "completion": 0.375,
+            "progress": 0.5928099919110537,
+            "forward_gain": 0.44901468227828906,
+            "slip": 0.06710292793050664,
+            "action_acceleration": 0.35213306953360973,
+            "base_pitch": 0.10423507650193034,
+            "base_contact": 0.0,
+            "upper_leg_contact": 0.0001255020080321285,
+            "calf_contact": 6.275100401606425e-05,
+            "failure_risk": 0.625,
+            "action_fault_rate": 0.05095381526104418,
+            "joint_target_fault_rate": 0.04555722891566265
+          },
+          "arc": {
+            "completion": 0.125,
+            "progress": 0.5029704170301557,
+            "forward_gain": 0.4257827936591188,
+            "slip": 0.06091749004185936,
+            "action_acceleration": 0.29071517623393256,
+            "base_pitch": 0.11321438454285328,
+            "base_contact": 5.423287596941266e-05,
+            "upper_leg_contact": 0.00010846575193882532,
+            "calf_contact": 5.423287596941266e-05,
+            "failure_risk": 0.875,
+            "action_fault_rate": 0.0595476978144151,
+            "joint_target_fault_rate": 0.05808341016324096
+          },
+          "s_curve": {
+            "completion": 0.25,
+            "progress": 0.5422134073451161,
+            "forward_gain": 0.4158720617206003,
+            "slip": 0.07000324921967298,
+            "action_acceleration": 0.2908153748913702,
+            "base_pitch": 0.1251499519878223,
+            "base_contact": 0.0,
+            "upper_leg_contact": 6.124073733847755e-05,
+            "calf_contact": 0.00018372221201543268,
+            "failure_risk": 0.75,
+            "action_fault_rate": 0.0712229775246494,
+            "joint_target_fault_rate": 0.06938575540449507
+          }
+        }
+      },
+      "macro_completion": 0.21875,
+      "mean_forward_gain": 0.42910785940136015,
+      "mean_progress": 0.5090305483900011,
+      "mean_slip": 0.05854740414808881,
+      "minimum_clean_completion": 0.125,
+      "minimum_randomized_completion": 0.125
+    }
+  },
+  "arms": {
+    "control_234": [
+      {
+        "arm": "control_234",
+        "checkpoint": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_100.pt",
+          "sha256": "d501638b7814d1516b12a9244550eab11b8280cb7dcb727cc199d8df611e4200"
+        },
+        "update": 100,
+        "evaluation": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/control_234_model_100/high_slope_matched.json",
+          "sha256": "f6e5de661440fd628544380318b9a1bc1b7423315a7c3e968557bc07468ee016"
+        },
+        "screening": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_checkpoint_screening/control_234_model_100.screening.json",
+          "sha256": "c1f282b459abab364fa8f375e6d1153cdf2c671b9de68dceca4062caee09f43f"
+        },
+        "summary": {
+          "routes": {
+            "clean": {
+              "straight": {
+                "completion": 0.25,
+                "progress": 0.49847906827926636,
+                "forward_gain": 0.19831720264840927,
+                "slip": 0.04901466365982236,
+                "action_acceleration": 0.15431792519873502,
+                "base_pitch": 0.07634386177473348,
+                "base_contact": 3.547608911593586e-05,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 0.0,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.03636299134383426,
+                "joint_target_fault_rate": 0.036469419611182066
+              },
+              "arc": {
+                "completion": 0.25,
+                "progress": 0.47241273429244757,
+                "forward_gain": 0.22148035211327716,
+                "slip": 0.03582564658028606,
+                "action_acceleration": 0.07325297612283979,
+                "base_pitch": 0.05602821600019265,
+                "base_contact": 0.0,
+                "upper_leg_contact": 3.828630498870554e-05,
+                "calf_contact": 3.828630498870554e-05,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.01194532715647613,
+                "joint_target_fault_rate": 0.012060186071442245
+              },
+              "s_curve": {
+                "completion": 0.25,
+                "progress": 0.4755360512062907,
+                "forward_gain": 0.1973850464148144,
+                "slip": 0.03935164982219966,
+                "action_acceleration": 0.09065868327300598,
+                "base_pitch": 0.06920497835113476,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 0.0,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.013568376068376069,
+                "joint_target_fault_rate": 0.01363960113960114
+              }
+            },
+            "randomized": {
+              "straight": {
+                "completion": 0.25,
+                "progress": 0.5759941693395376,
+                "forward_gain": 0.2770553650712741,
+                "slip": 0.049755902340308716,
+                "action_acceleration": 0.30825681616536177,
+                "base_pitch": 0.07835610028400421,
+                "base_contact": 3.774866935940508e-05,
+                "upper_leg_contact": 3.774866935940508e-05,
+                "calf_contact": 0.00015099467743762032,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.019667056736250046,
+                "joint_target_fault_rate": 0.019553810728171833
+              },
+              "arc": {
+                "completion": 0.125,
+                "progress": 0.4941851319745183,
+                "forward_gain": 0.42521749171968815,
+                "slip": 0.036968954219300194,
+                "action_acceleration": 0.2637683987708139,
+                "base_pitch": 0.057677691384643286,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 4.283939510774108e-05,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.014394036756201002,
+                "joint_target_fault_rate": 0.014179839780662297
+              },
+              "s_curve": {
+                "completion": 0.1875,
+                "progress": 0.48076094035059214,
+                "forward_gain": 0.2293767085304295,
+                "slip": 0.04301677658259419,
+                "action_acceleration": 0.2769441777468344,
+                "base_pitch": 0.07347258958760135,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 8.267879288962381e-05,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.025217031831335262,
+                "joint_target_fault_rate": 0.02517569243489045
+              }
+            }
+          },
+          "macro_completion": 0.21875,
+          "mean_forward_gain": 0.25813869441631543,
+          "mean_progress": 0.4995613492404421,
+          "mean_slip": 0.04232226553408519,
+          "minimum_clean_completion": 0.25,
+          "minimum_randomized_completion": 0.125
+        },
+        "hard_gate_pass": false,
+        "violations": [
+          "safety:clean:straight:base_contact",
+          "safety:randomized:straight:base_contact",
+          "safety:randomized:straight:calf_contact"
+        ],
+        "ranking_key": [
+          0.25,
+          0.125,
+          0.25813869441631543,
+          -0.04232226553408519,
+          -100
+        ]
+      },
+      {
+        "arm": "control_234",
+        "checkpoint": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_200.pt",
+          "sha256": "0dc6f4eae158e2129ea5c94ddc3673a2519e922aa2834c54fc61a372529b042c"
+        },
+        "update": 200,
+        "evaluation": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/control_234_model_200/high_slope_matched.json",
+          "sha256": "3f99e915982df4b6fbee5fc92da4edd83d6a8b3f016f73e0706448632f6935c1"
+        },
+        "screening": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_checkpoint_screening/control_234_model_200.screening.json",
+          "sha256": "9e27490345a8cf45f7fe31cc276574176c8c9c8579767daeb8a404536ff568f1"
+        },
+        "summary": {
+          "routes": {
+            "clean": {
+              "straight": {
+                "completion": 0.3125,
+                "progress": 0.6124166809022427,
+                "forward_gain": 0.32423949865568336,
+                "slip": 0.05286955835488562,
+                "action_acceleration": 0.16102618315994066,
+                "base_pitch": 0.08495693089910807,
+                "base_contact": 0.0,
+                "upper_leg_contact": 3.49662575614532e-05,
+                "calf_contact": 0.0,
+                "failure_risk": 0.6875,
+                "action_fault_rate": 0.004021119619567117,
+                "joint_target_fault_rate": 0.004091052134690024
+              },
+              "arc": {
+                "completion": 0.1875,
+                "progress": 0.4573029726743698,
+                "forward_gain": 0.2694870148375068,
+                "slip": 0.05548684126571767,
+                "action_acceleration": 0.12301419809770071,
+                "base_pitch": 0.0736102275992298,
+                "base_contact": 0.0,
+                "upper_leg_contact": 4.224935569732561e-05,
+                "calf_contact": 4.224935569732561e-05,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.012167814440829778,
+                "joint_target_fault_rate": 0.01242131057501373
+              },
+              "s_curve": {
+                "completion": 0.1875,
+                "progress": 0.4444896820932627,
+                "forward_gain": 0.32100802827817304,
+                "slip": 0.04562997860008231,
+                "action_acceleration": 0.09296381613658078,
+                "base_pitch": 0.0644570901451508,
+                "base_contact": 0.0,
+                "upper_leg_contact": 9.559315553006405e-05,
+                "calf_contact": 0.0,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.013048465729853742,
+                "joint_target_fault_rate": 0.013383041774208966
+              }
+            },
+            "randomized": {
+              "straight": {
+                "completion": 0.25,
+                "progress": 0.6344129182398319,
+                "forward_gain": 0.35249191246126316,
+                "slip": 0.057902898965159266,
+                "action_acceleration": 0.32884437277847073,
+                "base_pitch": 0.09336332212940211,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 4.567670031516923e-05,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.02032613164025031,
+                "joint_target_fault_rate": 0.01945827433426209
+              },
+              "arc": {
+                "completion": 0.125,
+                "progress": 0.47019605059176683,
+                "forward_gain": 0.3212463776074843,
+                "slip": 0.06346977491785605,
+                "action_acceleration": 0.2892892124845908,
+                "base_pitch": 0.09378161624748534,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 5.0306871918704096e-05,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.023392695442197405,
+                "joint_target_fault_rate": 0.02359392292987222
+              },
+              "s_curve": {
+                "completion": 0.0625,
+                "progress": 0.5098625104874372,
+                "forward_gain": 0.47350168018800304,
+                "slip": 0.05254561193102659,
+                "action_acceleration": 0.2772242384645156,
+                "base_pitch": 0.08944919661320577,
+                "base_contact": 5.0443906376109764e-05,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 5.0443906376109764e-05,
+                "failure_risk": 0.9375,
+                "action_fault_rate": 0.020934221146085553,
+                "joint_target_fault_rate": 0.020934221146085553
+              }
+            }
+          },
+          "macro_completion": 0.1875,
+          "mean_forward_gain": 0.34366241867135233,
+          "mean_progress": 0.5214468024981519,
+          "mean_slip": 0.05465077733912125,
+          "minimum_clean_completion": 0.1875,
+          "minimum_randomized_completion": 0.0625
+        },
+        "hard_gate_pass": false,
+        "violations": [
+          "safety:clean:arc:action_acceleration",
+          "safety:randomized:s_curve:base_contact",
+          "safety:randomized:s_curve:failure_risk"
+        ],
+        "ranking_key": [
+          0.1875,
+          0.0625,
+          0.34366241867135233,
+          -0.05465077733912125,
+          -200
+        ]
+      },
+      {
+        "arm": "control_234",
+        "checkpoint": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_300.pt",
+          "sha256": "2f7ba65e7a44281cdf0e39e8ab85931c62400fe933e04cf3013e4240a6776c2b"
+        },
+        "update": 300,
+        "evaluation": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/control_234_model_300/high_slope_matched.json",
+          "sha256": "499d88a32b23d564cd0ede3be31b5c65f2ba0aa8b194b936a0742dfe4952096b"
+        },
+        "screening": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_checkpoint_screening/control_234_model_300.screening.json",
+          "sha256": "6fc3482605133d6577f4c59499ba9a925ecd8ed618eaeae51d18ee90f1c7a87e"
+        },
+        "summary": {
+          "routes": {
+            "clean": {
+              "straight": {
+                "completion": 0.25,
+                "progress": 0.5092512313276529,
+                "forward_gain": 0.24435305420660686,
+                "slip": 0.04790192007556939,
+                "action_acceleration": 0.1459655781810397,
+                "base_pitch": 0.05784369369854193,
+                "base_contact": 0.0,
+                "upper_leg_contact": 4.406839414771726e-05,
+                "calf_contact": 4.406839414771726e-05,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.006257711968975851,
+                "joint_target_fault_rate": 0.006478053939714437
+              },
+              "arc": {
+                "completion": 0.1875,
+                "progress": 0.5336131108924747,
+                "forward_gain": 0.5177053812183474,
+                "slip": 0.04673890042174515,
+                "action_acceleration": 0.10220241704252411,
+                "base_pitch": 0.06750563882604291,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.00018624286069034022,
+                "calf_contact": 0.00037248572138068043,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.024956543332505587,
+                "joint_target_fault_rate": 0.025577352868140054
+              },
+              "s_curve": {
+                "completion": 0.25,
+                "progress": 0.5489977682009339,
+                "forward_gain": 0.44937485943328315,
+                "slip": 0.06023616980228729,
+                "action_acceleration": 0.12553256083187062,
+                "base_pitch": 0.09388353847258464,
+                "base_contact": 0.0,
+                "upper_leg_contact": 5.8058522991175105e-05,
+                "calf_contact": 5.8058522991175105e-05,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.017359498374361355,
+                "joint_target_fault_rate": 0.017765908035299583
+              }
+            },
+            "randomized": {
+              "straight": {
+                "completion": 0.375,
+                "progress": 0.6466326043009758,
+                "forward_gain": 0.33989725401460524,
+                "slip": 0.05224904451721286,
+                "action_acceleration": 0.303749338416249,
+                "base_pitch": 0.07431781878385665,
+                "base_contact": 0.0,
+                "upper_leg_contact": 4.55684666210982e-05,
+                "calf_contact": 0.0,
+                "failure_risk": 0.625,
+                "action_fault_rate": 0.012576896787423103,
+                "joint_target_fault_rate": 0.012531328320802004
+              },
+              "arc": {
+                "completion": 0.125,
+                "progress": 0.49040319863706827,
+                "forward_gain": 0.4929852475017118,
+                "slip": 0.04251313307437434,
+                "action_acceleration": 0.2767105102029741,
+                "base_pitch": 0.06393402928253768,
+                "base_contact": 6.0764416357780884e-05,
+                "upper_leg_contact": 0.00012152883271556177,
+                "calf_contact": 6.0764416357780884e-05,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.025034939539405724,
+                "joint_target_fault_rate": 0.02552105487026797
+              },
+              "s_curve": {
+                "completion": 0.25,
+                "progress": 0.5489331437274814,
+                "forward_gain": 0.5113248101843332,
+                "slip": 0.046428605847187776,
+                "action_acceleration": 0.2678316078317683,
+                "base_pitch": 0.0668022543556589,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0001339405304045004,
+                "calf_contact": 0.0002678810608090008,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.022970800964371818,
+                "joint_target_fault_rate": 0.023439592820787572
+              }
+            }
+          },
+          "macro_completion": 0.23958333333333334,
+          "mean_forward_gain": 0.4259401010931479,
+          "mean_progress": 0.5463051761810979,
+          "mean_slip": 0.04934462895639613,
+          "minimum_clean_completion": 0.1875,
+          "minimum_randomized_completion": 0.125
+        },
+        "hard_gate_pass": false,
+        "violations": [
+          "safety:clean:arc:upper_leg_contact",
+          "safety:clean:arc:action_fault_rate",
+          "safety:clean:arc:joint_target_fault_rate",
+          "safety:clean:s_curve:action_acceleration",
+          "safety:randomized:s_curve:upper_leg_contact",
+          "safety:randomized:s_curve:calf_contact"
+        ],
+        "ranking_key": [
+          0.1875,
+          0.125,
+          0.4259401010931479,
+          -0.04934462895639613,
+          -300
+        ]
+      },
+      {
+        "arm": "control_234",
+        "checkpoint": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-39-43_go2_v8_privileged_lin_vel_teacher_control_234_2048env_400iter/model_400.pt",
+          "sha256": "6cf64bd5fc4c33964dfe46fc572a6066d7983b1a4d81baa6ce84259dce2e190a"
+        },
+        "update": 400,
+        "evaluation": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/control_234_model_400/high_slope_matched.json",
+          "sha256": "a63deaf3a6dcbefa125c66066ceff66e0022ab909eefb3e7038ac4966216245f"
+        },
+        "screening": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_checkpoint_screening/control_234_model_400.screening.json",
+          "sha256": "cfbe3abd87efb8089f905d9c6d14dfcc9775d9bd1e985f2e4049c1241c0fde3a"
+        },
+        "summary": {
+          "routes": {
+            "clean": {
+              "straight": {
+                "completion": 0.0625,
+                "progress": 0.5661557521671057,
+                "forward_gain": 0.4409525719565575,
+                "slip": 0.05304678528139054,
+                "action_acceleration": 0.129680973914459,
+                "base_pitch": 0.09603893842552502,
+                "base_contact": 0.0,
+                "upper_leg_contact": 3.8569830678443324e-05,
+                "calf_contact": 0.0,
+                "failure_risk": 0.9375,
+                "action_fault_rate": 0.06302310332857639,
+                "joint_target_fault_rate": 0.06325452231264704
+              },
+              "arc": {
+                "completion": 0.0,
+                "progress": 0.4573699263855815,
+                "forward_gain": 0.4651524855736994,
+                "slip": 0.033983673139429946,
+                "action_acceleration": 0.0738976647862838,
+                "base_pitch": 0.06919321943836534,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 4.2629380168812346e-05,
+                "failure_risk": 1.0,
+                "action_fault_rate": 0.02076050814221161,
+                "joint_target_fault_rate": 0.021016284423224486
+              },
+              "s_curve": {
+                "completion": 0.1875,
+                "progress": 0.4583376059308648,
+                "forward_gain": 0.270279117992262,
+                "slip": 0.043925204623297895,
+                "action_acceleration": 0.09973999720060449,
+                "base_pitch": 0.07027037800537807,
+                "base_contact": 0.0,
+                "upper_leg_contact": 5.078204346942921e-05,
+                "calf_contact": 0.0,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.023258175908998577,
+                "joint_target_fault_rate": 0.023461304082876295
+              }
+            },
+            "randomized": {
+              "straight": {
+                "completion": 0.1875,
+                "progress": 0.591617776080966,
+                "forward_gain": 0.42666780016756506,
+                "slip": 0.047802949858510295,
+                "action_acceleration": 0.2834917389999332,
+                "base_pitch": 0.07827686054895953,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 5.041084841457882e-05,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.02258406008973131,
+                "joint_target_fault_rate": 0.02258406008973131
+              },
+              "arc": {
+                "completion": 0.125,
+                "progress": 0.5328429639339447,
+                "forward_gain": 0.513840071584547,
+                "slip": 0.04346123588076002,
+                "action_acceleration": 0.273098230343211,
+                "base_pitch": 0.07456277900219581,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 5.648441030275644e-05,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.02507907817442386,
+                "joint_target_fault_rate": 0.025474469046543154
+              },
+              "s_curve": {
+                "completion": 0.25,
+                "progress": 0.5520359622314572,
+                "forward_gain": 0.4400994320434529,
+                "slip": 0.0543948892622438,
+                "action_acceleration": 0.2937673104120258,
+                "base_pitch": 0.08826623009066929,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 6.077549532028686e-05,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.03810623556581986,
+                "joint_target_fault_rate": 0.03865321502370244
+              }
+            }
+          },
+          "macro_completion": 0.13541666666666666,
+          "mean_forward_gain": 0.42616524655301397,
+          "mean_progress": 0.5263933311216533,
+          "mean_slip": 0.04610245634093874,
+          "minimum_clean_completion": 0.0,
+          "minimum_randomized_completion": 0.125
+        },
+        "hard_gate_pass": false,
+        "violations": [
+          "safety:clean:straight:failure_risk",
+          "safety:clean:straight:action_fault_rate",
+          "safety:clean:straight:joint_target_fault_rate",
+          "safety:randomized:straight:failure_risk"
+        ],
+        "ranking_key": [
+          0.0,
+          0.125,
+          0.42616524655301397,
+          -0.04610245634093874,
+          -400
+        ]
+      }
+    ],
+    "candidate_237": [
+      {
+        "arm": "candidate_237",
+        "checkpoint": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter/model_100.pt",
+          "sha256": "010ddbb3dd81286a040b70e4f930ea8d82e6002d26d904d8509a87bf993cda7f"
+        },
+        "update": 100,
+        "evaluation": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/candidate_237_model_100/high_slope_matched.json",
+          "sha256": "77157665932f3b475f28152b49e46a30a50152febcd90cf739aa86bcda300b7a"
+        },
+        "screening": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_checkpoint_screening/candidate_237_model_100.screening.json",
+          "sha256": "d0cc366a16a8041d665d71003dd28dbec4ab620fe88587e8ff94302921535cd6"
+        },
+        "summary": {
+          "routes": {
+            "clean": {
+              "straight": {
+                "completion": 0.1875,
+                "progress": 0.5165221486240625,
+                "forward_gain": 0.4094884750201997,
+                "slip": 0.04196978350368472,
+                "action_acceleration": 0.08680770942506212,
+                "base_pitch": 0.0439704153676084,
+                "base_contact": 5.668291576918717e-05,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 0.00011336583153837434,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.029928579526130823,
+                "joint_target_fault_rate": 0.03043872576805351
+              },
+              "arc": {
+                "completion": 0.125,
+                "progress": 0.4669809900224209,
+                "forward_gain": 0.3801848998815882,
+                "slip": 0.04255266164665286,
+                "action_acceleration": 0.11538175268397183,
+                "base_pitch": 0.07627794001164434,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 0.0001154912226670773,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.04815983985217123,
+                "joint_target_fault_rate": 0.04835232522328303
+              },
+              "s_curve": {
+                "completion": 0.25,
+                "progress": 0.46964195650070906,
+                "forward_gain": 0.3066006308586606,
+                "slip": 0.04690517098667991,
+                "action_acceleration": 0.10643318925667157,
+                "base_pitch": 0.07263228498595663,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 4.625988805107092e-05,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.04417819308877272,
+                "joint_target_fault_rate": 0.04422445297682379
+              }
+            },
+            "randomized": {
+              "straight": {
+                "completion": 0.375,
+                "progress": 0.6802642270922661,
+                "forward_gain": 0.498202661423827,
+                "slip": 0.05546128228129485,
+                "action_acceleration": 0.2961485054219464,
+                "base_pitch": 0.08537845346658876,
+                "base_contact": 5.346164127238706e-05,
+                "upper_leg_contact": 0.00010692328254477412,
+                "calf_contact": 0.0,
+                "failure_risk": 0.625,
+                "action_fault_rate": 0.046297781341887195,
+                "joint_target_fault_rate": 0.04170008019246191
+              },
+              "arc": {
+                "completion": 0.125,
+                "progress": 0.4914682386443019,
+                "forward_gain": 0.46738272073876813,
+                "slip": 0.06056652343024221,
+                "action_acceleration": 0.3070036225763337,
+                "base_pitch": 0.11214985923359114,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 0.00038345396155874036,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.04050232468964195,
+                "joint_target_fault_rate": 0.04050232468964195
+              },
+              "s_curve": {
+                "completion": 0.1875,
+                "progress": 0.524951096624136,
+                "forward_gain": 0.4017097475707796,
+                "slip": 0.05911274892031755,
+                "action_acceleration": 0.28583504259201886,
+                "base_pitch": 0.09948945620051401,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 0.0002063983488132095,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.03297213622291022,
+                "joint_target_fault_rate": 0.032094943240454074
+              }
+            }
+          },
+          "macro_completion": 0.20833333333333334,
+          "mean_forward_gain": 0.41059485591563716,
+          "mean_progress": 0.5249714429179827,
+          "mean_slip": 0.05109469512814535,
+          "minimum_clean_completion": 0.125,
+          "minimum_randomized_completion": 0.125
+        },
+        "hard_gate_pass": false,
+        "violations": [
+          "safety:clean:straight:base_contact",
+          "safety:clean:straight:calf_contact",
+          "completion:clean:straight",
+          "v7_completion:clean:straight",
+          "safety:clean:arc:action_fault_rate",
+          "safety:clean:arc:joint_target_fault_rate",
+          "completion:clean:arc",
+          "safety:clean:s_curve:action_fault_rate",
+          "safety:clean:s_curve:joint_target_fault_rate",
+          "completion:clean:s_curve",
+          "safety:randomized:straight:base_contact",
+          "completion:randomized:straight",
+          "safety:randomized:arc:calf_contact",
+          "completion:randomized:arc",
+          "completion:randomized:s_curve",
+          "v7_completion:randomized:s_curve",
+          "mean_forward_gain"
+        ],
+        "ranking_key": [
+          0.125,
+          0.125,
+          0.41059485591563716,
+          -0.05109469512814535,
+          -100
+        ]
+      },
+      {
+        "arm": "candidate_237",
+        "checkpoint": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter/model_200.pt",
+          "sha256": "07ef2c4ffd363b74c1ed25c65c2ebc10f9e6dfb6f173289a58f7f3b1dda9ff54"
+        },
+        "update": 200,
+        "evaluation": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/candidate_237_model_200/high_slope_matched.json",
+          "sha256": "89795bb10c8eea774439d5ce9abc095610c63378094a5b35b906c2da41675904"
+        },
+        "screening": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_checkpoint_screening/candidate_237_model_200.screening.json",
+          "sha256": "0fe8ade9e51acf4ed08d2accc44553507ec54bd556eb0e4c8da6fe3d95f0a994"
+        },
+        "summary": {
+          "routes": {
+            "clean": {
+              "straight": {
+                "completion": 0.25,
+                "progress": 0.6111395452171564,
+                "forward_gain": 0.6558022195705082,
+                "slip": 0.07634299698514224,
+                "action_acceleration": 0.1629900064542151,
+                "base_pitch": 0.07760593995544683,
+                "base_contact": 8.582954252853832e-05,
+                "upper_leg_contact": 8.582954252853832e-05,
+                "calf_contact": 0.0006866363402283066,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.06737619088490258,
+                "joint_target_fault_rate": 0.06814865676765942
+              },
+              "arc": {
+                "completion": 0.1875,
+                "progress": 0.539644674398005,
+                "forward_gain": 0.518036450183881,
+                "slip": 0.07110760412763369,
+                "action_acceleration": 0.12379961966569669,
+                "base_pitch": 0.11526809313500153,
+                "base_contact": 0.00016054800385315209,
+                "upper_leg_contact": 0.00021406400513753612,
+                "calf_contact": 0.00032109600770630417,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.0398694209568661,
+                "joint_target_fault_rate": 0.03960184095044418
+              },
+              "s_curve": {
+                "completion": 0.3125,
+                "progress": 0.574405999854207,
+                "forward_gain": 0.4488943049253883,
+                "slip": 0.07307216872699039,
+                "action_acceleration": 0.1299918876699625,
+                "base_pitch": 0.12028836670743442,
+                "base_contact": 5.732958780026372e-05,
+                "upper_leg_contact": 0.00017198876340079116,
+                "calf_contact": 5.732958780026372e-05,
+                "failure_risk": 0.6875,
+                "action_fault_rate": 0.03072865906094135,
+                "joint_target_fault_rate": 0.03067132947314109
+              }
+            },
+            "randomized": {
+              "straight": {
+                "completion": 0.375,
+                "progress": 0.7713487856090069,
+                "forward_gain": 0.7181694712590362,
+                "slip": 0.07105582850940363,
+                "action_acceleration": 0.3143516558697327,
+                "base_pitch": 0.11224535526858892,
+                "base_contact": 0.0002042205582028591,
+                "upper_leg_contact": 0.00013614703880190606,
+                "calf_contact": 0.00013614703880190606,
+                "failure_risk": 0.625,
+                "action_fault_rate": 0.06460176991150443,
+                "joint_target_fault_rate": 0.06283185840707965
+              },
+              "arc": {
+                "completion": 0.1875,
+                "progress": 0.5340633979067206,
+                "forward_gain": 0.6229395048616594,
+                "slip": 0.0707970446065785,
+                "action_acceleration": 0.2919487802680542,
+                "base_pitch": 0.1104321215973589,
+                "base_contact": 0.0,
+                "upper_leg_contact": 5.3754770735902814e-05,
+                "calf_contact": 0.00010750954147180563,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.03692952749556523,
+                "joint_target_fault_rate": 0.036230715475998494
+              },
+              "s_curve": {
+                "completion": 0.1875,
+                "progress": 0.5201751990243793,
+                "forward_gain": 0.4150215690359381,
+                "slip": 0.077896475917373,
+                "action_acceleration": 0.2912199150475529,
+                "base_pitch": 0.12058385923988535,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0001677477074479982,
+                "calf_contact": 0.00011183180496533214,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.04836725564750615,
+                "joint_target_fault_rate": 0.047752180720196824
+              }
+            }
+          },
+          "macro_completion": 0.25,
+          "mean_forward_gain": 0.5631439199727352,
+          "mean_progress": 0.5917962670015792,
+          "mean_slip": 0.07337868647885358,
+          "minimum_clean_completion": 0.1875,
+          "minimum_randomized_completion": 0.1875
+        },
+        "hard_gate_pass": false,
+        "violations": [
+          "safety:clean:straight:slip",
+          "safety:clean:straight:base_contact",
+          "safety:clean:straight:upper_leg_contact",
+          "safety:clean:straight:calf_contact",
+          "safety:clean:straight:action_fault_rate",
+          "safety:clean:straight:joint_target_fault_rate",
+          "completion:clean:straight",
+          "safety:clean:arc:slip",
+          "safety:clean:arc:action_acceleration",
+          "safety:clean:arc:base_pitch",
+          "safety:clean:arc:base_contact",
+          "safety:clean:arc:upper_leg_contact",
+          "safety:clean:arc:action_fault_rate",
+          "safety:clean:arc:joint_target_fault_rate",
+          "completion:clean:arc",
+          "safety:clean:s_curve:slip",
+          "safety:clean:s_curve:action_acceleration",
+          "safety:clean:s_curve:base_pitch",
+          "safety:clean:s_curve:base_contact",
+          "safety:clean:s_curve:action_fault_rate",
+          "safety:clean:s_curve:joint_target_fault_rate",
+          "completion:clean:s_curve",
+          "safety:randomized:straight:base_contact",
+          "safety:randomized:straight:calf_contact",
+          "safety:randomized:straight:action_fault_rate",
+          "safety:randomized:straight:joint_target_fault_rate",
+          "completion:randomized:straight",
+          "safety:randomized:arc:calf_contact",
+          "completion:randomized:arc",
+          "safety:randomized:s_curve:upper_leg_contact",
+          "completion:randomized:s_curve",
+          "v7_completion:randomized:s_curve",
+          "mean_forward_gain"
+        ],
+        "ranking_key": [
+          0.1875,
+          0.1875,
+          0.5631439199727352,
+          -0.07337868647885358,
+          -200
+        ]
+      },
+      {
+        "arm": "candidate_237",
+        "checkpoint": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter/model_300.pt",
+          "sha256": "374c1e0ff67e45f91fe127ad46b414535f31b50dc0b1a2c961143ba645acc100"
+        },
+        "update": 300,
+        "evaluation": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/candidate_237_model_300/high_slope_matched.json",
+          "sha256": "92d342bbce66dc5c158f9395ff2f3c2b6559ed7c45b2aa34b60fc0d7317fb57c"
+        },
+        "screening": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_checkpoint_screening/candidate_237_model_300.screening.json",
+          "sha256": "51253295431d51dc676fbf641c974eca8eccb537dbf85a284e863fa0a4c7d83a"
+        },
+        "summary": {
+          "routes": {
+            "clean": {
+              "straight": {
+                "completion": 0.4375,
+                "progress": 0.6653940100222826,
+                "forward_gain": 0.45971611991602185,
+                "slip": 0.04907977335201409,
+                "action_acceleration": 0.11008071622613191,
+                "base_pitch": 0.06980857924738706,
+                "base_contact": 0.0,
+                "upper_leg_contact": 4.911591355599214e-05,
+                "calf_contact": 0.0,
+                "failure_risk": 0.5625,
+                "action_fault_rate": 0.017141453831041258,
+                "joint_target_fault_rate": 0.017288801571709235
+              },
+              "arc": {
+                "completion": 0.125,
+                "progress": 0.5150002306327224,
+                "forward_gain": 0.3356669523458447,
+                "slip": 0.08567473243039504,
+                "action_acceleration": 0.17792127723318635,
+                "base_pitch": 0.12351277962699046,
+                "base_contact": 0.0,
+                "upper_leg_contact": 8.835483300936562e-05,
+                "calf_contact": 0.00039759674854214527,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.05610531896094716,
+                "joint_target_fault_rate": 0.05535430288036756
+              },
+              "s_curve": {
+                "completion": 0.25,
+                "progress": 0.5688541037961841,
+                "forward_gain": 0.3718813363057603,
+                "slip": 0.07723264283735339,
+                "action_acceleration": 0.167434776649169,
+                "base_pitch": 0.11712908983584715,
+                "base_contact": 0.0,
+                "upper_leg_contact": 9.698850686193686e-05,
+                "calf_contact": 0.000339459774016779,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.046554483293729694,
+                "joint_target_fault_rate": 0.04645749478686775
+              }
+            },
+            "randomized": {
+              "straight": {
+                "completion": 0.5,
+                "progress": 0.7433538474142551,
+                "forward_gain": 0.5549414747534445,
+                "slip": 0.0578230795229708,
+                "action_acceleration": 0.28031406701645,
+                "base_pitch": 0.10058763920990087,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0001771479185119575,
+                "calf_contact": 5.9049306170652494e-05,
+                "failure_risk": 0.5,
+                "action_fault_rate": 0.02981989961617951,
+                "joint_target_fault_rate": 0.027989371124889282
+              },
+              "arc": {
+                "completion": 0.125,
+                "progress": 0.5332366917282343,
+                "forward_gain": 0.5357247652273694,
+                "slip": 0.06365297038022365,
+                "action_acceleration": 0.3145135626552579,
+                "base_pitch": 0.11496036230972922,
+                "base_contact": 8.175277959450622e-05,
+                "upper_leg_contact": 8.175277959450622e-05,
+                "calf_contact": 0.00012262916939175932,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.0328646173969915,
+                "joint_target_fault_rate": 0.032292347939829956
+              },
+              "s_curve": {
+                "completion": 0.25,
+                "progress": 0.5208104699850082,
+                "forward_gain": 0.3433397658718196,
+                "slip": 0.0678376035008454,
+                "action_acceleration": 0.3119942284400692,
+                "base_pitch": 0.11504868592462668,
+                "base_contact": 4.689771608122684e-05,
+                "upper_leg_contact": 4.689771608122684e-05,
+                "calf_contact": 0.0,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.03658021854335694,
+                "joint_target_fault_rate": 0.03648642311119449
+              }
+            }
+          },
+          "macro_completion": 0.28125,
+          "mean_forward_gain": 0.43354506907004337,
+          "mean_progress": 0.5911082255964478,
+          "mean_slip": 0.06688346700396706,
+          "minimum_clean_completion": 0.125,
+          "minimum_randomized_completion": 0.125
+        },
+        "hard_gate_pass": false,
+        "violations": [
+          "completion:clean:straight",
+          "safety:clean:arc:slip",
+          "safety:clean:arc:action_acceleration",
+          "safety:clean:arc:base_pitch",
+          "safety:clean:arc:action_fault_rate",
+          "safety:clean:arc:joint_target_fault_rate",
+          "completion:clean:arc",
+          "safety:clean:s_curve:slip",
+          "safety:clean:s_curve:action_acceleration",
+          "safety:clean:s_curve:base_pitch",
+          "safety:clean:s_curve:calf_contact",
+          "safety:clean:s_curve:action_fault_rate",
+          "safety:clean:s_curve:joint_target_fault_rate",
+          "completion:clean:s_curve",
+          "safety:randomized:straight:upper_leg_contact",
+          "completion:randomized:straight",
+          "safety:randomized:arc:base_contact",
+          "safety:randomized:arc:calf_contact",
+          "completion:randomized:arc",
+          "safety:randomized:s_curve:base_contact",
+          "completion:randomized:s_curve",
+          "mean_forward_gain"
+        ],
+        "ranking_key": [
+          0.125,
+          0.125,
+          0.43354506907004337,
+          -0.06688346700396706,
+          -300
+        ]
+      },
+      {
+        "arm": "candidate_237",
+        "checkpoint": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-08-04_11-57-17_go2_v8_privileged_lin_vel_teacher_candidate_237_2048env_400iter/model_400.pt",
+          "sha256": "270083c716a92637a83dbe0efe0069affeaa99cfe96c947888bc333b5663f550"
+        },
+        "update": 400,
+        "evaluation": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_high_slope/candidate_237_model_400/high_slope_matched.json",
+          "sha256": "9ddbb117002e92757f4bcc428302dd999d748297911831530df18afe036dc387"
+        },
+        "screening": {
+          "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_privileged_teacher_checkpoint_screening/candidate_237_model_400.screening.json",
+          "sha256": "b0b892a5708262fbe46ed525b8b5509ac222bcee004382d9aff0b6d64b7983a6"
+        },
+        "summary": {
+          "routes": {
+            "clean": {
+              "straight": {
+                "completion": 0.25,
+                "progress": 0.7175497189164162,
+                "forward_gain": 0.6908204662925874,
+                "slip": 0.04281021668401762,
+                "action_acceleration": 0.06838687576415618,
+                "base_pitch": 0.10529569750685999,
+                "base_contact": 5.214851898206091e-05,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 5.214851898206091e-05,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.010012515644555695,
+                "joint_target_fault_rate": 0.01037755527743012
+              },
+              "arc": {
+                "completion": 0.1875,
+                "progress": 0.6407892797142267,
+                "forward_gain": 0.6752957375650059,
+                "slip": 0.05569499573957934,
+                "action_acceleration": 0.09682803632162211,
+                "base_pitch": 0.08351928270965824,
+                "base_contact": 6.525711302531976e-05,
+                "upper_leg_contact": 0.00013051422605063953,
+                "calf_contact": 0.00013051422605063953,
+                "failure_risk": 0.8125,
+                "action_fault_rate": 0.02486296006264683,
+                "joint_target_fault_rate": 0.02473244583659619
+              },
+              "s_curve": {
+                "completion": 0.375,
+                "progress": 0.6838900744915009,
+                "forward_gain": 0.7095609599741044,
+                "slip": 0.08206682788322736,
+                "action_acceleration": 0.13454910683288512,
+                "base_pitch": 0.12386799956599451,
+                "base_contact": 5.162089613875697e-05,
+                "upper_leg_contact": 5.162089613875697e-05,
+                "calf_contact": 0.00010324179227751394,
+                "failure_risk": 0.625,
+                "action_fault_rate": 0.04356803634111088,
+                "joint_target_fault_rate": 0.04269048110675201
+              }
+            },
+            "randomized": {
+              "straight": {
+                "completion": 0.125,
+                "progress": 0.6907526385039091,
+                "forward_gain": 0.7577141434229135,
+                "slip": 0.054233706393542074,
+                "action_acceleration": 0.27870669432554346,
+                "base_pitch": 0.11405427495960568,
+                "base_contact": 6.805498843065197e-05,
+                "upper_leg_contact": 6.805498843065197e-05,
+                "calf_contact": 0.0002041649652919559,
+                "failure_risk": 0.875,
+                "action_fault_rate": 0.032326119504559686,
+                "joint_target_fault_rate": 0.03157751463182251
+              },
+              "arc": {
+                "completion": 0.25,
+                "progress": 0.62515948433429,
+                "forward_gain": 0.5881164380286441,
+                "slip": 0.0705494435550158,
+                "action_acceleration": 0.2887514376024699,
+                "base_pitch": 0.09130055428138065,
+                "base_contact": 5.8278454455387845e-05,
+                "upper_leg_contact": 0.00011655690891077569,
+                "calf_contact": 0.00029139227227693924,
+                "failure_risk": 0.75,
+                "action_fault_rate": 0.04382539775045166,
+                "joint_target_fault_rate": 0.0421936010257008
+              },
+              "s_curve": {
+                "completion": 0.3125,
+                "progress": 0.6040982231497765,
+                "forward_gain": 0.519048786482949,
+                "slip": 0.08640841580532344,
+                "action_acceleration": 0.3024969576278724,
+                "base_pitch": 0.11524091475345881,
+                "base_contact": 0.0,
+                "upper_leg_contact": 0.0,
+                "calf_contact": 0.0,
+                "failure_risk": 0.6875,
+                "action_fault_rate": 0.05733366935483871,
+                "joint_target_fault_rate": 0.056640625
+              }
+            }
+          },
+          "macro_completion": 0.25,
+          "mean_forward_gain": 0.6567594219610341,
+          "mean_progress": 0.6603732365183532,
+          "mean_slip": 0.06529393434345095,
+          "minimum_clean_completion": 0.1875,
+          "minimum_randomized_completion": 0.125
+        },
+        "hard_gate_pass": false,
+        "violations": [
+          "safety:clean:straight:base_contact",
+          "completion:clean:straight",
+          "safety:clean:arc:base_contact",
+          "safety:clean:arc:action_fault_rate",
+          "completion:clean:arc",
+          "safety:clean:s_curve:slip",
+          "safety:clean:s_curve:action_acceleration",
+          "safety:clean:s_curve:base_pitch",
+          "safety:clean:s_curve:base_contact",
+          "safety:clean:s_curve:action_fault_rate",
+          "safety:clean:s_curve:joint_target_fault_rate",
+          "completion:clean:s_curve",
+          "safety:randomized:straight:base_contact",
+          "safety:randomized:straight:calf_contact",
+          "safety:randomized:straight:failure_risk",
+          "completion:randomized:straight",
+          "v7_completion:randomized:straight",
+          "safety:randomized:arc:calf_contact",
+          "completion:randomized:arc",
+          "safety:randomized:s_curve:slip",
+          "completion:randomized:s_curve",
+          "mean_forward_gain"
+        ],
+        "ranking_key": [
+          0.1875,
+          0.125,
+          0.6567594219610341,
+          -0.06529393434345095,
+          -400
+        ]
+      }
+    ]
+  },
+  "selected_control": null,
+  "selected_candidate": null,
+  "candidate_minus_control_macro_completion": null,
+  "causal_delta_required": 0.1,
+  "causal_delta_pass": false,
+  "selection_status": "NO_CAUSAL_SURVIVOR"
+}
