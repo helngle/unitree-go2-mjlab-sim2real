@@ -15,6 +15,7 @@ from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import TerminationTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.metrics_manager import MetricsTermCfg
+from mjlab.managers.observation_manager import ObservationGroupCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg, RayCastSensorCfg
@@ -29,6 +30,14 @@ from mjlab.terrains import (
 )
 
 import src.tasks.velocity.mdp as mdp
+from src.tasks.velocity.contact_force_teacher_schema import (
+  validate_actor_term_order as validate_contact_force_actor_term_order,
+  validate_critic_term_order as validate_contact_force_critic_term_order,
+)
+from src.tasks.velocity.privileged_teacher_schema import (
+  validate_actor_term_order,
+  validate_critic_term_order,
+)
 from src.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from .high_slope_sampling import (
   HighSlopeHardCaseSampler,
@@ -39,6 +48,8 @@ from .high_slope_sampling import (
 )
 
 TerrainType = Literal["rough", "obstacles"]
+
+STANCE_SLIP_REWARD_WEIGHT = -0.05
 
 
 def unitree_go2_rough_env_cfg(
@@ -503,6 +514,220 @@ def unitree_go2_rough_v7_env_cfg(
     viz=deepcopy(old_twist_cmd.viz),
   )
   cfg.curriculum.pop("command_vel", None)
+  return cfg
+
+
+def unitree_go2_rough_v8_privileged_lin_vel_teacher_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create the V8 teacher with body-frame linear velocity appended to V7."""
+  cfg = unitree_go2_rough_v7_env_cfg(play=play)
+  actor_terms = cfg.observations["actor"].terms
+  critic_terms = cfg.observations["critic"].terms
+  critic_lin_vel = critic_terms["base_lin_vel"]
+  validate_actor_term_order(tuple(actor_terms), candidate=False)
+  validate_critic_term_order(tuple(critic_terms))
+  assert "base_lin_vel" not in actor_terms
+  base_lin_vel = deepcopy(critic_lin_vel)
+  # This is privileged simulator truth, not the noisy deployable IMU estimate.
+  base_lin_vel.noise = None
+  actor_terms["base_lin_vel"] = base_lin_vel
+  validate_actor_term_order(tuple(actor_terms), candidate=True)
+  return cfg
+
+
+def unitree_go2_rough_v8_privileged_lin_vel_teacher_control_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create the matched 234-D V7 control for the transfer probe."""
+  cfg = unitree_go2_rough_v7_env_cfg(play=play)
+  validate_actor_term_order(tuple(cfg.observations["actor"].terms), candidate=False)
+  validate_critic_term_order(tuple(cfg.observations["critic"].terms))
+  return cfg
+
+
+def unitree_go2_rough_contact_force_teacher_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Append only the reference-backed 12-D foot contact-force block to V7."""
+  cfg = unitree_go2_rough_v7_env_cfg(play=play)
+  actor_terms = cfg.observations["actor"].terms
+  critic_terms = cfg.observations["critic"].terms
+  validate_contact_force_actor_term_order(tuple(actor_terms), candidate=False)
+  validate_contact_force_critic_term_order(tuple(critic_terms))
+  assert "foot_contact_forces" not in actor_terms
+  actor_terms["foot_contact_forces"] = deepcopy(
+    critic_terms["foot_contact_forces"]
+  )
+  validate_contact_force_actor_term_order(tuple(actor_terms), candidate=True)
+  return cfg
+
+
+def unitree_go2_rough_contact_force_teacher_control_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create the exact 234-D V7 control for the contact-force probe."""
+  cfg = unitree_go2_rough_v7_env_cfg(play=play)
+  validate_contact_force_actor_term_order(
+    tuple(cfg.observations["actor"].terms), candidate=False
+  )
+  validate_contact_force_critic_term_order(
+    tuple(cfg.observations["critic"].terms)
+  )
+  return cfg
+
+
+PROPRIO_HISTORY_LENGTH = 10
+PROPRIO_DISTILL_MAX_TERRAIN_LEVEL = 6
+PROPRIO_FRICTION_RANGE = (0.3, 1.2)
+PROPRIO_EFFORT_SCALE_RANGE = (0.9, 1.1)
+PROPRIO_KP_SCALE_RANGE = (0.9, 1.1)
+PROPRIO_KD_SCALE_RANGE = (0.8, 1.2)
+PROPRIO_LIMB_MASS_SCALE_RANGE = (0.95, 1.05)
+
+
+def unitree_go2_rough_v7_sim2real_proprio_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create the deployable proprioceptive student/privileged teacher task.
+
+  The student actor intentionally has no terrain raycast input.  A separate
+  teacher group preserves V7's height-scan input for the distillation stage;
+  PPO uses only actor/critic groups and therefore cannot leak that group into
+  the exported policy.
+  """
+  cfg = unitree_go2_rough_v7_env_cfg(play=play)
+
+  # Actor and critic terms share objects in the base config.  Copy the V7 actor
+  # terms before changing history so the privileged critic stays at 261 dims.
+  student_terms = deepcopy(cfg.observations["actor"].terms)
+
+  # The student receives only deployable proprioception and a short temporal
+  # context. Commands and gait phase remain current-frame inputs.
+  student_group = ObservationGroupCfg(
+    terms=student_terms,
+    concatenate_terms=True,
+    enable_corruption=not play,
+    history_length=None,
+    flatten_history_dim=True,
+  )
+  cfg.observations["actor"] = student_group
+  student_group.terms["height_scan"] = None
+  student_group.terms["joint_pos"].params["biased"] = True
+  for term_name in (
+    "base_ang_vel",
+    "projected_gravity",
+    "joint_pos",
+    "joint_vel",
+    "actions",
+  ):
+    student_group.terms[term_name].history_length = PROPRIO_HISTORY_LENGTH
+    student_group.terms[term_name].flatten_history_dim = True
+  for term_name in ("command", "phase"):
+    student_group.terms[term_name].history_length = 0
+
+  if not play:
+    # New-task-only robustness.  The three actuator IDs are actuator groups
+    # (hip/thigh/calf), each containing four joints, so all 12 are covered.
+    cfg.events["foot_friction"].params["ranges"] = PROPRIO_FRICTION_RANGE
+    cfg.events["motor_strength"].params[
+      "effort_limit_range"
+    ] = PROPRIO_EFFORT_SCALE_RANGE
+    cfg.events["pd_gains"] = EventTermCfg(
+      mode="startup",
+      func=dr.pd_gains,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", actuator_ids=[0, 1, 2]),
+        "kp_range": PROPRIO_KP_SCALE_RANGE,
+        "kd_range": PROPRIO_KD_SCALE_RANGE,
+        "operation": "scale",
+      },
+    )
+    cfg.events["limb_pseudo_inertia"] = EventTermCfg(
+      mode="startup",
+      func=dr.pseudo_inertia,
+      params={
+        "asset_cfg": SceneEntityCfg(
+          "robot", body_names=(r".*_(hip|thigh|calf)",)
+        ),
+        "alpha_range": tuple(
+          0.5 * math.log(value) for value in PROPRIO_LIMB_MASS_SCALE_RANGE
+        ),
+      },
+    )
+
+  return cfg
+
+
+def unitree_go2_rough_v7_sim2real_proprio_distill_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create the retained-terrain teacher distillation environment.
+
+  V7 is not a reliable teacher on terrain levels 8-9.  Distillation therefore
+  starts at and remains within levels 0-6; PPO later uses the complete V7
+  curriculum without an imitation loss.
+  """
+  cfg = unitree_go2_rough_v7_sim2real_proprio_env_cfg(play=play)
+  teacher_terms = deepcopy(
+    unitree_go2_rough_v7_env_cfg(play=play).observations["actor"].terms
+  )
+  cfg.observations["teacher"] = ObservationGroupCfg(
+    terms=teacher_terms,
+    concatenate_terms=True,
+    enable_corruption=False,
+    history_length=1,
+    flatten_history_dim=True,
+  )
+  if play:
+    return cfg
+  assert cfg.scene.terrain is not None
+  cfg.scene.terrain.max_init_terrain_level = PROPRIO_DISTILL_MAX_TERRAIN_LEVEL
+  cfg.curriculum.pop("terrain_levels", None)
+  return cfg
+
+
+def unitree_go2_rough_v7_sim2real_proprio_safe_action_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """V2 safe-action alias preserving the frozen V1 proprio environment."""
+  return unitree_go2_rough_v7_sim2real_proprio_env_cfg(play=play)
+
+
+def unitree_go2_rough_v7_sim2real_proprio_safe_action_distill_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """V2 safe-action distillation alias preserving the V1 teacher setup."""
+  return unitree_go2_rough_v7_sim2real_proprio_distill_env_cfg(play=play)
+
+
+def unitree_go2_rough_v7_stance_slip_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create the V7 local-tangent loaded-stance slip shaping probe."""
+  cfg = unitree_go2_rough_v7_env_cfg(play=play)
+  foot_names = ("FR", "FL", "RR", "RL")
+  cfg.rewards["terrain_tangent_stance_slip"] = RewardTermCfg(
+    func=mdp.terrain_relative_loaded_stance_slip,
+    weight=STANCE_SLIP_REWARD_WEIGHT,
+    params={
+      "sensor_name": "feet_ground_contact",
+      "terrain_sensor_name": "terrain_scan",
+      "foot_geom_names": tuple(
+        f"{name}_foot_collision" for name in foot_names
+      ),
+      "command_name": "twist",
+      "command_threshold": 0.1,
+      "normal_force_threshold": 15.0,
+      "max_horizontal_distance": 0.25,
+      "slip_deadband": 0.03,
+      "slip_scale": 0.10,
+      "max_cost_per_foot": 4.0,
+      "asset_cfg": SceneEntityCfg(
+        "robot", site_names=foot_names, preserve_order=True
+      ),
+    },
+  )
   return cfg
 
 

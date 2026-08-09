@@ -57,6 +57,13 @@ from src.tasks.velocity.evaluation.high_slope_matched import (
 from src.tasks.velocity.evaluation.matched_route_metrics import (
   matched_route_length,
 )
+from src.tasks.velocity.evaluation.proprio_acceptance import (
+  actuator_effort_and_power,
+  base_pitch_absolute,
+  formal_evaluation_provenance,
+  normalized_action_safety,
+  processed_joint_target_safety,
+)
 from src.tasks.velocity.evaluation.routes import (
   route_frame_errors,
   straight_line_controller,
@@ -74,12 +81,18 @@ from src.tasks.velocity.evaluation.terrain_curved_routes import (
 from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
   ACTION_ACCELERATION_DEFINITION,
   ACTIVE_SAMPLE_DEFINITION,
+  BASE_PITCH_DEFINITION,
   OnlineTerrainRolloutMetrics,
+  OnlineTerrainTangentSlipMetrics,
+  TERRAIN_TANGENT_STANCE_SLIP_DEFINITION,
   action_acceleration,
   assert_recursive_json_finite,
   contact_any,
   foot_contact_any,
   foot_slip_velocity,
+)
+from src.tasks.velocity.mdp.rewards import (
+  terrain_relative_loaded_stance_slip_cost,
 )
 from src.tasks.velocity.evaluation.transient_metrics import (
   OnlineCommandTransientMetrics,
@@ -323,6 +336,22 @@ def _catastrophic(env: ManagerBasedRlEnv, num_envs: int) -> torch.Tensor:
   return value
 
 
+def _foot_sensor_permutation(
+  sensor: Any, foot_geom_names: tuple[str, ...], device: torch.device | str
+) -> torch.Tensor:
+  sensor_geom_names = [
+    slot.primary_name for slot in sensor._slots if slot.field_name == "found"
+  ]
+  missing = [name for name in foot_geom_names if name not in sensor_geom_names]
+  if missing:
+    raise ValueError(f"foot contact sensor is missing geoms: {missing}")
+  return torch.tensor(
+    [sensor_geom_names.index(name) for name in foot_geom_names],
+    dtype=torch.long,
+    device=device,
+  )
+
+
 def _termination_reason(env: ManagerBasedRlEnv, index: int) -> str:
   names = [
     name for name in env.termination_manager.active_terms
@@ -519,6 +548,7 @@ def _evaluate_route_kind(
     terrain_metrics = OnlineTerrainRolloutMetrics(
       num_envs, cfg.steps, device=device,
       dtype=robot.data.root_link_pos_w.dtype,
+      control_dt_s=float(episode["control_dt"]),
     )
     transients = OnlineCommandTransientMetrics(
       num_envs, device=device, dtype=robot.data.root_link_pos_w.dtype,
@@ -527,11 +557,28 @@ def _evaluate_route_kind(
         num_segments=2 if route_kind == "s_curve" else 1,
       ),
     )
-    foot_ids, _ = robot.find_sites(("FR", "FL", "RR", "RL"))
+    foot_ids, found_foot_names = robot.find_sites(
+      ("FR", "FL", "RR", "RL"), preserve_order=True
+    )
+    if tuple(found_foot_names) != ("FR", "FL", "RR", "RL"):
+      raise RuntimeError(f"foot site order mismatch: {found_foot_names}")
+    tangent_metrics = OnlineTerrainTangentSlipMetrics(
+      num_envs, cfg.steps, len(foot_ids), device=device,
+      dtype=robot.data.root_link_pos_w.dtype,
+    )
     try:
       feet_sensor = env.scene["feet_ground_contact"]
     except KeyError:
       feet_sensor = None
+    terrain_sensor = env.scene["terrain_scan"]
+    foot_geom_names = tuple(
+      f"{name}_foot_collision" for name in ("FR", "FL", "RR", "RL")
+    )
+    if feet_sensor is None:
+      raise RuntimeError("loaded-stance evaluation requires feet_ground_contact")
+    foot_permutation = _foot_sensor_permutation(
+      feet_sensor, foot_geom_names, device
+    )
     observation = wrapped.get_observations()
     executed_steps = 0
     for step_index in range(cfg.steps):
@@ -631,15 +678,45 @@ def _evaluate_route_kind(
         step_index=step_index, command=command, actual=actual,
         segment_index=segment, sample_mask=sample_mask, saturated=saturated,
       )
-      if feet_sensor is None:
-        slip = None
-      else:
-        feet = foot_contact_any(
-          feet_sensor.data.found, num_envs, len(foot_ids)
+      assert feet_sensor.data.found is not None
+      assert feet_sensor.data.force is not None
+      feet = foot_contact_any(
+        feet_sensor.data.found, num_envs, len(foot_ids)
+      ).index_select(1, foot_permutation)
+      slip = foot_slip_velocity(
+        robot.data.site_lin_vel_w[:, foot_ids, :2], feet
+      )
+      contact_force_w = feet_sensor.data.force.reshape(
+        num_envs, len(foot_ids), 3
+      ).index_select(1, foot_permutation)
+      tangent_cost, tangent_slip, loaded, ray_valid, normal_force = (
+        terrain_relative_loaded_stance_slip_cost(
+          robot.data.site_pos_w[:, foot_ids, :],
+          robot.data.site_lin_vel_w[:, foot_ids, :],
+          contact_force_w,
+          feet,
+          terrain_sensor.data.hit_pos_w,
+          terrain_sensor.data.normals_w,
+          terrain_sensor.data.distances,
+          normal_force_threshold=15.0,
+          max_horizontal_distance=0.25,
+          slip_deadband=0.03,
+          slip_scale=0.10,
+          max_cost_per_foot=4.0,
         )
-        slip = foot_slip_velocity(
-          robot.data.site_lin_vel_w[:, foot_ids, :2], feet
-        )
+      )
+      tangent_metrics.update(
+        sample_mask=sample_mask,
+        cost=tangent_cost,
+        slip_velocity=tangent_slip,
+        loaded=loaded,
+        ray_valid=ray_valid,
+        normal_force=normal_force,
+      )
+      actuator_effort, mechanical_power = actuator_effort_and_power(robot)
+      action_abs_max, action_fault = normalized_action_safety(
+        env.action_manager.action
+      )
       terrain_metrics.update(
         sample_mask=sample_mask,
         action_acceleration=action_acceleration(
@@ -654,6 +731,12 @@ def _evaluate_route_kind(
           "calf": _contact(env, "calf_ground_contact", num_envs),
         },
         catastrophic_termination=_catastrophic(env, num_envs),
+        base_pitch=base_pitch_absolute(robot),
+        actuator_effort_abs=actuator_effort,
+        mechanical_power_abs=mechanical_power,
+        normalized_action_abs_max=action_abs_max,
+        action_safety_fault=action_fault,
+        joint_target_safety_fault=processed_joint_target_safety(env),
       )
       for name in termination_counts:
         termination_counts[name] += (
@@ -691,6 +774,7 @@ def _evaluate_route_kind(
         corridor_half_width=cfg.corridor_half_width,
       )
       terrain_result = terrain_metrics.result(index)
+      tangent_result = tangent_metrics.result(index)
       errors = route_errors.result(index)
       if terrain_result["active_control_step_samples"] != int(sample_count[index]):
         raise RuntimeError("terrain metric sample mask diverged")
@@ -718,6 +802,10 @@ def _evaluate_route_kind(
       body_contacts = terrain_result["body_contacts"]
       action_distribution = terrain_result["action_acceleration"]
       slip_distribution = terrain_result["foot_slip_velocity"]
+      pitch_distribution = terrain_result["base_pitch_absolute"]
+      effort_distribution = terrain_result["actuator_effort_abs"]
+      power_distribution = terrain_result["mechanical_power_abs"]
+      tangent_slip_distribution = tangent_result["slip_velocity"]
       scenario_termination_counts = {
         name: int(value[index]) for name, value in termination_counts.items()
       }
@@ -789,6 +877,19 @@ def _evaluate_route_kind(
         "slip_velocity_p95": slip_distribution["p95"],
         "slip_velocity_max": slip_distribution["max"],
         "slip_velocity_reason": slip_distribution.get("reason", "available"),
+        "base_pitch_absolute_mean": pitch_distribution["mean"],
+        "base_pitch_absolute_p95": pitch_distribution["p95"],
+        "base_pitch_absolute_max": pitch_distribution["max"],
+        "actuator_effort_abs_mean": effort_distribution["mean"],
+        "actuator_effort_abs_p95": effort_distribution["p95"],
+        "actuator_effort_abs_max": effort_distribution["max"],
+        "mechanical_power_abs_mean": power_distribution["mean"],
+        "mechanical_power_abs_p95": power_distribution["p95"],
+        "mechanical_power_abs_max": power_distribution["max"],
+        "terrain_tangent_stance_slip_mean": tangent_slip_distribution["mean"],
+        "terrain_tangent_stance_slip_p95": tangent_slip_distribution["p95"],
+        "terrain_tangent_stance_slip_max": tangent_slip_distribution["max"],
+        "terrain_tangent_loaded_stance": tangent_result,
         "base_contact_count": body_contacts["base"]["non_terminating_count"],
         "base_contact_rate": body_contacts["base"]["non_terminating_rate"],
         "base_contact_reason": body_contacts["base"].get("reason", "available"),
@@ -909,6 +1010,10 @@ def evaluate(cfg: HighSlopeMatchedConfig) -> dict[str, Any]:
     "metric_invariants": {
       "sample_denominator": ACTIVE_SAMPLE_DEFINITION,
       "action_acceleration_definition": ACTION_ACCELERATION_DEFINITION,
+      "base_pitch_definition": BASE_PITCH_DEFINITION,
+      "terrain_tangent_stance_slip_definition": (
+        TERRAIN_TANGENT_STANCE_SLIP_DEFINITION
+      ),
       "attempt_freeze": (
         "terminal step included; all samples from reset episodes and after "
         "fixed completion settle are excluded"
@@ -936,6 +1041,15 @@ def main() -> None:
   configure_torch_backends()
   cfg = tyro.cli(HighSlopeMatchedConfig)
   result = evaluate(cfg)
+  result["provenance"] = formal_evaluation_provenance(
+    cfg.checkpoint, __file__,
+    (
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/proprio_acceptance.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/terrain_rollout_metrics.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/high_slope_matched.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/mdp/rewards.py",
+    ),
+  )
   output = Path(cfg.output_file)
   output.parent.mkdir(parents=True, exist_ok=True)
   output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")

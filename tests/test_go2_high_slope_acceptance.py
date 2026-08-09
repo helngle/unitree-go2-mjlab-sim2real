@@ -109,6 +109,11 @@ def _assert_formal_result(payload: Mapping[str, Any]) -> None:
           "controller_saturation_fraction", "cross_track_p95", "cross_track_max",
           "heading_p95", "heading_max", "action_acceleration_p95",
           "action_acceleration_max", "slip_velocity_p95", "slip_velocity_max",
+          "base_pitch_absolute_p95", "base_pitch_absolute_max",
+          "terrain_tangent_stance_slip_mean",
+          "terrain_tangent_stance_slip_p95",
+          "terrain_tangent_stance_slip_max",
+          "terrain_tangent_loaded_stance",
           "contact_termination_summary", "termination_counts", "reset_count",
           "first_failure_reason",
         }
@@ -120,7 +125,7 @@ def _assert_formal_result(payload: Mapping[str, Any]) -> None:
         if not (geometry["centerline_inside_patch"] and geometry["corridor_inside_patch"] and geometry["scan_footprint_inside_patch"]):
           raise AssertionError("an invalid route was emitted as a runnable scenario")
         _assert_inside(geometry["corridor_bounds_local"], geometry["patch_size"] if "patch_size" in geometry else ((0.0, 18.0), (0.0, 18.0)))
-        for metric in ("cross_track_p95", "cross_track_max", "heading_p95", "heading_max", "action_acceleration_p95", "action_acceleration_max", "slip_velocity_p95", "slip_velocity_max"):
+        for metric in ("cross_track_p95", "cross_track_max", "heading_p95", "heading_max", "action_acceleration_p95", "action_acceleration_max", "slip_velocity_p95", "slip_velocity_max", "base_pitch_absolute_p95", "base_pitch_absolute_max", "terrain_tangent_stance_slip_mean", "terrain_tangent_stance_slip_p95", "terrain_tangent_stance_slip_max"):
           value = scenario[metric]
           if value is not None and not math.isfinite(float(value)):
             raise AssertionError(f"non-finite metric {metric}")

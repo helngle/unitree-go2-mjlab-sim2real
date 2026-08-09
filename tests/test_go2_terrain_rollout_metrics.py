@@ -9,6 +9,7 @@ import torch
 
 from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
   OnlineTerrainRolloutMetrics,
+  OnlineTerrainTangentSlipMetrics,
   action_acceleration,
   assert_recursive_json_finite,
   contact_any,
@@ -130,6 +131,69 @@ class TerrainRolloutAccumulatorTest(unittest.TestCase):
     for value in (float("nan"), float("inf"), -float("inf")):
       with self.assertRaises(ValueError):
         assert_recursive_json_finite({"nested": [value]})
+
+  def test_action_safety_uses_only_active_attempt_samples(self) -> None:
+    rollout = OnlineTerrainRolloutMetrics(1, 2)
+    for active, maximum, fault in (
+      (True, 1.5, False), (False, 9.0, True)
+    ):
+      rollout.update(
+        sample_mask=torch.tensor([active]),
+        action_acceleration=torch.tensor([0.0]),
+        foot_slip_velocity=None,
+        body_contacts={},
+        catastrophic_termination=torch.tensor([False]),
+        normalized_action_abs_max=torch.tensor([maximum]),
+        action_safety_fault=torch.tensor([fault]),
+        joint_target_safety_fault=torch.tensor([fault]),
+      )
+    safety = rollout.result(0)["action_safety"]
+    self.assertTrue(safety["available"])
+    self.assertEqual(safety["normalized_action_abs_max"], 1.5)
+    self.assertFalse(safety["fault_occurred"])
+    self.assertTrue(safety["joint_target_available"])
+    self.assertEqual(safety["joint_target_fault_control_step_count"], 0)
+    self.assertFalse(safety["joint_target_fault_occurred"])
+
+  def test_pitch_and_loaded_tangent_slip_use_active_denominators(self) -> None:
+    rollout = OnlineTerrainRolloutMetrics(1, 2)
+    rollout.update(
+      sample_mask=torch.tensor([True]),
+      action_acceleration=torch.tensor([0.1]),
+      foot_slip_velocity=torch.tensor([0.2]),
+      body_contacts={},
+      catastrophic_termination=torch.tensor([False]),
+      base_pitch=torch.tensor([-0.3]),
+    )
+    self.assertAlmostEqual(
+      rollout.result(0)["base_pitch_absolute"]["mean"], 0.3, places=6
+    )
+
+    tangent = OnlineTerrainTangentSlipMetrics(1, 2, 2)
+    tangent.update(
+      sample_mask=torch.tensor([True]),
+      cost=torch.tensor([0.5]),
+      slip_velocity=torch.tensor([[0.1, 9.0]]),
+      loaded=torch.tensor([[True, False]]),
+      ray_valid=torch.tensor([[True, True]]),
+      normal_force=torch.tensor([[20.0, 0.0]]),
+    )
+    tangent.update(
+      sample_mask=torch.tensor([False]),
+      cost=torch.tensor([99.0]),
+      slip_velocity=torch.tensor([[99.0, 99.0]]),
+      loaded=torch.tensor([[True, True]]),
+      ray_valid=torch.tensor([[True, True]]),
+      normal_force=torch.tensor([[99.0, 99.0]]),
+    )
+    result = tangent.result(0)
+    self.assertEqual(result["loaded_stance_foot_samples"], 1)
+    self.assertEqual(result["loaded_stance_fraction"], 0.5)
+    self.assertEqual(result["ray_valid_fraction"], 1.0)
+    self.assertAlmostEqual(result["slip_velocity"]["mean"], 0.1, places=6)
+    self.assertAlmostEqual(
+      result["load_normalized_slip_cost"]["mean"], 0.5, places=6
+    )
 
 
 if __name__ == "__main__":

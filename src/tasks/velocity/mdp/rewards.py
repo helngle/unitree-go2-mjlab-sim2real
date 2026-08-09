@@ -425,6 +425,182 @@ def feet_slip(
   return cost
 
 
+def terrain_relative_loaded_stance_slip_cost(
+  foot_pos_w: torch.Tensor,
+  foot_vel_w: torch.Tensor,
+  contact_force_w: torch.Tensor,
+  in_contact: torch.Tensor,
+  hit_pos_w: torch.Tensor,
+  hit_normals_w: torch.Tensor,
+  hit_distances: torch.Tensor,
+  *,
+  normal_force_threshold: float = 15.0,
+  max_horizontal_distance: float = 0.25,
+  slip_deadband: float = 0.03,
+  slip_scale: float = 0.10,
+  max_cost_per_foot: float = 4.0,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+  """Compute load-normalized local-tangent slip cost.
+
+  The contact sensor used by the Go2 task reports the net force on the terrain
+  for foot-primary/terrain-secondary matches.  Consequently, the supporting
+  normal load is ``-dot(contact_force_w, terrain_normal_w)``.
+  """
+  if normal_force_threshold < 0.0:
+    raise ValueError("normal_force_threshold must be non-negative")
+  if max_horizontal_distance <= 0.0:
+    raise ValueError("max_horizontal_distance must be positive")
+  if slip_deadband < 0.0:
+    raise ValueError("slip_deadband must be non-negative")
+  if slip_scale <= 0.0:
+    raise ValueError("slip_scale must be positive")
+  if max_cost_per_foot <= 0.0:
+    raise ValueError("max_cost_per_foot must be positive")
+
+  valid_hits = hit_distances >= 0.0
+  horizontal_delta = foot_pos_w[:, :, None, :2] - hit_pos_w[:, None, :, :2]
+  horizontal_distance_sq = torch.sum(torch.square(horizontal_delta), dim=-1)
+  horizontal_distance_sq = horizontal_distance_sq.masked_fill(
+    ~valid_hits[:, None, :], torch.inf
+  )
+  nearest_distance_sq, nearest_ids = horizontal_distance_sq.min(dim=-1)
+  gather_ids = nearest_ids[..., None].expand(-1, -1, 3)
+  nearest_normals = torch.gather(hit_normals_w, dim=1, index=gather_ids)
+
+  normal_norm = torch.linalg.vector_norm(nearest_normals, dim=-1, keepdim=True)
+  valid_terrain = (
+    (nearest_distance_sq <= max_horizontal_distance**2)
+    & (normal_norm.squeeze(-1) > 1.0e-8)
+  )
+  terrain_normal = nearest_normals / normal_norm.clamp_min(1.0e-8)
+  terrain_normal = torch.where(
+    terrain_normal[..., 2:3] < 0.0, -terrain_normal, terrain_normal
+  )
+
+  tangent_velocity = foot_vel_w - (
+    foot_vel_w * terrain_normal
+  ).sum(dim=-1, keepdim=True) * terrain_normal
+  slip_velocity = torch.linalg.vector_norm(tangent_velocity, dim=-1)
+  normal_force = (-(contact_force_w * terrain_normal).sum(dim=-1)).clamp_min(0.0)
+  loaded = (
+    in_contact.bool()
+    & valid_terrain
+    & (normal_force >= normal_force_threshold)
+  )
+
+  slip_excess = (slip_velocity - slip_deadband).clamp_min(0.0)
+  per_foot_cost = torch.clamp(
+    torch.square(slip_excess / slip_scale), max=max_cost_per_foot
+  )
+  load_weight = torch.where(loaded, normal_force, torch.zeros_like(normal_force))
+  total_load = load_weight.sum(dim=-1)
+  cost = (per_foot_cost * load_weight).sum(dim=-1) / total_load.clamp_min(1.0e-8)
+  cost = torch.where(total_load > 0.0, cost, torch.zeros_like(cost))
+  return cost, slip_velocity, loaded, valid_terrain, normal_force
+
+
+class terrain_relative_loaded_stance_slip:
+  """Penalize terrain-tangent slip only for load-bearing stance feet."""
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    asset_cfg = cfg.params["asset_cfg"]
+    foot_geom_names = tuple(cfg.params["foot_geom_names"])
+    site_names = tuple(asset_cfg.site_names)
+    if len(site_names) != len(foot_geom_names):
+      raise ValueError("site_names and foot_geom_names must have the same length")
+
+    asset: Entity = env.scene[asset_cfg.name]
+    _, found_site_names = asset.find_sites(site_names, preserve_order=True)
+    if tuple(found_site_names) != site_names:
+      raise ValueError(f"foot site order mismatch: {found_site_names}")
+
+    contact_sensor: ContactSensor = env.scene[cfg.params["sensor_name"]]
+    sensor_geom_names = [
+      slot.primary_name
+      for slot in contact_sensor._slots
+      if slot.field_name == "found"
+    ]
+    missing = [name for name in foot_geom_names if name not in sensor_geom_names]
+    if missing:
+      raise ValueError(f"foot contact sensor is missing geoms: {missing}")
+    self._sensor_permutation = torch.tensor(
+      [sensor_geom_names.index(name) for name in foot_geom_names],
+      device=env.device,
+      dtype=torch.long,
+    )
+    self._num_feet = len(site_names)
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    sensor_name: str,
+    terrain_sensor_name: str,
+    foot_geom_names: tuple[str, ...],
+    command_name: str,
+    command_threshold: float,
+    normal_force_threshold: float,
+    max_horizontal_distance: float,
+    slip_deadband: float,
+    slip_scale: float,
+    max_cost_per_foot: float,
+    asset_cfg: SceneEntityCfg,
+  ) -> torch.Tensor:
+    del foot_geom_names  # Used to establish the contact/site permutation at init.
+    asset: Entity = env.scene[asset_cfg.name]
+    contact_sensor: ContactSensor = env.scene[sensor_name]
+    terrain_sensor: RayCastSensor = env.scene[terrain_sensor_name]
+
+    assert contact_sensor.data.found is not None
+    assert contact_sensor.data.force is not None
+    in_contact = contact_sensor.data.found.reshape(
+      env.num_envs, self._num_feet, -1
+    ).any(dim=-1).index_select(1, self._sensor_permutation)
+    contact_force_w = contact_sensor.data.force.reshape(
+      env.num_envs, self._num_feet, 3
+    ).index_select(1, self._sensor_permutation)
+
+    cost, slip_velocity, loaded, valid_terrain, normal_force = (
+      terrain_relative_loaded_stance_slip_cost(
+        asset.data.site_pos_w[:, asset_cfg.site_ids, :],
+        asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :],
+        contact_force_w,
+        in_contact,
+        terrain_sensor.data.hit_pos_w,
+        terrain_sensor.data.normals_w,
+        terrain_sensor.data.distances,
+        normal_force_threshold=normal_force_threshold,
+        max_horizontal_distance=max_horizontal_distance,
+        slip_deadband=slip_deadband,
+        slip_scale=slip_scale,
+        max_cost_per_foot=max_cost_per_foot,
+      )
+    )
+
+    command = env.command_manager.get_command(command_name)
+    assert command is not None
+    command_magnitude = torch.norm(command[:, :2], dim=-1) + torch.abs(command[:, 2])
+    active = command_magnitude > command_threshold
+    active_loaded = loaded & active[:, None]
+    active_loaded_count = active_loaded.float().sum()
+    active_cost = cost * active.float()
+    env.extras["log"]["Metrics/terrain_tangent_stance_slip_mean"] = (
+      (slip_velocity * active_loaded.float()).sum()
+      / active_loaded_count.clamp_min(1.0)
+    )
+    env.extras["log"]["Metrics/terrain_tangent_loaded_fraction"] = (
+      active_loaded.float().mean()
+    )
+    env.extras["log"]["Metrics/terrain_tangent_ray_valid_fraction"] = (
+      valid_terrain.float().mean()
+    )
+    env.extras["log"]["Metrics/terrain_tangent_normal_force_mean"] = (
+      (normal_force * active_loaded.float()).sum()
+      / active_loaded_count.clamp_min(1.0)
+    )
+    env.extras["log"]["Metrics/terrain_tangent_slip_cost_mean"] = active_cost.mean()
+    return active_cost
+
+
 def soft_landing(
   env: ManagerBasedRlEnv,
   sensor_name: str,
