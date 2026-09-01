@@ -53,7 +53,7 @@ conda activate unitree_rl_mjlab
 Clone the repository using Git:
 
 ```bash
-git clone https://github.com/unitreerobotics/unitree_rl_mjlab.git
+git clone https://github.com/helngle/unitree-go2-mjlab-sim2real.git
 ```
 
 ### 2.2 Install Dependencies
@@ -66,11 +66,10 @@ All other dependencies are specified in the setup.py file.
 Navigate to the project root directory and install them with:
 
 ```bash
-cd unitree_rl_mjlab
+cd unitree-go2-mjlab-sim2real
 pip install -e .
 ```
 
 ## Summary
 
 After completing the above steps, you are ready to run the related programs in the virtual environment. If you encounter any issues, refer to the official documentation of each component or check if the dependencies are installed correctly.
-

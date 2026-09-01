@@ -1,234 +1,161 @@
-# Unitree RL Mjlab
+# Unitree Go2 MJLab Sim-to-Real
 
+[English](README.md)
 
-## ✳️ 概述
+面向 Unitree Go2 运动控制研究的强化学习工程：覆盖 GPU 加速 MuJoCo 训练、可审计评估，
+以及基于 ONNX 的仿真到实机部署。
 
-Unitree RL Mjlab 是一个基于 [mjlab](https://github.com/mujocolab/mjlab.git) 构建的强化学习项目，
-使用 MuJoCo 作为物理仿真后端，当前支持 Unitree Go2, A2, As2, G1, R1, H1_2 和 H2 机器人。
+本仓库源自
+[unitreerobotics/unitree_rl_mjlab](https://github.com/unitreerobotics/unitree_rl_mjlab)，
+目前重点是 Go2 复杂地形运动、连续路线评估、本体感知策略和 sim-to-real 安全。仓库仍保留
+上游的多机器人资产，但这里新增并记录的研究流程以 Go2 为主。
 
-Mjlab 结合了 [Isaac Lab](https://github.com/isaac-sim/IsaacLab) 的成熟高层 API 与 
-[MuJoCo](https://github.com/google-deepmind/mujoco_warp) 的高精度物理引擎，
-为强化学习机器人研究与 Sim-to-Real（仿真到实机） 部署提供了一个轻量化、模块化的框架。
+> [!WARNING]
+> 这是研究代码，不是可直接上实机的成品控制器。仿真中可运行的策略不等于实机安全。
+> 任何实机试验前，都必须核对观测 schema、动作映射、ONNX 一致性、运行时限幅、吊装流程
+> 和急停方案。
 
-<div align="center">
+## 仓库包含什么
 
-| <div align="center">  MuJoCo </div>                                                                                                                                           | <div align="center"> Physical </div>                                                                                                                                               |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| <div style="width:250px; height:150px; overflow:hidden;"><img src="doc/gif/g1-velocity.gif" style="width:100%; height:100%; object-fit:cover; object-position:center;"></div> | <div style="width:250px; height:150px; overflow:hidden;"><img src="doc/gif/g1-velocity-real.gif" style="width:100%; height:100%; object-fit:cover; object-position:center;"></div> |
+- 基于 MJLab 和 MuJoCo Warp 的 Go2 平地与粗糙地形 PPO 环境。
+- 坡地、楼梯、圆弧、S 弯和连续地形过渡等复杂路线覆盖。
+- 使用 matched seed 的跟踪、接触、打滑、执行器余量和失败归因工具。
+- privileged teacher 与 contact-force teacher 研究流程。
+- 面向 sim-to-real 的纯本体感知 student task、观测 schema、有界动作路径、preflight、
+  checkpoint 筛选和验收工具。
+- 使用 ONNX Runtime、包含关节命令安全检查的 Go2 C++ 部署运行时。
+- `docs/` 中版本化的设计决策、项目日志、验收合同和精简结果汇总。
 
-</div>
+模型 checkpoint、原始 rollout 张量、筛选过程中生成的 ONNX 和训练日志不会提交到 Git。
+运行回放、评估或部署前，需要在本机复现或提供对应产物。
 
+## 目录结构
 
-## 📦 安装配置
+| 路径 | 用途 |
+| --- | --- |
+| `src/tasks/velocity/config/go2/` | Go2 task、地形、观测、奖励与 runner 配置 |
+| `src/tasks/velocity/evaluation/` | 路线、地形、接触与验收指标 |
+| `scripts/` | 训练、回放、评估、诊断、筛选与选择入口 |
+| `deploy/robots/go2/` | Go2 C++ 控制器和部署配置 |
+| `simulate/` | 集成的 Unitree MuJoCo 部署模拟器 |
+| `tests/` | Python 合同测试和 C++ 部署 smoke 源码 |
+| `docs/` | 项目计划、日志、评审和可审计实验结论 |
 
-安装和配置步骤请参考 [setup.md](doc/setup_zh.md)
+## 安装
 
-
-## 🔁 流程概览
-
-使用强化学习实现机器人运动控制的基本流程如下：
-
-`训练` → `仿真验证` → `仿真到实机`
-
-- **训练**: 在 MuJoCo 模拟环境中让机器人与环境交互，并通过奖励函数最大化学习策略。
-- **仿真验证**: 加载训练好的策略进行回放，验证策略行为是否符合预期。
-- **仿真到实机**: 将策略部署到物理机器人上，实现真实环境中的运动控制。
-
-
-## 🛠️ 使用指南
-
-### 1. 速度跟踪训练
-
-运行以下命令进行速度跟踪训练：
+推荐使用 Ubuntu 22.04、Python 3.11、NVIDIA GPU 和较新的 NVIDIA 驱动。系统依赖与
+环境配置见[完整安装指南](doc/setup_zh.md)。
 
 ```bash
-python scripts/train.py Unitree-G1-Flat --env.scene.num-envs=4096
+git clone https://github.com/helngle/unitree-go2-mjlab-sim2real.git
+cd unitree-go2-mjlab-sim2real
+pip install -e .
 ```
 
-多 GPU 训练：使用 --gpu-ids 扩展到多块 GPU：
+安装后列出已注册的 Go2 任务：
 
 ```bash
-python scripts/train.py Unitree-G1-Flat \
-  --gpu-ids 0 1 \
+python scripts/list_envs.py --keyword Go2
+```
+
+## 基本流程
+
+### 训练基线
+
+检查新环境时，先用已注册的基线任务和较少的并行环境：
+
+```bash
+python scripts/train.py Unitree-Go2-Flat --env.scene.num-envs=256
+```
+
+正常单 GPU 训练时，可根据显存增加环境数量：
+
+```bash
+python scripts/train.py Unitree-Go2-Rough \
+  --gpu-ids 0 \
   --env.scene.num-envs=4096
 ```
 
-- 第一个参数(如 Mjlab-Velocity-Flat-Unitree-G1)为必选参数，确定要启用的训练环境。可选：
-  - Unitree-Go2-Flat
-  - Unitree-G1-Flat
-  - Unitree-G1-23Dof-Flat
-  - Unitree-H1_2-Flat
-  - Unitree-A2-Flat
-  - Unitree-R1-Flat
+训练输出位于 `logs/rsl_rl/go2_velocity/`；`logs/` 按设计只保留在本机。
 
-> [!NOTE]
-> 更多有关详细说明，请参阅 mjlab 文档
-> [mjlab documentation](https://mujocolab.github.io/mjlab/index.html).
-
-### 2. 动作模仿训练
-
-训练 Unitree G1 模仿参考动作序列。
-
-<div style="margin-left: 20px;">
-
-#### 2.1 准备动作文件
-
-将准备好的 csv 格式的动作文件保存在 mjlab/motions/g1/ 目录下，执行下面的指令将其转为训练可用的 npz 文件：
+### 回放 checkpoint
 
 ```bash
-python scripts/csv_to_npz.py \
---input-file src/assets/motions/g1/dance1_subject2.csv \
---output-name dance1_subject2.npz \
---input-fps 30 \
---output-fps 50 \
---robot g1 # g1 or g1_23dof
+python scripts/play.py Unitree-Go2-Rough \
+  --checkpoint-file logs/rsl_rl/go2_velocity/<run>/model_<iteration>.pt
 ```
 
-**npz文件默认保存路径为**：`src/motions/g1/...`
-
-#### 2.2 训练
-
-确保有可用的npz文件之后，执行以下指令进行训练：
+使用固定前进命令检查确定性路线：
 
 ```bash
-python scripts/train.py Unitree-G1-Tracking-No-State-Estimation --motion_file=src/assets/motions/g1/dance1_subject2.npz --env.scene.num-envs=4096
+python scripts/play.py Unitree-Go2-Rough-V7 \
+  --checkpoint-file /path/to/model.pt \
+  --terrain-demo stairs_up_down \
+  --fixed-vx 0.5
 ```
 
-可用任务:
-  - Unitree-G1-Tracking-No-State-Estimation
-  - Unitree-G1-23Dof-Tracking-No-State-Estimation
+### Go2 高级研究流程
 
-</div>
+高级 task 是受合同约束的研究变体，不是可以随意互换的 preset。训练或评估前请阅读对应
+合同与已有结论：
 
-> [!NOTE]
-> 有关动作模仿训练的详细说明，请参阅BeyondMimic 文档
-> [BeyondMimic documentation](https://github.com/HybridRobotics/whole_body_tracking/blob/main/README.md#motion-preprocessing--registry-setup).
+- [复杂运动项目计划](docs/V10_GO2_COMPLEX_LOCOMOTION_PROJECT_PLAN.md)
+- [当前 Go2 项目日志](docs/V10_GO2_PROJECT_JOURNAL.md)
+- [本体感知 student 就绪评审](docs/reviews/go2_proprioceptive_student_readiness.md)
+- [Safe-action V2 设计](docs/reviews/go2_safe_action_v2_design.md)
+- [部署安全审计](docs/reviews/go2_proprioceptive_deployment_safety_audit_20260727.md)
+- [完整项目历史](docs/PROJECT_JOURNAL.md)
 
-#### ⚙️  参数说明
-- `--env.scene`: 仿真场景配置，包括环境数量（num_envs）、物理仿真步长、地面类型、重力、随机扰动等参数。
-- `--env.observations`: 观测空间配置，控制训练时输入到策略网络的状态信息，如关节位置、速度、IMU等内容。
-- `--env.rewards`: 奖励函数配置，定义每步训练时的优化目标。
-- `--env.commands`: 控制命令配置，用于生成训练时随机或指定的速度 / 姿态 / 动作指令。
-- `--env.terminations`: 终止条件配置，定义训练 episode 的结束条件。
-- `--agent.seed`: 训练随机种子，用于结果复现，不同 seed 会导致策略略有差异。
-- `--agent.resume`: 是否从上次中断的 checkpoint 继续训练。 设置为 True 时，会自动加载最近一次保存的 .pt 模型文件。
-- `--agent.policy`: 策略网络结构配置，例如 MLP 层数、隐藏维度、激活函数等。
-- `--agent.algorithm`: 强化学习算法配置。可设置优化超参数，如学习率、批量大小、GAE λ 等。
+某个 task 或脚本存在，不代表相应候选策略已经通过验收。是否接受、拒绝或仍待评估，以对应
+review artifact 为准。
 
-**默认保存训练结果**：`logs/rsl_rl/<robot>_(velocity | tracking)/<date_time>/model_<iteration>.pt`
+## Go2 部署
 
-### 3. 仿真验证
+部署运行时依赖 Cyclone DDS、Unitree SDK2、Eigen、yaml-cpp、Boost、fmt，以及仓库内按
+架构提供的 ONNX Runtime 动态库。
 
-如果想要在 MuJoCo 中查看训练效果，可以运行以下命令：
+1. 将兼容策略导出为 ONNX。
+2. 保证模型与对应的 `deploy.yaml`、`observation_schema.json` 一致。
+3. 将模型放到
+   `deploy/robots/go2/config/policy/velocity/<version>/exported/policy.onnx`。
+4. 在 `deploy/robots/go2/config/config.yaml` 中确认要加载的策略目录。
+5. 编译控制器：
 
-查看速度跟踪训练效果：
 ```bash
-python scripts/play.py Unitree-G1-Flat --checkpoint_file=logs/rsl_rl/g1_velocity/2026-xx-xx_xx-xx-xx/model_xx.pt
+cmake -S deploy/robots/go2 -B deploy/robots/go2/build
+cmake --build deploy/robots/go2/build -j
 ```
 
-查看动作模仿训练效果：
-```bash
-python scripts/play.py Unitree-G1-Tracking-No-State-Estimation --motion_file=src/assets/motions/g1/dance1_subject2.npz --checkpoint_file=logs/rsl_rl/g1_tracking/2026-xx-xx_xx-xx-xx/model_xx.pt
-```
-
-**说明**：
-
-- 训练时在每次保存模型时会同步导出 policy.onnx 文件在同层目录下，可用于实物部署。
-
-**效果**：
-
-| Go2                              | G1                             | H1_2                               | G1_mimic                          |
-|----------------------------------|--------------------------------|------------------------------------|-----------------------------------|
-| ![go2](doc/gif/go2-velocity.gif) | ![g1](doc/gif/g1-velocity.gif) | ![h1_2](doc/gif/h1_2-velocity.gif) | ![g1_mimic](doc/gif/g1-mimic.gif) |
-
-### 4. 实物部署
-
-实物部署前先确保主机安装了下列通信工具：
-- [cyclonedds](https://github.com/eclipse-cyclonedds/cyclonedds.git)
-- [unitree_sdk2](https://github.com/unitreerobotics/unitree_sdk2.git)
-
-<div style="margin-left: 20px;">
-
-#### 4.1 启动机器人
-将机器人在吊装状态下启动，并等待机器人进入 `零力矩模式`
-
-#### 4.2 进入调试模式
-确保机器人处于 `零力矩模式` 的情况下，按下遥控器的 `L2+R2`组合键；此时机器人会进入`调试模式`, `调试模式`下机器人关节处于阻尼状态。
-
-#### 4.3 连接机器人
-使用网线连接电脑与机器人网口，并修改网络配置如下：
-- 地址：`192.168.123.222`
-- 子网掩码：`255.255.255.0`
-
-然后使用 `ifconfig` 命令查看与机器人连接的网卡名称，记录后用于启动参数。
-
-#### 4.4 编译
-以 Unitree G1 速度控制为例（其他机器人同理）。
-将策略文件（`policy.onnx`）放入`deploy/robots/g1/config/policy/velocity/vo/exported` 下，然后执行：
+考虑实机前，先使用集成模拟器验证：
 
 ```bash
-cd deploy/robots/g1
-mkdir build && cd build
-cmake .. && make
-```
-
-#### 4.5 部署
-
-## 4.5.1 仿真部署
-
-在实物部署前，建议使用[unitree_mujoco](https://github.com/unitreerobotics/unitree_mujoco)进行仿真部署，防止实物机器人出现异常动作。本框架已将其集成。
-
-编译unitree_mujoco：
-
-```bash
-cd simulate
-mkdir build && cd build
-cmake .. && make -j8
-```
-
-启动仿真器(注意此处需连接上手柄才能启动)：
-
-```bash
+cmake -S simulate -B simulate/build
+cmake --build simulate/build -j
 ./simulate/build/unitree_mujoco
+./deploy/robots/go2/build/go2_ctrl --network=lo
 ```
 
-可在 `simulate/config` 中选择对应机器人
+仓库中的 `simulate/config.yaml` 默认选择 Go2 场景。
 
-启动仿真控制程序：
+实机运行必须先完成独立安全审查并确认正确网卡，因此这里不提供可直接复制执行的实机
+quick-start 命令。
 
-```bash
-cd deploy/robots/g1/build
-./g1_ctrl --network=lo
-```
+## 可复现性与仓库规则
 
-## 4.5.2 实物部署
+- 源码、schema、合同、决策和精简汇总进入 Git。
+- `logs/`、checkpoint、原始 rollout 张量和临时筛选模型保留在 Git 之外。
+- 评估产物记录 checkpoint hash 和 task ID。
+- 新观测、奖励、网络、课程、训练机制和验收机制均属于受控研究变更；必须遵守
+  [AGENTS.md](AGENTS.md) 中的文献依据与显式批准规则。
 
-启动实物控制程序：
+## 上游与许可证
 
-```bash
-cd deploy/robots/g1/build
-./g1_ctrl --network=enp5s0
-```
+本项目建立在
+[MJLab](https://github.com/mujocolab/mjlab)、
+[Isaac Lab](https://github.com/isaac-sim/IsaacLab)、
+[RSL-RL](https://github.com/leggedrobotics/rsl_rl)、
+[MuJoCo](https://github.com/google-deepmind/mujoco)、
+[MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) 和
+[Unitree SDK2](https://github.com/unitreerobotics/unitree_sdk2) 之上。
 
-**参数说明**：
-- `network`: 连接机器人网卡名称，仿真部署使用 `lo`，实物机器人如 `enp5s0`(可使用 `ifconfig` 指令查看)
-
-</div>
-
-**实物效果**：
-
-| Go2                                                    | G1                                                    | H1_2                                                    | G1_mimic                                           |
-|--------------------------------------------------------|-------------------------------------------------------|---------------------------------------------------------|----------------------------------------------------|
-| <img src="doc/gif/go2-velocity-real.gif" width="300"/> | <img src="doc/gif/g1-velocity-real.gif" width="300"/> | <img src="doc/gif/h1_2-velocity-real.gif" width="300"/> | <img src="doc/gif/g1-mimic-real.gif" width="300"/> |
-
-
-## 🎉  致谢
-
-本仓库开发离不开以下开源项目的支持与贡献，特此感谢：
-
-- [mjlab](https://github.com/mujocolab/mjlab.git): 构建训练与运行代码的基础。
-- [whole_body_tracking](https://github.com/HybridRobotics/whole_body_tracking.git): 用于动作跟踪的通用人形机器人控制框架。
-- [rsl_rl](https://github.com/leggedrobotics/rsl_rl.git): 强化学习算法实现。
-- [mujoco_warp](https://github.com/google-deepmind/mujoco_warp.git): 提供 GPU 加速渲染与仿真接口。
-- [mujoco](https://github.com/google-deepmind/mujoco.git): 提供强大仿真功能。
-
+仓库使用 [Apache License 2.0](LICENCE)。

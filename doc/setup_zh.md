@@ -53,7 +53,7 @@ conda activate unitree_rl_mjlab
 通过 Git 克隆仓库：
 
 ```bash
-git clone https://github.com/unitreerobotics/unitree_rl_mjlab.git
+git clone https://github.com/helngle/unitree-go2-mjlab-sim2real.git
 ```
 
 ### 2.2 安装依赖
@@ -63,14 +63,13 @@ sudo apt install -y libyaml-cpp-dev libboost-all-dev libeigen3-dev libspdlog-dev
 ```
 
 我们将其余所需依赖放入 setup.py 文件中，
-进入 unitree_rl_mjlab 项目根目录并安装：
+进入 `unitree-go2-mjlab-sim2real` 项目根目录并安装：
 
 ```bash
-cd unitree_rl_mjlab
+cd unitree-go2-mjlab-sim2real
 pip install -e .
 ```
 
 ## 总结
 
 按照上述步骤完成后，您已经准备好在虚拟环境中运行相关程序。若遇到问题，请参考各组件的官方文档或检查依赖安装是否正确。
-
