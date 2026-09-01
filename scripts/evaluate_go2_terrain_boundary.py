@@ -37,6 +37,15 @@ from src.tasks.velocity.evaluation.terrain_curved_routes import (
   TERRAIN_CURVE_KINDS,
   validate_route_footprint,
 )
+from src.tasks.velocity.evaluation.proprio_acceptance import (
+  TerrainTangentTelemetry,
+  actuator_effort_and_power,
+  base_pitch_absolute,
+  formal_evaluation_provenance,
+  environment_control_dt,
+  normalized_action_safety,
+  processed_joint_target_safety,
+)
 
 
 @dataclass(frozen=True)
@@ -332,6 +341,16 @@ def _evaluate_continuous_straight(cfg: TerrainBoundaryConfig) -> dict[str, Any]:
       cfg.steps,
       device=env.device,
       dtype=robot.data.root_link_pos_w.dtype,
+      control_dt_s=environment_control_dt(env),
+    )
+    tangent_telemetry = TerrainTangentTelemetry(env)
+    capture["tangent_telemetry"] = tangent_telemetry
+    from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
+      OnlineTerrainTangentSlipMetrics,
+    )
+    capture["tangent_metrics"] = OnlineTerrainTangentSlipMetrics(
+      env.num_envs, cfg.steps, tangent_telemetry.num_feet,
+      device=env.device, dtype=robot.data.root_link_pos_w.dtype,
     )
     capture["route_metrics"] = _OnlineRouteErrorMetrics(
       env.num_envs,
@@ -374,6 +393,10 @@ def _evaluate_continuous_straight(cfg: TerrainBoundaryConfig) -> dict[str, Any]:
     for name in env.termination_manager.active_terms:
       if not env.termination_manager.get_term_cfg(name).time_out:
         catastrophic |= env.termination_manager.get_term(name).bool()
+    actuator_effort, mechanical_power = actuator_effort_and_power(robot)
+    action_abs_max, action_fault = normalized_action_safety(
+      env.action_manager.action
+    )
     capture["terrain_metrics"].update(
       sample_mask=lifecycle.sample_mask,
       action_acceleration=action_acceleration(
@@ -388,6 +411,20 @@ def _evaluate_continuous_straight(cfg: TerrainBoundaryConfig) -> dict[str, Any]:
         "calf": sensor_contact("calf_ground_contact"),
       },
       catastrophic_termination=catastrophic,
+      base_pitch=base_pitch_absolute(robot),
+      actuator_effort_abs=actuator_effort,
+      mechanical_power_abs=mechanical_power,
+      normalized_action_abs_max=action_abs_max,
+      action_safety_fault=action_fault,
+      joint_target_safety_fault=processed_joint_target_safety(env),
+    )
+    tangent_cost, tangent_slip, loaded, ray_valid, normal_force = (
+      capture["tangent_telemetry"].sample()
+    )
+    capture["tangent_metrics"].update(
+      sample_mask=lifecycle.sample_mask, cost=tangent_cost,
+      slip_velocity=tangent_slip, loaded=loaded, ray_valid=ray_valid,
+      normal_force=normal_force,
     )
     return lifecycle
 
@@ -421,6 +458,7 @@ def _evaluate_continuous_straight(cfg: TerrainBoundaryConfig) -> dict[str, Any]:
   for index, scenario in enumerate(result["scenarios"]):
     route_metrics = capture["route_metrics"].result(index)
     terrain_metrics = capture["terrain_metrics"].result(index)
+    tangent_result = capture["tangent_metrics"].result(index)
     if (
       route_metrics["active_control_step_samples"] != scenario["steps_sampled"]
       or terrain_metrics["active_control_step_samples"] != scenario["steps_sampled"]
@@ -430,6 +468,9 @@ def _evaluate_continuous_straight(cfg: TerrainBoundaryConfig) -> dict[str, Any]:
     heading_distribution = route_metrics["heading_absolute"]
     action_distribution = terrain_metrics["action_acceleration"]
     slip_distribution = terrain_metrics["foot_slip_velocity"]
+    pitch_distribution = terrain_metrics["base_pitch_absolute"]
+    effort_distribution = terrain_metrics["actuator_effort_abs"]
+    power_distribution = terrain_metrics["mechanical_power_abs"]
     contacts = terrain_metrics["body_contacts"]
     scenario.update(
       {
@@ -441,6 +482,11 @@ def _evaluate_continuous_straight(cfg: TerrainBoundaryConfig) -> dict[str, Any]:
         "action_acceleration_max": action_distribution["max"],
         "slip_velocity_p95": slip_distribution["p95"],
         "slip_velocity_max": slip_distribution["max"],
+        "base_pitch_absolute_p95": pitch_distribution["p95"],
+        "actuator_effort_abs_p95": effort_distribution["p95"],
+        "mechanical_power_abs_p95": power_distribution["p95"],
+        "terrain_tangent_stance_slip_mean": tangent_result["slip_velocity"]["mean"],
+        "terrain_tangent_loaded_stance": tangent_result,
         "base_contact_count": contacts["base"]["non_terminating_count"],
         "base_contact_rate": contacts["base"]["non_terminating_rate"],
         "upper_leg_contact_count": contacts["upper_leg"]["non_terminating_count"],
@@ -516,10 +562,18 @@ def main() -> None:
   configure_torch_backends()
   cfg = tyro.cli(TerrainBoundaryConfig)
   result = evaluate(cfg)
+  result["provenance"] = formal_evaluation_provenance(
+    cfg.checkpoint, __file__,
+    (
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/proprio_acceptance.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/terrain_rollout_metrics.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/terrain_boundary_scenarios.py",
+    ),
+  )
   output = Path(cfg.output_file)
   output.parent.mkdir(parents=True, exist_ok=True)
-  output.write_text(json.dumps(result, indent=2) + "\n")
-  print(json.dumps(result, indent=2))
+  output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+  print(json.dumps(result, indent=2, allow_nan=False))
   print(f"[INFO] Wrote terrain boundary evaluation to {output}")
 
 

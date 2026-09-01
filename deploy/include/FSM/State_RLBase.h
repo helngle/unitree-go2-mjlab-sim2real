@@ -6,6 +6,8 @@
 #include "FSMState.h"
 #include "isaaclab/envs/mdp/actions/joint_actions.h"
 #include "isaaclab/envs/mdp/terminations.h"
+#include "isaaclab/utils/joint_command_safety.h"
+#include <atomic>
 
 class State_RLBase : public FSMState
 {
@@ -14,16 +16,16 @@ public:
     
     void enter()
     {
-        // set gain
-        for (int i = 0; i < env->robot->data.joint_stiffness.size(); ++i)
-        {
-            lowcmd->msg_.motor_cmd()[i].kp() = env->robot->data.joint_stiffness[i];
-            lowcmd->msg_.motor_cmd()[i].kd() = env->robot->data.joint_damping[i];
-            lowcmd->msg_.motor_cmd()[i].dq() = 0;
-            lowcmd->msg_.motor_cmd()[i].tau() = 0;
+        // Reset the latch synchronously so a re-entry cannot publish an action
+        // retained from the previous RL episode.
+        env->reset();
+        const auto& data = env->robot->data;
+        auto& motor_commands = lowcmd->msg_.motor_cmd();
+        if (!isaaclab::initialize_measured_position_hold(data, motor_commands)) {
+            env->runtime_fault.store(true);
+            return;
         }
 
-        env->robot->update();
         // Start policy thread
         policy_thread_running = true;
         policy_thread = std::thread([this]{
@@ -33,9 +35,8 @@ public:
 
             // Initialize timing
             auto sleepTill = clock::now() + dt;
-            env->reset();
 
-            while (policy_thread_running)
+            while (policy_thread_running.load())
             {
                 env->step();
 
@@ -60,7 +61,7 @@ private:
     std::unique_ptr<isaaclab::ManagerBasedRLEnv> env;
 
     std::thread policy_thread;
-    bool policy_thread_running = false;
+    std::atomic<bool> policy_thread_running{false};
 };
 
 REGISTER_FSM(State_RLBase)

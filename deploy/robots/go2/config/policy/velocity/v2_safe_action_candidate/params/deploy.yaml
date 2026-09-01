@@ -1,0 +1,50 @@
+joint_ids_map: [3,4,5,0,1,2,9,10,11,6,7,8]
+step_dt: 0.02
+schema:
+  version: go2-sim2real-proprio-v2-safe-action
+  sha256: 2c6da479c6c833f127c672b774e877e0fc6b14967e39b06ff2333dd241b87c3f
+  actor_dim: 425
+  action_dim: 12
+  history_order: term-major, oldest-to-newest
+  action_interface: bounded_asymmetric_per_joint_v2
+  action_output_semantics: applied_normalized_action
+  action_mean_bound: 5.0
+  a_low: [-3.7887999999999997, -4.0, -3.6908000000000003, -4.0, -4.0, -3.6908000000000003, -3.7887999999999997, -4.0, -3.6908000000000003, -4.0, -4.0, -3.6908000000000003]
+  a_high: [4.0, 4.0, 3.8489600000000004, 3.7887999999999997, 4.0, 3.8489600000000004, 4.0, 4.0, 3.8489600000000004, 3.7887999999999997, 4.0, 3.8489600000000004]
+safety:
+  action_abs_limit: 4.0
+  joint_pos_limits:
+    [[-1.0472, 1.0472], [-1.5708, 3.4907], [-2.7227, -0.83776],
+     [-1.0472, 1.0472], [-1.5708, 3.4907], [-2.7227, -0.83776],
+     [-1.0472, 1.0472], [-0.5236, 4.5379], [-2.7227, -0.83776],
+     [-1.0472, 1.0472], [-0.5236, 4.5379], [-2.7227, -0.83776]]
+stiffness: [20, 20, 40, 20, 20, 40, 20, 20, 40, 20, 20, 40]
+damping: [1, 1, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2]
+default_joint_pos: [-0.1,0.9,-1.8, 0.1,0.9,-1.8, -0.1,0.9,-1.8, 0.1,0.9,-1.8]
+previous_action:
+  semantics: applied_normalized_action
+  reset: zeros
+  timing: observation t contains action applied at t-1
+commands:
+  base_velocity:
+    ranges:
+      lin_vel_x: [0.0, 1.0]
+      lin_vel_y: [-0.3, 0.3]
+      ang_vel_z: [-0.7, 0.7]
+      heading: null
+actions:
+  JointPositionAction:
+    clip: null
+    joint_names: [.*]
+    scale: [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+    offset: [-0.1,0.9,-1.8, 0.1,0.9,-1.8, -0.1,0.9,-1.8, 0.1,0.9,-1.8]
+    joint_ids: null
+observations:
+  actor:
+    base_ang_vel: {params: {}, clip: null, scale: [1.0, 1.0, 1.0], history_length: 10}
+    projected_gravity: {params: {}, clip: null, scale: [1.0, 1.0, 1.0], history_length: 10}
+    velocity_commands: {params: {command_name: base_velocity}, clip: null, scale: [1.0, 1.0, 1.0], history_length: 1}
+    gait_phase: {params: {period: 0.6}, clip: null, scale: [1.0, 1.0], history_length: 1}
+    joint_pos_rel: {params: {}, clip: null, scale: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], history_length: 10}
+    joint_vel_rel: {params: {}, clip: null, scale: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], history_length: 10}
+    last_action: {params: {}, clip: null, scale: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0], history_length: 10}

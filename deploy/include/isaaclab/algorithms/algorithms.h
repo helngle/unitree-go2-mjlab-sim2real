@@ -5,7 +5,9 @@
 
 #include "onnxruntime_cxx_api.h"
 #include <iostream>
+#include <cmath>
 #include <mutex>
+#include <stdexcept>
 
 namespace isaaclab
 {
@@ -29,13 +31,43 @@ protected:
 class OrtRunner : public Algorithms
 {
 public:
-    OrtRunner(std::string model_path)
+    OrtRunner(
+        std::string model_path,
+        const std::string& expected_schema_hash = "",
+        size_t expected_input_size = 0,
+        size_t expected_output_size = 0,
+        const std::string& expected_action_interface = "",
+        const std::string& expected_action_output_semantics = "")
     {
         // Init Model
         env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "onnx_model");
         session_options.SetGraphOptimizationLevel(ORT_ENABLE_EXTENDED);
 
         session = std::make_unique<Ort::Session>(env, model_path.c_str(), session_options);
+
+        if (!expected_schema_hash.empty()) {
+            auto metadata = session->GetModelMetadata();
+            auto value = metadata.LookupCustomMetadataMapAllocated(
+                "observation_schema_sha256", allocator);
+            if (!value || expected_schema_hash != value.get()) {
+                throw std::runtime_error("ONNX observation schema SHA256 mismatch");
+            }
+            if (!expected_action_interface.empty()) {
+                auto interface_value = metadata.LookupCustomMetadataMapAllocated(
+                    "action_interface", allocator);
+                if (!interface_value || expected_action_interface != interface_value.get()) {
+                    throw std::runtime_error("ONNX action interface mismatch");
+                }
+            }
+            if (!expected_action_output_semantics.empty()) {
+                auto semantics_value = metadata.LookupCustomMetadataMapAllocated(
+                    "action_output_semantics", allocator);
+                if (!semantics_value ||
+                    expected_action_output_semantics != semantics_value.get()) {
+                    throw std::runtime_error("ONNX action output semantics mismatch");
+                }
+            }
+        }
 
         for (size_t i = 0; i < session->GetInputCount(); ++i) {
             Ort::TypeInfo input_type = session->GetInputTypeInfo(i);
@@ -47,14 +79,36 @@ public:
         for (const auto& shape : input_shapes) {
             size_t size = 1;
             for (const auto& dim : shape) {
+                if (dim <= 0) {
+                    throw std::runtime_error("ONNX input shapes must be static and positive");
+                }
                 size *= dim;
             }
             input_sizes.push_back(size);
         }
+        if (input_sizes.size() != 1 ||
+            (expected_input_size > 0 && input_sizes[0] != expected_input_size)) {
+            throw std::runtime_error("ONNX actor input dimension mismatch");
+        }
+        if (expected_input_size > 0 &&
+            (input_shapes[0].size() != 2 || input_shapes[0][0] != 1 ||
+             input_shapes[0][1] != static_cast<int64_t>(expected_input_size))) {
+            throw std::runtime_error("ONNX actor input shape must be static [1,N]");
+        }
 
         // Get output shape
+        if (session->GetOutputCount() != 1) {
+            throw std::runtime_error("ONNX policy must have exactly one output");
+        }
         Ort::TypeInfo output_type = session->GetOutputTypeInfo(0);
         output_shape = output_type.GetTensorTypeAndShapeInfo().GetShape();
+        if (output_shape.size() != 2 || output_shape[0] != 1 || output_shape[1] <= 0) {
+            throw std::runtime_error("ONNX action output shape must be static [1,N]");
+        }
+        if (expected_output_size > 0 &&
+            static_cast<size_t>(output_shape[1]) != expected_output_size) {
+            throw std::runtime_error("ONNX action output dimension mismatch");
+        }
         auto output_name = session->GetOutputNameAllocated(0, allocator);
         output_names.push_back(output_name.release());
 
@@ -78,6 +132,14 @@ public:
         {
             const std::string name_str(input_names[i]);
             auto& input_data = obs.at(name_str);
+            if (input_data.size() != input_sizes[i]) {
+                throw std::runtime_error("ONNX input vector dimension mismatch");
+            }
+            for (float value : input_data) {
+                if (!std::isfinite(value)) {
+                    throw std::runtime_error("ONNX input contains NaN/Inf");
+                }
+            }
             auto input_tensor = Ort::Value::CreateTensor<float>(memory_info, input_data.data(), input_sizes[i], input_shapes[i].data(), input_shapes[i].size());
             input_tensors.push_back(std::move(input_tensor));
         }
@@ -89,6 +151,11 @@ public:
         auto floatarr = output_tensor.front().GetTensorMutableData<float>();
         std::lock_guard<std::mutex> lock(act_mtx_);
         std::memcpy(action.data(), floatarr, output_shape[1] * sizeof(float));
+        for (float value : action) {
+            if (!std::isfinite(value)) {
+                throw std::runtime_error("ONNX output contains NaN/Inf");
+            }
+        }
         return action;
     }
 

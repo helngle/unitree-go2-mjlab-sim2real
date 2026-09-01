@@ -4,6 +4,7 @@
 #pragma once
 
 #include "isaaclab/assets/articulation/articulation.h"
+#include <cmath>
 
 namespace unitree
 {
@@ -32,6 +33,10 @@ public:
             lowstate->msg_.imu_state().quaternion()[2],
             lowstate->msg_.imu_state().quaternion()[3]
         );
+        const float quat_norm = data.root_quat_w.norm();
+        if (std::isfinite(quat_norm) && quat_norm > 0.0f) {
+            data.root_quat_w.normalize();
+        }
         data.projected_gravity_b = data.root_quat_w.conjugate() * data.GRAVITY_VEC_W;
         // joint positions and velocities
         for(int i(0); i< data.joint_ids_map.size(); i++) {

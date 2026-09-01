@@ -11,6 +11,8 @@ import numpy as np
 import torch
 
 from mjlab.terrains import (
+  BoxInvertedPyramidStairsTerrainCfg,
+  BoxPyramidStairsTerrainCfg,
   HfDiscreteObstaclesTerrainCfg,
   HfPyramidSlopedTerrainCfg,
   HfRandomUniformTerrainCfg,
@@ -42,6 +44,8 @@ TerrainCurveKind = Literal[
   "slope_down",
   "random_rough",
   "discrete_obstacle",
+  "stairs_up",
+  "stairs_down",
 ]
 
 TERRAIN_CURVE_KINDS: tuple[TerrainCurveKind, ...] = (
@@ -50,8 +54,16 @@ TERRAIN_CURVE_KINDS: tuple[TerrainCurveKind, ...] = (
   "random_rough",
   "discrete_obstacle",
 )
+PROPRIO_TERRAIN_CURVE_KINDS: tuple[TerrainCurveKind, ...] = (
+  *TERRAIN_CURVE_KINDS,
+  "stairs_up",
+  "stairs_down",
+)
 TERRAIN_KIND_TO_TYPE = {
   kind: index for index, kind in enumerate(TERRAIN_CURVE_KINDS)
+}
+PROPRIO_TERRAIN_KIND_TO_TYPE = {
+  kind: index for index, kind in enumerate(PROPRIO_TERRAIN_CURVE_KINDS)
 }
 
 
@@ -116,6 +128,20 @@ def effective_terrain_parameters(kind: TerrainCurveKind, level: int) -> dict[str
       "num_obstacles": SCALED_OBSTACLE_COUNT,
       "difficulty_affects_geometry": True,
     }
+  if kind in {"stairs_up", "stairs_down"}:
+    return {
+      "difficulty_label": label,
+      "difficulty": difficulty,
+      "step_height": 0.02 + difficulty * (0.12 - 0.02),
+      "step_width": 0.30,
+      "platform_width": 3.0,
+      "inverted": kind == "stairs_up",
+      "difficulty_affects_geometry": True,
+      "route_direction_semantics": (
+        "centre_low_to_outward_high" if kind == "stairs_up"
+        else "centre_high_to_outward_low"
+      ),
+    }
   raise ValueError(f"unknown terrain curve kind: {kind!r}")
 
 
@@ -153,6 +179,22 @@ def _base_terrain_cfg(kind: TerrainCurveKind) -> SubTerrainCfg:
       border_width=0.25,
       origin_z_offset=0.02,
     )
+  if kind == "stairs_up":
+    return BoxInvertedPyramidStairsTerrainCfg(
+      proportion=1.0,
+      step_height_range=(0.02, 0.12),
+      step_width=0.30,
+      platform_width=3.0,
+      border_width=1.0,
+    )
+  if kind == "stairs_down":
+    return BoxPyramidStairsTerrainCfg(
+      proportion=1.0,
+      step_height_range=(0.02, 0.12),
+      step_width=0.30,
+      platform_width=3.0,
+      border_width=1.0,
+    )
   raise ValueError(f"unknown terrain curve kind: {kind!r}")
 
 
@@ -169,7 +211,7 @@ class TerrainCurveSubTerrainCfg(SubTerrainCfg):
     spec: mujoco.MjSpec,
     rng: np.random.Generator,
   ) -> TerrainOutput:
-    if self.kind not in TERRAIN_CURVE_KINDS:
+    if self.kind not in PROPRIO_TERRAIN_CURVE_KINDS:
       raise ValueError(f"unknown terrain curve kind: {self.kind!r}")
     if self.size != PATCH_SIZE:
       raise ValueError(f"terrain curve patch size must be {PATCH_SIZE}")
@@ -186,20 +228,23 @@ class TerrainCurveSubTerrainCfg(SubTerrainCfg):
     return output
 
 
-def make_terrain_curve_generator(seed: int | None = 42) -> TerrainGeneratorCfg:
+def make_terrain_curve_generator(
+  seed: int | None = 42, *, include_stairs: bool = False
+) -> TerrainGeneratorCfg:
   """Build a two-level, four-type evaluation-only terrain grid."""
+  kinds = PROPRIO_TERRAIN_CURVE_KINDS if include_stairs else TERRAIN_CURVE_KINDS
   return TerrainGeneratorCfg(
     seed=seed,
     size=PATCH_SIZE,
     border_width=20.0,
     num_rows=2,
-    num_cols=len(TERRAIN_CURVE_KINDS),
+    num_cols=len(kinds),
     curriculum=True,
     difficulty_range=(0.0, 1.0),
     add_lights=True,
     sub_terrains={
       kind: TerrainCurveSubTerrainCfg(kind=kind, proportion=1.0)
-      for kind in TERRAIN_CURVE_KINDS
+      for kind in kinds
     },
   )
 
@@ -408,6 +453,8 @@ __all__ = [
   "LOW_DIFFICULTY",
   "MEDIUM_DIFFICULTY",
   "PATCH_SIZE",
+  "PROPRIO_TERRAIN_CURVE_KINDS",
+  "PROPRIO_TERRAIN_KIND_TO_TYPE",
   "ROUTE_START_LOCAL",
   "RouteFootprint",
   "SCALED_OBSTACLE_COUNT",

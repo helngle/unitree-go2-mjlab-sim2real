@@ -1,0 +1,60 @@
+{
+  "default_model_changed": false,
+  "formal_training_started": false,
+  "gates": {
+    "G0_provenance": "PASS",
+    "G1_student_deployability": "PASS",
+    "G2_critic_teacher_isolation": "PASS",
+    "G3_initialization_integrity": "PASS",
+    "G4_action_runtime_identity": "PASS",
+    "G5_robustness_contract": "PASS",
+    "G6_training_contract": "PASS",
+    "G7_export_deploy_preflight_no_hardware": "PASS_INTERFACE_ONLY_TRAINED_CANDIDATE_PENDING",
+    "physical_go2": "HARDWARE_PENDING"
+  },
+  "git": {
+    "branch": "exp/high-slope-probe-integration",
+    "head": "0a204b645a2325cb06264725c58cc5745da64a43",
+    "worktree_dirty_preserved": true
+  },
+  "hardware_ready": false,
+  "preflight": {
+    "artifact": "docs/reviews/go2_proprioceptive_student_preflight_2048env.json",
+    "artifact_sha256": "fff95311e3e0335ab244594c98891e7cc1d0a1569ebb3758857554bc251560a0",
+    "finite": true,
+    "num_envs": 2048,
+    "steps_per_task": 8
+  },
+  "provenance": {
+    "exclusive_full_run_lock": true,
+    "source_manifest_embeds_untracked_source": true,
+    "source_manifest_precomputed_sha256": "18ed1acd1de0b6932c6e04ece4244e37a7117179c68fa8ccd1fa30281ddca24a"
+  },
+  "proprioceptive_sim2real_training_ready": true,
+  "schema": {
+    "action_dim": 12,
+    "actor_dim": 425,
+    "critic_dim": 261,
+    "sha256": "379d982c61c839286fe7a566fee40160f599831752041250dbd804709a6e4b10",
+    "teacher_dim": 234
+  },
+  "schema_version": 1,
+  "teacher": {
+    "checkpoint": "logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt",
+    "sha256": "73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff"
+  },
+  "tests": {
+    "cpp_history_smoke": "PASS",
+    "full_python": {
+        "passed": 429,
+        "skipped": 2
+    },
+    "go2_controller_build": "PASS",
+    "headless_unitree_mujoco_bridge": "PASS",
+    "targeted_python": {
+        "passed": 17
+    },
+    "unitree_mujoco_build": "PASS"
+  },
+  "training_command": "python scripts/train_go2_proprioceptive.py"
+}

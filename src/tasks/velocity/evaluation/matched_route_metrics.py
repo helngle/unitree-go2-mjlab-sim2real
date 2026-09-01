@@ -26,9 +26,17 @@ FACTOR_PROFILE_NAMES = (
   "actor_corruption_only",
 )
 PROFILE_NAMES = CORE_PROFILE_NAMES + FACTOR_PROFILE_NAMES
-DYNAMICS_EVENTS = ("foot_friction", "base_com", "base_payload", "motor_strength")
+from .proprio_acceptance import (
+  SIM2REAL_RANDOMIZATION_EVENTS,
+  install_sim2real_randomization_contract,
+)
+
+
+DYNAMICS_EVENTS = tuple(
+  name for name in SIM2REAL_RANDOMIZATION_EVENTS if name != "encoder_bias"
+)
 OBSERVATION_EVENTS = ("encoder_bias",)
-RANDOMIZATION_EVENTS = DYNAMICS_EVENTS + OBSERVATION_EVENTS
+RANDOMIZATION_EVENTS = SIM2REAL_RANDOMIZATION_EVENTS
 ACTION_ACCELERATION_DEFINITION = (
   "mean_joint_abs_second_action_difference_per_control_step"
 )
@@ -84,6 +92,7 @@ def configure_matched_profile(env_cfg: Any, profile_name: str) -> dict[str, Any]
       f"profile must be one of {PROFILE_NAMES}, got {profile_name!r}"
     ) from exc
   actor = env_cfg.observations["actor"]
+  install_sim2real_randomization_contract(env_cfg)
   actor.enable_corruption = profile.actor_observation_corruption
   enabled = set(profile.startup_events)
   for event_name in RANDOMIZATION_EVENTS:
@@ -131,6 +140,9 @@ def configure_matched_profile(env_cfg: Any, profile_name: str) -> dict[str, Any]
     }
   return {
     "name": profile.name,
+    "canonical_profile": (
+      "randomized" if profile.name == "full_randomized" else profile.name
+    ),
     "actor_observation_corruption": actor.enable_corruption,
     "startup_randomization_events": [
       name for name in RANDOMIZATION_EVENTS if name in env_cfg.events

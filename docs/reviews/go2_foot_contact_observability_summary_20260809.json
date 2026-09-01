@@ -1,0 +1,734 @@
+{
+  "schema_version": 1,
+  "evaluation_suite": "go2_foot_contact_observability_analysis_v1",
+  "created_at": "2026-08-09T22:27:03.947585+08:00",
+  "decision_scope": "evaluation_only_gate_before_any_238d_teacher_training",
+  "manifest": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_foot_contact_observability_raw_20260809/manifest.json",
+    "sha256": "bbcdb4eb754e54d26186762e1a0353e542ac09890d98df5ce61a425349327c6b",
+    "contract_sha256": "cc8c0dc49f6abec8d1e99d031d8742ec265869a4bd0aca14fab947f773492517",
+    "collector_sha256": "01a742f9d1963ddfef84fd6362b35d4e8cec4e58326739b5a3d708f599251fea",
+    "chunk_count": 18,
+    "trajectory_count": 288,
+    "observed_raw_rows": 319162
+  },
+  "analysis_contract": {
+    "device": "cpu",
+    "state_timeline": "pre0_plus_post",
+    "native_foot_order": [
+      "FL",
+      "FR",
+      "RL",
+      "RR"
+    ],
+    "canonical_permutation_record_only": [
+      1,
+      0,
+      3,
+      2
+    ],
+    "anchor_start_tick": 10,
+    "anchor_stride_ticks": 5,
+    "horizons_ticks": [
+      10,
+      25,
+      50
+    ],
+    "outer_split": "exact_leave_one_seed_out",
+    "group": [
+      "seed",
+      "matched_slot"
+    ],
+    "fixed_l2": 0.01,
+    "binary_model": "l2_logistic_torch_lbfgs_deterministic_float64_cpu",
+    "progress_model": "ridge_torch_linalg_solve_float64_cpu",
+    "bootstrap_unit": [
+      "seed",
+      "matched_slot"
+    ],
+    "bootstrap_stratify_by": "speed",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 20260809,
+    "paired_complete_case": "baseline/contact/clearance share all-four-ray-valid rows"
+  },
+  "raw_audit": {
+    "trajectory_count": 288,
+    "raw_active_rows": 319162,
+    "downsampled_anchor_rows": 63342,
+    "reset_total": 150,
+    "foot_order_native": [
+      "FL",
+      "FR",
+      "RL",
+      "RR"
+    ],
+    "canonical_order_record_only": [
+      "FR",
+      "FL",
+      "RR",
+      "RL"
+    ],
+    "native_to_canonical_permutation_record_only": [
+      1,
+      0,
+      3,
+      2
+    ],
+    "transition_by_profile_speed": {
+      "clean|vx=0.3": {
+        "raw_transition_edges_native": [
+          8882,
+          9322,
+          6261,
+          8298
+        ],
+        "isolated_excursion_edges_native": [
+          1060,
+          1862,
+          878,
+          1106
+        ],
+        "isolated_excursion_fraction_native": [
+          0.11934249043008331,
+          0.1997425445183437,
+          0.14023318958632805,
+          0.13328512894673417
+        ],
+        "max_chatter_fraction": 0.1997425445183437
+      },
+      "clean|vx=0.5": {
+        "raw_transition_edges_native": [
+          5381,
+          5168,
+          4378,
+          4862
+        ],
+        "isolated_excursion_edges_native": [
+          1054,
+          1422,
+          1036,
+          1230
+        ],
+        "isolated_excursion_fraction_native": [
+          0.1958743727931611,
+          0.2751547987616099,
+          0.2366377341251713,
+          0.25298231180584124
+        ],
+        "max_chatter_fraction": 0.2751547987616099
+      },
+      "randomized|vx=0.3": {
+        "raw_transition_edges_native": [
+          9047,
+          9166,
+          8149,
+          8351
+        ],
+        "isolated_excursion_edges_native": [
+          1350,
+          1854,
+          1592,
+          1262
+        ],
+        "isolated_excursion_fraction_native": [
+          0.1492207361556317,
+          0.20226925594588696,
+          0.19536139403607805,
+          0.15111962639204884
+        ],
+        "max_chatter_fraction": 0.20226925594588696
+      },
+      "randomized|vx=0.5": {
+        "raw_transition_edges_native": [
+          5505,
+          5398,
+          4720,
+          5006
+        ],
+        "isolated_excursion_edges_native": [
+          1642,
+          1714,
+          1248,
+          1336
+        ],
+        "isolated_excursion_fraction_native": [
+          0.2982742960944596,
+          0.3175250092626899,
+          0.26440677966101694,
+          0.2668797443068318
+        ],
+        "max_chatter_fraction": 0.3175250092626899
+      }
+    }
+  },
+  "coverage": {
+    "clean|vx=0.3|H=10": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 21316,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 6163,
+          "negative_anchors": 15076
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 3919,
+          "negative_anchors": 17312
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 12,
+          "negative_event_clusters": 24,
+          "positive_anchors": 54,
+          "negative_anchors": 21205
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 21205,
+      "raw_transition_edges_native": [
+        8882,
+        9322,
+        6261,
+        8298
+      ],
+      "max_chatter_fraction": 0.1997425445183437,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10",
+        "catastrophic_failure:positive_anchors_below_200"
+      ]
+    },
+    "clean|vx=0.5|H=10": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 9634,
+      "all_four_ray_valid_fraction": 0.9998962117280747,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 5447,
+          "negative_anchors": 4115
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 3075,
+          "negative_anchors": 6470
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 21,
+          "negative_event_clusters": 24,
+          "positive_anchors": 101,
+          "negative_anchors": 9497
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 9497,
+      "raw_transition_edges_native": [
+        5381,
+        5168,
+        4378,
+        4862
+      ],
+      "max_chatter_fraction": 0.2751547987616099,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10",
+        "catastrophic_failure:positive_anchors_below_200"
+      ]
+    },
+    "randomized|vx=0.3|H=10": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 21937,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 7062,
+          "negative_anchors": 14805
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 5809,
+          "negative_anchors": 16050
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 11,
+          "negative_event_clusters": 24,
+          "positive_anchors": 52,
+          "negative_anchors": 21818
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 21818,
+      "raw_transition_edges_native": [
+        9047,
+        9166,
+        8149,
+        8351
+      ],
+      "max_chatter_fraction": 0.20226925594588696,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10",
+        "catastrophic_failure:positive_anchors_below_200"
+      ]
+    },
+    "randomized|vx=0.5|H=10": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 10454,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 6418,
+          "negative_anchors": 3966
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 2840,
+          "negative_anchors": 7519
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 19,
+          "negative_event_clusters": 24,
+          "positive_anchors": 92,
+          "negative_anchors": 10316
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 10316,
+      "raw_transition_edges_native": [
+        5505,
+        5398,
+        4720,
+        5006
+      ],
+      "max_chatter_fraction": 0.3175250092626899,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10",
+        "catastrophic_failure:positive_anchors_below_200"
+      ]
+    },
+    "clean|vx=0.3|H=25": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 21316,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 8632,
+          "negative_anchors": 12540
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 7658,
+          "negative_anchors": 13495
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 12,
+          "negative_event_clusters": 24,
+          "positive_anchors": 135,
+          "negative_anchors": 20989
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 20989,
+      "raw_transition_edges_native": [
+        8882,
+        9322,
+        6261,
+        8298
+      ],
+      "max_chatter_fraction": 0.1997425445183437,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10",
+        "catastrophic_failure:positive_anchors_below_200"
+      ]
+    },
+    "clean|vx=0.5|H=25": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 9634,
+      "all_four_ray_valid_fraction": 0.9998962117280747,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 6847,
+          "negative_anchors": 2700
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 4921,
+          "negative_anchors": 4564
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 21,
+          "negative_event_clusters": 24,
+          "positive_anchors": 254,
+          "negative_anchors": 9281
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 9281,
+      "raw_transition_edges_native": [
+        5381,
+        5168,
+        4378,
+        4862
+      ],
+      "max_chatter_fraction": 0.2751547987616099,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10"
+      ]
+    },
+    "randomized|vx=0.3|H=25": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 21937,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 10064,
+          "negative_anchors": 11744
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 11452,
+          "negative_anchors": 10326
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 11,
+          "negative_event_clusters": 24,
+          "positive_anchors": 130,
+          "negative_anchors": 21602
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 21602,
+      "raw_transition_edges_native": [
+        9047,
+        9166,
+        8149,
+        8351
+      ],
+      "max_chatter_fraction": 0.20226925594588696,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10",
+        "catastrophic_failure:positive_anchors_below_200"
+      ]
+    },
+    "randomized|vx=0.5|H=25": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 10454,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 8201,
+          "negative_anchors": 2168
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 5007,
+          "negative_anchors": 5285
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 19,
+          "negative_event_clusters": 24,
+          "positive_anchors": 230,
+          "negative_anchors": 10100
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 10100,
+      "raw_transition_edges_native": [
+        5505,
+        5398,
+        4720,
+        5006
+      ],
+      "max_chatter_fraction": 0.3175250092626899,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10"
+      ]
+    },
+    "clean|vx=0.3|H=50": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 21316,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 9383,
+          "negative_anchors": 11725
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 9600,
+          "negative_anchors": 11454
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 12,
+          "negative_event_clusters": 24,
+          "positive_anchors": 270,
+          "negative_anchors": 20629
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 20629,
+      "raw_transition_edges_native": [
+        8882,
+        9322,
+        6261,
+        8298
+      ],
+      "max_chatter_fraction": 0.1997425445183437,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10"
+      ]
+    },
+    "clean|vx=0.5|H=50": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 9634,
+      "all_four_ray_valid_fraction": 0.9998962117280747,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 7348,
+          "negative_anchors": 2199
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 6004,
+          "negative_anchors": 3421
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 21,
+          "negative_event_clusters": 24,
+          "positive_anchors": 509,
+          "negative_anchors": 8921
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 8921,
+      "raw_transition_edges_native": [
+        5381,
+        5168,
+        4378,
+        4862
+      ],
+      "max_chatter_fraction": 0.2751547987616099,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10"
+      ]
+    },
+    "randomized|vx=0.3|H=50": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 21937,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 12173,
+          "negative_anchors": 9570
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 15560,
+          "negative_anchors": 6155
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 11,
+          "negative_event_clusters": 24,
+          "positive_anchors": 260,
+          "negative_anchors": 21242
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 21242,
+      "raw_transition_edges_native": [
+        9047,
+        9166,
+        8149,
+        8351
+      ],
+      "max_chatter_fraction": 0.20226925594588696,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10"
+      ]
+    },
+    "randomized|vx=0.5|H=50": {
+      "usable_clusters": 24,
+      "paired_anchor_rows": 10454,
+      "all_four_ray_valid_fraction": 1.0,
+      "binary": {
+        "slip_onset": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 8985,
+          "negative_anchors": 1379
+        },
+        "unexpected_transition": {
+          "clusters": 24,
+          "positive_event_clusters": 24,
+          "negative_event_clusters": 24,
+          "positive_anchors": 6527,
+          "negative_anchors": 3715
+        },
+        "catastrophic_failure": {
+          "clusters": 24,
+          "positive_event_clusters": 19,
+          "negative_event_clusters": 24,
+          "positive_anchors": 460,
+          "negative_anchors": 9740
+        }
+      },
+      "progress_clusters": 24,
+      "progress_anchors": 9740,
+      "raw_transition_edges_native": [
+        5505,
+        5398,
+        4720,
+        5006
+      ],
+      "max_chatter_fraction": 0.3175250092626899,
+      "passed": false,
+      "reasons": [
+        "contact_chatter_above_0.10"
+      ]
+    }
+  },
+  "coverage_passed": false,
+  "coverage_reasons": [
+    "clean|vx=0.3|H=10:contact_chatter_above_0.10",
+    "clean|vx=0.3|H=10:catastrophic_failure:positive_anchors_below_200",
+    "clean|vx=0.5|H=10:contact_chatter_above_0.10",
+    "clean|vx=0.5|H=10:catastrophic_failure:positive_anchors_below_200",
+    "randomized|vx=0.3|H=10:contact_chatter_above_0.10",
+    "randomized|vx=0.3|H=10:catastrophic_failure:positive_anchors_below_200",
+    "randomized|vx=0.5|H=10:contact_chatter_above_0.10",
+    "randomized|vx=0.5|H=10:catastrophic_failure:positive_anchors_below_200",
+    "clean|vx=0.3|H=25:contact_chatter_above_0.10",
+    "clean|vx=0.3|H=25:catastrophic_failure:positive_anchors_below_200",
+    "clean|vx=0.5|H=25:contact_chatter_above_0.10",
+    "randomized|vx=0.3|H=25:contact_chatter_above_0.10",
+    "randomized|vx=0.3|H=25:catastrophic_failure:positive_anchors_below_200",
+    "randomized|vx=0.5|H=25:contact_chatter_above_0.10",
+    "clean|vx=0.3|H=50:contact_chatter_above_0.10",
+    "clean|vx=0.5|H=50:contact_chatter_above_0.10",
+    "randomized|vx=0.3|H=50:contact_chatter_above_0.10",
+    "randomized|vx=0.5|H=50:contact_chatter_above_0.10"
+  ],
+  "eligible_rows_by_target_horizon": {
+    "10": {
+      "slip_onset": 63052,
+      "unexpected_transition": 62994,
+      "catastrophic_failure": 63135,
+      "future_progress": 62836
+    },
+    "25": {
+      "slip_onset": 62896,
+      "unexpected_transition": 62708,
+      "catastrophic_failure": 62721,
+      "future_progress": 61972
+    },
+    "50": {
+      "slip_onset": 62762,
+      "unexpected_transition": 62436,
+      "catastrophic_failure": 62031,
+      "future_progress": 60532
+    }
+  },
+  "training_changed": false,
+  "learn_called": false,
+  "technical_failures": [],
+  "analysis_status": "coverage_inconclusive",
+  "metrics": {},
+  "pass_gates": {},
+  "observability_diagnostic_passed": false,
+  "decision": "INCONCLUSIVE_DO_NOT_TRAIN",
+  "decision_reasons": [
+    "coverage_failed",
+    "clean|vx=0.3|H=10:contact_chatter_above_0.10",
+    "clean|vx=0.3|H=10:catastrophic_failure:positive_anchors_below_200",
+    "clean|vx=0.5|H=10:contact_chatter_above_0.10",
+    "clean|vx=0.5|H=10:catastrophic_failure:positive_anchors_below_200",
+    "randomized|vx=0.3|H=10:contact_chatter_above_0.10",
+    "randomized|vx=0.3|H=10:catastrophic_failure:positive_anchors_below_200",
+    "randomized|vx=0.5|H=10:contact_chatter_above_0.10",
+    "randomized|vx=0.5|H=10:catastrophic_failure:positive_anchors_below_200",
+    "clean|vx=0.3|H=25:contact_chatter_above_0.10",
+    "clean|vx=0.3|H=25:catastrophic_failure:positive_anchors_below_200",
+    "clean|vx=0.5|H=25:contact_chatter_above_0.10",
+    "randomized|vx=0.3|H=25:contact_chatter_above_0.10",
+    "randomized|vx=0.3|H=25:catastrophic_failure:positive_anchors_below_200",
+    "randomized|vx=0.5|H=25:contact_chatter_above_0.10",
+    "clean|vx=0.3|H=50:contact_chatter_above_0.10",
+    "clean|vx=0.5|H=50:contact_chatter_above_0.10",
+    "randomized|vx=0.3|H=50:contact_chatter_above_0.10",
+    "randomized|vx=0.5|H=50:contact_chatter_above_0.10"
+  ]
+}

@@ -1,0 +1,387 @@
+{
+  "action": {
+    "a_high": [
+      4.0,
+      4.0,
+      3.8489600000000004,
+      3.7887999999999997,
+      4.0,
+      3.8489600000000004,
+      4.0,
+      4.0,
+      3.8489600000000004,
+      3.7887999999999997,
+      4.0,
+      3.8489600000000004
+    ],
+    "a_low": [
+      -3.7887999999999997,
+      -4.0,
+      -3.6908000000000003,
+      -4.0,
+      -4.0,
+      -3.6908000000000003,
+      -3.7887999999999997,
+      -4.0,
+      -3.6908000000000003,
+      -4.0,
+      -4.0,
+      -3.6908000000000003
+    ],
+    "absolute_normalized_limit": 4.0,
+    "damping": [
+      1.0,
+      1.0,
+      2.0,
+      1.0,
+      1.0,
+      2.0,
+      1.0,
+      1.0,
+      2.0,
+      1.0,
+      1.0,
+      2.0
+    ],
+    "default_joint_pos": [
+      -0.1,
+      0.9,
+      -1.8,
+      0.1,
+      0.9,
+      -1.8,
+      -0.1,
+      0.9,
+      -1.8,
+      0.1,
+      0.9,
+      -1.8
+    ],
+    "dim": 12,
+    "effort_limit_nm": [
+      23.5,
+      23.5,
+      45.0,
+      23.5,
+      23.5,
+      45.0,
+      23.5,
+      23.5,
+      45.0,
+      23.5,
+      23.5,
+      45.0
+    ],
+    "gaussian_mean": "m=5*tanh(m_raw/5)",
+    "gaussian_mean_bound": 5.0,
+    "interface": "bounded_asymmetric_per_joint_v2",
+    "joint_names": [
+      "FL_hip_joint",
+      "FL_thigh_joint",
+      "FL_calf_joint",
+      "FR_hip_joint",
+      "FR_thigh_joint",
+      "FR_calf_joint",
+      "RL_hip_joint",
+      "RL_thigh_joint",
+      "RL_calf_joint",
+      "RR_hip_joint",
+      "RR_thigh_joint",
+      "RR_calf_joint"
+    ],
+    "joint_position_limits_rad": [
+      [
+        -1.0472,
+        1.0472
+      ],
+      [
+        -1.5708,
+        3.4907
+      ],
+      [
+        -2.7227,
+        -0.83776
+      ],
+      [
+        -1.0472,
+        1.0472
+      ],
+      [
+        -1.5708,
+        3.4907
+      ],
+      [
+        -2.7227,
+        -0.83776
+      ],
+      [
+        -1.0472,
+        1.0472
+      ],
+      [
+        -0.5236,
+        4.5379
+      ],
+      [
+        -2.7227,
+        -0.83776
+      ],
+      [
+        -1.0472,
+        1.0472
+      ],
+      [
+        -0.5236,
+        4.5379
+      ],
+      [
+        -2.7227,
+        -0.83776
+      ]
+    ],
+    "latent": "z",
+    "mapping": {
+      "negative": "a_applied=(-u)*a_low",
+      "nonnegative": "a_applied=u*a_high"
+    },
+    "no_deployment_only_clipping": true,
+    "output_semantics": "applied_normalized_action",
+    "scale": 0.25,
+    "sdk_joint_ids_map": [
+      3,
+      4,
+      5,
+      0,
+      1,
+      2,
+      9,
+      10,
+      11,
+      6,
+      7,
+      8
+    ],
+    "squashed": "u=tanh(z)",
+    "stiffness": [
+      20.0,
+      20.0,
+      40.0,
+      20.0,
+      20.0,
+      40.0,
+      20.0,
+      20.0,
+      40.0,
+      20.0,
+      20.0,
+      40.0
+    ],
+    "target_formula": "q_target=q0+0.25*a_applied",
+    "zero_preservation": "z=0 -> u=0 -> a_applied=0 -> q_target=q0"
+  },
+  "actor_dim": 425,
+  "control_dt_s": 0.02,
+  "history_endpoint_span_s": 0.18,
+  "history_order": "term-major, oldest-to-newest",
+  "history_reset": "first finite frame backfills all 10 history slots",
+  "history_sample_count": 10,
+  "onnx": {
+    "dtype": "float32",
+    "input_name": "actor",
+    "input_shape": [
+      1,
+      425
+    ],
+    "output_name": "actions",
+    "output_semantics": "applied_normalized_action",
+    "output_shape": [
+      1,
+      12
+    ],
+    "static_shapes": true
+  },
+  "phase": {
+    "formula": "phase=(policy_tick*control_dt_s/period_s)%1",
+    "getter_has_side_effects": false,
+    "period_s": 0.6,
+    "reset_policy_tick": 0,
+    "stand_command_norm_threshold": 0.1
+  },
+  "previous_action": {
+    "reset": "zeros",
+    "timing": "observation t contains applied normalized action from t-1",
+    "value": "a_applied=T(z)"
+  },
+  "runtime": {
+    "action_limit_violation": "Passive",
+    "hardware_tick_crc_semantics": "HARDWARE_PENDING",
+    "low_state_timeout": "SDK host-monotonic isTimeout -> Passive",
+    "nonfinite_action": "Passive",
+    "nonfinite_latent": "Passive",
+    "nonfinite_observation": "Passive",
+    "processed_joint_target_limit_violation": "Passive"
+  },
+  "schema_sha256": "2c6da479c6c833f127c672b774e877e0fc6b14967e39b06ff2333dd241b87c3f",
+  "terms": [
+    {
+      "deploy_name": "base_ang_vel",
+      "dim": 3,
+      "flattened_dim": 30,
+      "frame": "base",
+      "history_length": 10,
+      "index_end_exclusive": 30,
+      "index_start": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sign": "sdk-native xyz",
+      "source": "sdk_imu.gyroscope",
+      "time_order": "oldest-to-newest",
+      "training_name": "base_ang_vel",
+      "unit": "rad/s"
+    },
+    {
+      "deploy_name": "projected_gravity",
+      "dim": 3,
+      "flattened_dim": 30,
+      "frame": "base",
+      "history_length": 10,
+      "index_end_exclusive": 60,
+      "index_start": 30,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sign": "q[wxyz] conjugate rotate world [0,0,-1]",
+      "source": "sdk_imu.quaternion",
+      "time_order": "oldest-to-newest",
+      "training_name": "projected_gravity",
+      "unit": "unitless"
+    },
+    {
+      "deploy_name": "velocity_commands",
+      "dim": 3,
+      "flattened_dim": 3,
+      "frame": "base-yaw",
+      "history_length": 1,
+      "index_end_exclusive": 63,
+      "index_start": 60,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sign": "vx=ly, vy=-lx, yaw=-rx",
+      "source": "external_command",
+      "time_order": "current",
+      "training_name": "command",
+      "unit": "m/s,m/s,rad/s"
+    },
+    {
+      "deploy_name": "gait_phase",
+      "dim": 2,
+      "flattened_dim": 2,
+      "frame": "control-clock",
+      "history_length": 1,
+      "index_end_exclusive": 65,
+      "index_start": 63,
+      "scale": [
+        1.0,
+        1.0
+      ],
+      "sign": "sin,cos; zero while command norm<0.1",
+      "source": "policy_tick",
+      "time_order": "current",
+      "training_name": "phase",
+      "unit": "unitless"
+    },
+    {
+      "deploy_name": "joint_pos_rel",
+      "dim": 12,
+      "flattened_dim": 120,
+      "frame": "joint-local",
+      "history_length": 10,
+      "index_end_exclusive": 185,
+      "index_start": 65,
+      "scale": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sign": "training joint order; q-default_q",
+      "source": "sdk_motor_state.q",
+      "time_order": "oldest-to-newest",
+      "training_name": "joint_pos",
+      "unit": "rad"
+    },
+    {
+      "deploy_name": "joint_vel_rel",
+      "dim": 12,
+      "flattened_dim": 120,
+      "frame": "joint-local",
+      "history_length": 10,
+      "index_end_exclusive": 305,
+      "index_start": 185,
+      "scale": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sign": "training joint order",
+      "source": "sdk_motor_state.dq",
+      "time_order": "oldest-to-newest",
+      "training_name": "joint_vel",
+      "unit": "rad/s"
+    },
+    {
+      "deploy_name": "last_action",
+      "dim": 12,
+      "flattened_dim": 120,
+      "frame": "training joint order",
+      "history_length": 10,
+      "index_end_exclusive": 425,
+      "index_start": 305,
+      "scale": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "sign": "previous policy output before scale/offset",
+      "source": "runtime_action_cache",
+      "time_order": "oldest-to-newest",
+      "training_name": "actions",
+      "unit": "normalized"
+    }
+  ],
+  "version": "go2-sim2real-proprio-v2-safe-action"
+}

@@ -14,3 +14,13 @@ deploy/robots/r1/build
 deploy/robots/a2/build
 src/assets/motions/g1/dance1_subject2.npz
 simulate/build
+
+# Reproducible evaluation artifacts (keep contracts and summaries in Git).
+docs/reviews/**/*.pt
+docs/reviews/**/policy.screening.onnx
+docs/reviews/go2_causal_debounced_contact_observability_raw_*/
+docs/reviews/go2_foot_contact_observability_raw_*/
+docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/
+docs/reviews/go2_v2_meanbound5_formal_acceptance_bundles/
+docs/reviews/go2_contact_force_teacher_high_slope/
+docs/reviews/go2_privileged_teacher_high_slope/

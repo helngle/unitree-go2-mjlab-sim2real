@@ -1,5 +1,11 @@
 # Unitree RL Mjlab 本地实验日志
 
+> 历史档案状态（2026-08-10）：新的 Go2 V10 复杂地形行走、Teacher-Student、Sim2Real
+> 与奔跑路线已迁移到
+> [`V10_GO2_COMPLEX_LOCOMOTION_PROJECT_PLAN.md`](V10_GO2_COMPLEX_LOCOMOTION_PROJECT_PLAN.md)
+> 和 [`V10_GO2_PROJECT_JOURNAL.md`](V10_GO2_PROJECT_JOURNAL.md)。本文件保留为只读历史
+> 证据库；旧结果可被新路线引用，但不得自动恢复为默认训练方案。
+
 最后更新：2026-07-22
 
 ## 2026-07-22：V7 triggered actuator-headroom（只评估，正式 INCONCLUSIVE）

@@ -1,0 +1,273 @@
+{
+  "schema_version": 1,
+  "suite": "go2_v2_meanbound5_cpu_onnx_screening_summary",
+  "artifact_count": 17,
+  "survivor_count": 15,
+  "rejected_count": 2,
+  "max_onnx_abs_error": 1.1920928955078125e-05,
+  "survivor_iterations": [
+    0,
+    250,
+    500,
+    750,
+    1250,
+    1500,
+    1750,
+    2000,
+    2500,
+    2750,
+    3000,
+    3250,
+    3500,
+    3750,
+    3999
+  ],
+  "rejected_iterations": [
+    1000,
+    2250
+  ],
+  "results": [
+    {
+      "iteration": 0,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_0.pt",
+        "sha256": "b520c1cf4e352b5efac5f6e2218d1165270a777e07f5cb21d576d5fa280ee654"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 5.7220458984375e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_0/policy.screening.onnx",
+        "sha256": "22c3bba7c27752fc2633a3c52656f9d41b559fa5a25b9327087028d25a51c9aa"
+      }
+    },
+    {
+      "iteration": 250,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_250.pt",
+        "sha256": "e7b35dc44232a641b0096f55b6bd42b54a202cc3a92c7a60c856ea3c45ba5cbc"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 5.364418029785156e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_250/policy.screening.onnx",
+        "sha256": "6de4a2beabb1fc71a7aa5f1d77067e663f45c86f45b9441ea454508d36d37538"
+      }
+    },
+    {
+      "iteration": 500,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_500.pt",
+        "sha256": "3c17cf1670b0b7835b88bda25c7c87ad65a059aebc97dfd3e146231d40ddaa02"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 7.312744855880737e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_500/policy.screening.onnx",
+        "sha256": "2c035aa46384f4d97a399101c585452c7c90ddce605b8bc966400b940f19b68c"
+      }
+    },
+    {
+      "iteration": 750,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_750.pt",
+        "sha256": "4ac8be3ff7249c97affb9ddddf5da0372c04cb40c5625680d25d195f8b9d93c7"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 7.867813110351562e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_750/policy.screening.onnx",
+        "sha256": "c1d483d807e25556ae4cd4459bf246447f40e683149c3b4d63626a3c3c3e0812"
+      }
+    },
+    {
+      "iteration": 1000,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1000.pt",
+        "sha256": "b3881f0ddfabad6b403c3c86b63870748bbc081db8cc92560d3175edb1c0f43c"
+      },
+      "passed": false,
+      "violations": [
+        "onnx_max_abs_error"
+      ],
+      "onnx_max_abs_error": 1.1920928955078125e-05,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1000/policy.screening.onnx",
+        "sha256": "4d84647fdc4daddb0ac604aa26c2da2e61bbbc9e436445fe4426dc02db9ff975"
+      }
+    },
+    {
+      "iteration": 1250,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1250.pt",
+        "sha256": "6901f8341767f7514b6ef19e0eac3de7abab91e14891ec7a8ca3c139504e86aa"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 6.67572021484375e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1250/policy.screening.onnx",
+        "sha256": "33487f2bb9e36a21868ac8b930bae9a407f927a6b286d47b1e56339b6cbae01c"
+      }
+    },
+    {
+      "iteration": 1500,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1500.pt",
+        "sha256": "7571a1c18b437f8e49dabcfe29eb7b0d9539ded21f2b57677a15ccbea700ce77"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 4.947185516357422e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1500/policy.screening.onnx",
+        "sha256": "af11c9b03feb664b8486a01f14fa34de0941f4842a102fae12780e5e791b105e"
+      }
+    },
+    {
+      "iteration": 1750,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1750.pt",
+        "sha256": "614422649f7abc897ae682db9c6146107e439a02c97121a2a477664681f4aec5"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 5.9604644775390625e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1750/policy.screening.onnx",
+        "sha256": "c6a8779de2a544182a1114b95b1bf88ad8f26c352b4dd01ca806e4c6c405b336"
+      }
+    },
+    {
+      "iteration": 2000,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2000.pt",
+        "sha256": "ce4eb8ffc402ebd09a2d9c69b31284c224d7dd72273353ee998a71c4dc5acd79"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 7.569789886474609e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2000/policy.screening.onnx",
+        "sha256": "f888138d3a361550a847a96680359e9dd6792315ee5f81e38529c8cfcff4830a"
+      }
+    },
+    {
+      "iteration": 2250,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2250.pt",
+        "sha256": "7a87d33f73c3a867abac092ca2664029ef8deb029fc866a0100ee82f69c93074"
+      },
+      "passed": false,
+      "violations": [
+        "onnx_max_abs_error"
+      ],
+      "onnx_max_abs_error": 1.043081283569336e-05,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2250/policy.screening.onnx",
+        "sha256": "5f8ec59f7c0d06e47f3b34724758102250b3c5cf3b01192039af274ca23281f7"
+      }
+    },
+    {
+      "iteration": 2500,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2500.pt",
+        "sha256": "bc46ab29cc1fecaf9e89471815f03a4a0987751c3239bdbd776c4be46fe18d33"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 7.510185241699219e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2500/policy.screening.onnx",
+        "sha256": "5d2800dc945a48a93fa3574891f21bc364e2cab2f9e1aeeeef900974a3ca784b"
+      }
+    },
+    {
+      "iteration": 2750,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2750.pt",
+        "sha256": "044cf04803a9a3335903387f0ea3e4d1be098fef948b028785eea7303f00a9d0"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 9.298324584960938e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2750/policy.screening.onnx",
+        "sha256": "1e6e94ebb87377a86364f39539009d43180917dcfb12d0e147b61bedbf47740d"
+      }
+    },
+    {
+      "iteration": 3000,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3000.pt",
+        "sha256": "90f38c65f111dcf73acb0d1784372bd105934abb769dbfe56a915385694dcac3"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 6.839632987976074e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3000/policy.screening.onnx",
+        "sha256": "c25f1d1402fff207fdacd4661fa990e37004c08b52a90792214f145108993bf7"
+      }
+    },
+    {
+      "iteration": 3250,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3250.pt",
+        "sha256": "87f4e0905443ed3f431bead417f0af4557823b7e8efc76909dadde00ad7034d0"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 6.556510925292969e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3250/policy.screening.onnx",
+        "sha256": "1aa9ed917663fb4f8717f7750a4c2dc7360c149bac82cd37d97e9f906db3ed96"
+      }
+    },
+    {
+      "iteration": 3500,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3500.pt",
+        "sha256": "e2f98d1749b07309ad053af09da7c7ad77a002777d9f5f17fccc64e973a9cf3c"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 5.0067901611328125e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3500/policy.screening.onnx",
+        "sha256": "a4a27845f8cccbe943e2063c3debe6c1b46a1232478ade665cf2071622a8c897"
+      }
+    },
+    {
+      "iteration": 3750,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3750.pt",
+        "sha256": "bbb1c4f5a0e9f50bb4d910fcdd42569d032dd3b191a1f59b7d04257f02c2674a"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 3.3974647521972656e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3750/policy.screening.onnx",
+        "sha256": "fa4e3101ebfefada4d4cec97d296e13b5441e4f7128a3e21329c689e602555df"
+      }
+    },
+    {
+      "iteration": 3999,
+      "checkpoint": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3999.pt",
+        "sha256": "1d4e8502ed13b40197bc5e6c00a95aa8a7cf8f955d05d280eea11ea6324cd28b"
+      },
+      "passed": true,
+      "violations": [],
+      "onnx_max_abs_error": 2.7418136596679688e-06,
+      "screening_onnx": {
+        "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3999/policy.screening.onnx",
+        "sha256": "d353fa6190291b81884aa376ad77a9e462de134e8d8b6ae483dc11a98f1e9b18"
+      }
+    }
+  ]
+}

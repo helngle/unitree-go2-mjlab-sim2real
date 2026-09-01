@@ -1,0 +1,283 @@
+{
+  "schema_version": 2,
+  "evaluation_suite": "go2_causal_debounced_contact_incremental_observability_v2",
+  "decision_scope": "evaluation_only_gate_before_any_238d_teacher_training",
+  "source": {
+    "checkpoint": "logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt",
+    "checkpoint_sha256": "73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff",
+    "task_id": "Unitree-Go2-Rough-V7",
+    "actor_dim": 234,
+    "critic_dim": 261,
+    "critic_raw_contact_slice": [245, 249]
+  },
+  "single_variable": {
+    "baseline": "actor_observation_234",
+    "candidate": "actor_observation_234_plus_causal_confirmed_contact_4",
+    "candidate_dim": 238,
+    "forbidden_candidate_features": [
+      "raw_contact",
+      "clearance",
+      "base_lin_vel",
+      "history_stack",
+      "action",
+      "post_action_state"
+    ],
+    "clearance_collection": "integrity_only_not_a_model_feature_or_row_mask",
+    "training_changed": false,
+    "learn_called": false
+  },
+  "matrix": {
+    "seeds": [1042, 1043, 1044, 1045],
+    "profiles": ["clean", "randomized"],
+    "route_kinds": ["straight", "arc", "s_curve"],
+    "slope_directions": ["slope_up", "slope_down"],
+    "levels": [0, 1],
+    "radii": [2.5],
+    "speeds_mps": [0.3, 0.5],
+    "turn_signs": [1, -1],
+    "repeats": 1,
+    "matched_slots_per_chunk": 16,
+    "steps_per_chunk": 2400,
+    "chunk_count": 24,
+    "trajectory_count": 384,
+    "raw_row_upper_bound": 921600,
+    "eligible_row_count_must_equal_raw_upper_bound": false,
+    "fresh_process_per_seed_profile_route": true,
+    "old_seeds_or_raw_as_formal_forbidden": true
+  },
+  "timing": {
+    "control_dt_s": 0.02,
+    "anchor_start_tick": 10,
+    "anchor_stride_ticks": 5,
+    "horizons_ticks": [10, 25, 50],
+    "pre_action_order": [
+      "set_route_command",
+      "patch_actor_and_critic_command_slice_6_9_in_cached_or_step_return_observation",
+      "read_cached_policy_observation_without_recompute",
+      "read_native_sensor_and_assert_critic_raw_contact_identity",
+      "update_causal_confirmed_contact_once_from_current_pre_action_raw_contact",
+      "snapshot_anchor",
+      "policy_action",
+      "wrapped_step"
+    ],
+    "external_compute_group_forbidden": true,
+    "external_compute_update_history_during_loop_forbidden": true,
+    "initial_post_placement_observation_refreshes": 1,
+    "terminal_state": "captured_post_action_pre_reset_inside_env_reset_idx_hook",
+    "first_done_freezes_trajectory": true,
+    "new_episode_anchor_forbidden": true
+  },
+  "foot_semantics": {
+    "runtime_sensor_order": ["FL", "FR", "RL", "RR"],
+    "runtime_geom_names": [
+      "FL_foot_collision",
+      "FR_foot_collision",
+      "RL_foot_collision",
+      "RR_foot_collision"
+    ],
+    "feature_order": ["FL", "FR", "RL", "RR"],
+    "raw_value": "sensor.data.found > 0",
+    "confirmed_value": "causal_two_consecutive_pre_action_raw_samples",
+    "confirmation_ticks": 2,
+    "initialization": "first_valid_pre_action_confirmed_equals_current_raw_without_counting_a_flip",
+    "transition_rule": "for_t_gt_0_same_attempt_d_t_equals_c_t_if_c_t_equals_c_t_minus_1_and_c_t_differs_d_t_minus_1_else_d_t_minus_1",
+    "flip_timestamp": "current_second_confirming_pre_action_tick",
+    "future_backfill_forbidden": true,
+    "post_action_contact_as_feature_forbidden": true,
+    "reset_clears_state": true,
+    "gait_offsets_native": [0.0, 0.5, 0.5, 0.0],
+    "gait_period_s": 0.6,
+    "gait_stance_threshold": 0.56
+  },
+  "raw_fields": {
+    "pre_action": [
+      "actor_observation_234",
+      "critic_raw_contact_native_4",
+      "sensor_raw_contact_native_4",
+      "causal_confirmed_contact_native_4",
+      "causal_confirmed_contact_valid_native_4",
+      "causal_confirmed_contact_changed_native_4",
+      "terrain_relative_clearance_native_4_integrity_only",
+      "clearance_valid_native_4_integrity_only",
+      "route_progress",
+      "command_3",
+      "episode_tick",
+      "policy_action_12",
+      "active"
+    ],
+    "post_action": [
+      "sensor_raw_contact_native_4",
+      "contact_force_w_native_4x3",
+      "foot_velocity_w_native_4x3",
+      "terrain_normal_w_native_4x3",
+      "ray_valid_native_4",
+      "route_progress",
+      "episode_tick",
+      "done",
+      "catastrophic",
+      "termination_code"
+    ]
+  },
+  "labels": {
+    "slip_onset": {
+      "window": "(t,t+H]",
+      "loaded_normal_force_n": 15.0,
+      "slip_on_mps": 0.1,
+      "slip_off_mps": 0.05,
+      "confirmation_ticks": 2
+    },
+    "unexpected_transition": {
+      "window": "(t,t+H]",
+      "confirmation_ticks": 2,
+      "gait_boundary_grace_ticks": 2,
+      "definition": "touchdown_during_scheduled_swing_or_liftoff_during_scheduled_stance_using_native_runtime_offsets"
+    },
+    "catastrophic_failure": {
+      "window": "(t,t+H]",
+      "definition": "any_non_timeout_termination"
+    },
+    "future_progress": {
+      "definition": "(progress[t+H]-progress[t])/(scenario_speed*H*control_dt)",
+      "clip": null,
+      "requires_full_uncensored_window": true
+    },
+    "negative_binary_requires_full_window": true,
+    "window_may_cross_reset": false
+  },
+  "features": {
+    "baseline": "actor_observation_234",
+    "candidate": "actor_observation_234_plus_causal_confirmed_contact_native_4",
+    "common_scoring_rows": "anchor_active_and_label_valid_and_confirmed_contact_valid",
+    "row_id_hash_required": true,
+    "baseline_candidate_masks_labels_groups_weights_bootstrap_draws_bitwise_identical": true
+  },
+  "cross_validation": {
+    "outer_folds": 4,
+    "outer_split": "leave_one_seed_out",
+    "group": ["seed", "matched_slot"],
+    "siblings_kept_together": ["profile", "route_kind"],
+    "step_level_split_forbidden": true,
+    "train_fold_only_standardization": true,
+    "group_weighted_training": true,
+    "fixed_l2": 0.01,
+    "binary_model": "l2_logistic_regression",
+    "binary_solver": "torch_lbfgs_deterministic_cpu_float64",
+    "binary_solver_max_iter": 200,
+    "binary_solver_tolerance": 1e-8,
+    "binary_primary_loss": "balanced_log_loss",
+    "binary_guardrail": "pr_auc",
+    "progress_model": "ridge_regression",
+    "progress_solver": "torch_linalg_solve_float64_cpu",
+    "progress_loss": "normalized_mae",
+    "nonconvergence": "fail_closed"
+  },
+  "bootstrap": {
+    "unit": ["seed", "matched_slot"],
+    "stratify_by_speed": true,
+    "resamples": 10000,
+    "seed": 20260810,
+    "confidence_interval": "95_percentile",
+    "retrain_inside_bootstrap": false,
+    "effect": "(loss_baseline-loss_candidate)/loss_baseline"
+  },
+  "integrity_gates": {
+    "raw_and_confirmed_contact_finite_binary": true,
+    "runtime_slot_order_exact": true,
+    "cached_observation_not_recomputed_inside_loop": true,
+    "patched_command_equals_actor_and_critic_slice_6_9": true,
+    "critic_raw_contact_equals_sensor_raw_contact": true,
+    "actor_dim_exact": 234,
+    "critic_dim_exact": 261,
+    "reset_count_per_trajectory_max": 1,
+    "terminal_reason_required": true,
+    "no_anchor_after_first_done": true,
+    "no_label_cross_reset": true,
+    "saved_confirmed_equals_independent_causal_replay_bitwise": true,
+    "early_flip_or_future_backfill_count_exact": 0,
+    "confirmed_one_tick_excursion_edges_exact": 0,
+    "confirmed_transition_each_foot_profile_speed_min": 100,
+    "confirmed_to_raw_transition_retention_each_foot_profile_speed_range": [0.5, 1.0],
+    "confirmed_rapid_reversal": {
+      "scope": "each_profile_speed_foot_aggregated_across_trajectories",
+      "numerator": "confirmed_flips_whose_next_confirmed_flip_in_same_attempt_is_1_or_2_ticks_later",
+      "denominator": "all_confirmed_flips_in_the_same_profile_speed_foot_scope",
+      "cross_trajectory_or_reset_forbidden": true,
+      "denominator_must_be_positive": true,
+      "fraction_max": 0.1
+    },
+    "raw_chatter_report_only": true,
+    "clearance_integrity_report_only": true
+  },
+  "coverage_gates_per_profile_speed_horizon": {
+    "usable_groups_min": 24,
+    "usable_trajectories_min": 72,
+    "slip_and_unexpected_positive_event_groups_min": 24,
+    "slip_and_unexpected_negative_event_groups_min": 24,
+    "slip_and_unexpected_positive_anchors_min": 400,
+    "slip_and_unexpected_negative_anchors_min": 400,
+    "failure_positive_event_groups_min": 12,
+    "failure_negative_event_groups_min": 24,
+    "failure_positive_anchors_min_by_horizon": {"10": 48, "25": 120, "50": 240},
+    "failure_negative_anchors_min": 400,
+    "progress_groups_min": 24,
+    "progress_trajectories_min": 72,
+    "progress_anchors_min": 6500,
+    "each_binary_target_positive_trajectory_route_kinds_min": 2
+  },
+  "coverage_gates_per_held_out_seed_profile_speed_horizon": {
+    "usable_groups_min": 6,
+    "slip_and_unexpected_positive_groups_min": 4,
+    "slip_and_unexpected_negative_groups_min": 4,
+    "slip_and_unexpected_positive_anchors_min": 80,
+    "slip_and_unexpected_negative_anchors_min": 80,
+    "failure_positive_groups_min": 2,
+    "failure_negative_groups_min": 4,
+    "failure_positive_anchors_min_by_horizon": {"10": 4, "25": 10, "50": 20},
+    "failure_negative_anchors_min": 100,
+    "progress_groups_min": 6,
+    "progress_anchors_min": 1200
+  },
+  "coverage_reachability": {
+    "trajectories_per_profile_speed": 96,
+    "anchor_stride_ticks": 5,
+    "failure_positive_anchors_max_by_horizon": {"10": 192, "25": 480, "50": 960},
+    "registered_failure_positive_thresholds_are_not_above_maxima": true,
+    "fixed_power_claim": false,
+    "precision_decided_by_registered_cluster_bootstrap_ci": true
+  },
+  "pass_gates": {
+    "primary_horizon_ticks": 25,
+    "candidate_composite_ci_lower_gt_zero_each_profile_speed": true,
+    "horizon_25_each_target_macro_ci_lower_gt_zero": true,
+    "slip_and_unexpected_each_horizon_macro_ci_lower_gt_zero": true,
+    "horizon_10_and_50_composite_point_gain_gt_zero_each_profile_speed": true,
+    "horizon_10_and_50_composite_macro_ci_lower_gt_zero": true,
+    "any_target_profile_speed_horizon_point_gain_lt_zero_forbidden": true,
+    "binary_pr_auc_delta_lt_zero_forbidden": true,
+    "pass_value": "OBSERVABILITY_DIAGNOSTIC_PASSED",
+    "coverage_fail_value": "INCONCLUSIVE_DO_NOT_TRAIN",
+    "model_gate_fail_value": "DEBOUNCED_CONTACT_REJECTED_DO_NOT_TRAIN",
+    "technical_fail_value": "TECHNICAL_FAILURE_DO_NOT_TRAIN"
+  },
+  "artifact_inventory": {
+    "raw_chunks_exact": 24,
+    "unique_chunk_identity": ["seed", "profile", "route_kind"],
+    "scenarios_each_chunk_exact": 16,
+    "trajectories_exact": 384,
+    "unique_cv_groups_exact": 64,
+    "raw_chunk_format": "torch_pt",
+    "chunk_overwrite_forbidden": true,
+    "partial_chunk_pooling_forbidden": true,
+    "mixed_contract_sha_pooling_forbidden": true,
+    "manifest_required": true,
+    "summary_json_required": true,
+    "eligible_rows_reported_by_target_horizon": true
+  },
+  "unlock_if_passed": [
+    "implement_238d_schema_and_normalizer_transfer",
+    "run_32_env_optimizer_smoke",
+    "run_2048_env_no_learning_action_parity_preflight"
+  ],
+  "formal_ppo_training_requires_preflight_pass": true,
+  "formal_training_started": false
+}

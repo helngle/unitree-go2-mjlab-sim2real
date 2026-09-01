@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "selection_method": "hard_gates_then_preregistered_lexicographic",
+  "selection_scope": "checkpoint_screening_hard_gates",
+  "weighted_score_used": false,
+  "rollout_selection_performed": false,
+  "checkpoint_lineage": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_checkpoint_lineage.json",
+    "sha256": "cb1300431299041bcfcbc6aed23be596f337c5a7573740448afccc0aa1ac8421"
+  },
+  "input_screening_artifacts": [
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_0.screening.json",
+      "sha256": "55094878299443ab6a851631733c0fc4db0cf625867612d036497e53bb1b2ada"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_250.screening.json",
+      "sha256": "747bf23dfc13c6828c8f5d417b013c000fffc6afa0ad34c13a2e73d647a903d6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_500.screening.json",
+      "sha256": "62654c288a968b41d57afa2469d8b158a6795bcdbf748a3415aa6c56cd7ee8bd"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_750.screening.json",
+      "sha256": "0ff61883ede25b673991101d9dce54a6234c4e0ef493b55fd07aaad4ef76bdfd"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1000.screening.json",
+      "sha256": "6eaf0069d1ca7168a26e78655613c75f11d677e9d60088a46e520152ef81c867"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1250.screening.json",
+      "sha256": "46514778b11d651d0cae18df83ce1471af9022ecf368fb13914b62860fd49af6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1500.screening.json",
+      "sha256": "44b118e20d3349cfb75ae4025f4c49b7fd0778120c17797bd1b4a6d13c91801a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1750.screening.json",
+      "sha256": "af4a5b19e30af90fe494d459b2eb93d732e57c019c8e0610801b08ce4d45779d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2000.screening.json",
+      "sha256": "904a24a5be699a9de2c09124a4329ebbb1046de4ef5f5ffa3a3f4f89c22772f6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2250.screening.json",
+      "sha256": "ad3338b156ed2d583aa695297abe5ba3ea565191fec8ccb075fa06e9fca448ec"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2500.screening.json",
+      "sha256": "c26567856d3d6beff0f5dc9c8edc49ad620b62a1c685940d482263f447b23adf"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2750.screening.json",
+      "sha256": "e27cb3688c9fbf1dfaa3ec450b1ef152ece6d31c3b76706fc11c5262214e4e43"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3000.screening.json",
+      "sha256": "548da06c6ff1d41e6ad83f9ca910eb8cd0de237f9ddb521b7100ec351856ca6f"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3250.screening.json",
+      "sha256": "1744c21e0962f3955b925242ddf3d1c59b0882415288e01ba7eec15cac9ffbfd"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3500.screening.json",
+      "sha256": "a5f929fc25b41eb4a21591d02b916d3151bfeff6e8118f155ffda60375d8addb"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3750.screening.json",
+      "sha256": "2486492f26778cee0a8926b4078690ad384cba5083878a5944c29127114b9f73"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3999.screening.json",
+      "sha256": "28938effb5b701744ba8b939fb9fca67594166a785c5f51e17c97fc1e24dfd22"
+    }
+  ],
+  "decisions": [
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_0.pt",
+      "checkpoint_sha256": "b520c1cf4e352b5efac5f6e2218d1165270a777e07f5cb21d576d5fa280ee654",
+      "iteration": 0,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_250.pt",
+      "checkpoint_sha256": "e7b35dc44232a641b0096f55b6bd42b54a202cc3a92c7a60c856ea3c45ba5cbc",
+      "iteration": 250,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_500.pt",
+      "checkpoint_sha256": "3c17cf1670b0b7835b88bda25c7c87ad65a059aebc97dfd3e146231d40ddaa02",
+      "iteration": 500,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_750.pt",
+      "checkpoint_sha256": "4ac8be3ff7249c97affb9ddddf5da0372c04cb40c5625680d25d195f8b9d93c7",
+      "iteration": 750,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1000.pt",
+      "checkpoint_sha256": "b3881f0ddfabad6b403c3c86b63870748bbc081db8cc92560d3175edb1c0f43c",
+      "iteration": 1000,
+      "passed": false,
+      "violations": [
+        "onnx_parity:1.1920929e-05>1e-5"
+      ],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1250.pt",
+      "checkpoint_sha256": "6901f8341767f7514b6ef19e0eac3de7abab91e14891ec7a8ca3c139504e86aa",
+      "iteration": 1250,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1500.pt",
+      "checkpoint_sha256": "7571a1c18b437f8e49dabcfe29eb7b0d9539ded21f2b57677a15ccbea700ce77",
+      "iteration": 1500,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1750.pt",
+      "checkpoint_sha256": "614422649f7abc897ae682db9c6146107e439a02c97121a2a477664681f4aec5",
+      "iteration": 1750,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2000.pt",
+      "checkpoint_sha256": "ce4eb8ffc402ebd09a2d9c69b31284c224d7dd72273353ee998a71c4dc5acd79",
+      "iteration": 2000,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2250.pt",
+      "checkpoint_sha256": "7a87d33f73c3a867abac092ca2664029ef8deb029fc866a0100ee82f69c93074",
+      "iteration": 2250,
+      "passed": false,
+      "violations": [
+        "onnx_parity:1.04308128e-05>1e-5"
+      ],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2500.pt",
+      "checkpoint_sha256": "bc46ab29cc1fecaf9e89471815f03a4a0987751c3239bdbd776c4be46fe18d33",
+      "iteration": 2500,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2750.pt",
+      "checkpoint_sha256": "044cf04803a9a3335903387f0ea3e4d1be098fef948b028785eea7303f00a9d0",
+      "iteration": 2750,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3000.pt",
+      "checkpoint_sha256": "90f38c65f111dcf73acb0d1784372bd105934abb769dbfe56a915385694dcac3",
+      "iteration": 3000,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3250.pt",
+      "checkpoint_sha256": "87f4e0905443ed3f431bead417f0af4557823b7e8efc76909dadde00ad7034d0",
+      "iteration": 3250,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3500.pt",
+      "checkpoint_sha256": "e2f98d1749b07309ad053af09da7c7ad77a002777d9f5f17fccc64e973a9cf3c",
+      "iteration": 3500,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3750.pt",
+      "checkpoint_sha256": "bbb1c4f5a0e9f50bb4d910fcdd42569d032dd3b191a1f59b7d04257f02c2674a",
+      "iteration": 3750,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    },
+    {
+      "checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3999.pt",
+      "checkpoint_sha256": "1d4e8502ed13b40197bc5e6c00a95aa8a7cf8f955d05d280eea11ea6324cd28b",
+      "iteration": 3999,
+      "passed": true,
+      "violations": [],
+      "lexicographic_key": null
+    }
+  ],
+  "survivor_count": 15,
+  "selection_status": "SCREENING_SURVIVORS_REQUIRE_ROLLOUT",
+  "selected_checkpoint": null,
+  "provenance": {
+    "git_branch": "exp/high-slope-probe-integration",
+    "git_head": "0a204b645a2325cb06264725c58cc5745da64a43",
+    "dirty_state": {
+      "is_dirty": true,
+      "status_porcelain": " M deploy/include/FSM/State_RLBase.h\n M deploy/include/isaaclab/algorithms/algorithms.h\n M deploy/include/isaaclab/envs/manager_based_rl_env.h\n M deploy/include/isaaclab/envs/mdp/observations/observations.h\n M deploy/include/isaaclab/manager/action_manager.h\n M deploy/include/unitree_articulation.h\n M deploy/robots/go2/src/State_RLBase.cpp\n M docs/HANDOFF.md\n M docs/PROJECT_JOURNAL.md\n M scripts/evaluate_go2_curved_routes.py\n M scripts/evaluate_go2_high_slope_matched.py\n M scripts/evaluate_go2_matched_routes.py\n M scripts/evaluate_go2_rough.py\n M scripts/evaluate_go2_routes.py\n M scripts/evaluate_go2_terrain_boundary.py\n M scripts/evaluate_go2_terrain_curves.py\n M src/tasks/velocity/config/go2/__init__.py\n M src/tasks/velocity/config/go2/env_cfgs.py\n M src/tasks/velocity/config/go2/rl_cfg.py\n M src/tasks/velocity/evaluation/matched_route_metrics.py\n M src/tasks/velocity/evaluation/terrain_curved_routes.py\n M src/tasks/velocity/evaluation/terrain_rollout_metrics.py\n M src/tasks/velocity/mdp/rewards.py\n M src/tasks/velocity/rl/__init__.py\n M src/tasks/velocity/rl/runner.py\n M tests/test_go2_high_slope_acceptance.py\n M tests/test_go2_matched_route_metrics.py\n M tests/test_go2_terrain_curve_acceptance.py\n M tests/test_go2_terrain_rollout_metrics.py\n?? deploy/include/isaaclab/utils/joint_command_safety.h\n?? deploy/robots/go2/config/policy/velocity/v1_proprio_candidate/params/deploy.yaml\n?? deploy/robots/go2/config/policy/velocity/v1_proprio_candidate/params/observation_schema.json\n?? deploy/robots/go2/config/policy/velocity/v2_safe_action_candidate/params/deploy.yaml\n?? deploy/robots/go2/config/policy/velocity/v2_safe_action_candidate/params/observation_schema.json\n?? docs/reviews/go2_action_rollout_safety_diagnostic_20260729.md\n?? docs/reviews/go2_proprioceptive_deploy_build_check_20260727.json\n?? docs/reviews/go2_proprioceptive_deployment_safety_audit_20260727.md\n?? docs/reviews/go2_proprioceptive_student_multi_agent_instruction.md\n?? docs/reviews/go2_proprioceptive_student_preflight_2048env.json\n?? docs/reviews/go2_proprioceptive_student_readiness.json\n?? docs/reviews/go2_proprioceptive_student_readiness.md\n?? docs/reviews/go2_proprioceptive_student_training_contract.md\n?? docs/reviews/go2_safe_action_v2_design.md\n?? docs/reviews/go2_safe_action_v2_preflight_2048env.json\n?? docs/reviews/go2_safe_action_v2_training_contract.md\n?? docs/reviews/go2_sim2real_training_readiness_multi_agent_instruction.md\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_0.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_0/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1000.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1000/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1250.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1250/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1500.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1500/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1750.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1750/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2000.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2000/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2250.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2250/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_250.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_250/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2500.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2500/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2750.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2750/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3000.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3000/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3250.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3250/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3500.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3500/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3750.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3750/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3999.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3999/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_500.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_500/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_750.screening.json\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_750/policy.screening.onnx\n?? docs/reviews/go2_v2_meanbound5_checkpoint_screening/screening_summary.json\n?? docs/reviews/go2_v2_meanbound5_formal_checkpoint_lineage.json\n?? docs/reviews/go2_v2_meanbound5_preflight_2048env.json\n?? docs/reviews/stance_slip_failure_mechanism_diagnosis.md\n?? docs/reviews/stance_slip_training_acceptance_20260727.md\n?? docs/reviews/stance_slip_training_design.md\n?? scripts/audit_go2_action_recovery_counterfactual.py\n?? scripts/audit_go2_actuator_headroom_causal_coverage.py\n?? scripts/audit_go2_actuator_headroom_counterfactual.py\n?? scripts/audit_go2_actuator_headroom_triggered.py\n?? scripts/audit_go2_actuator_headroom_triplet.py\n?? scripts/audit_go2_contact_stabilization_causal.py\n?? scripts/audit_go2_foot_placement_counterfactual.py\n?? scripts/audit_go2_friction_contact_causal.py\n?? scripts/audit_go2_high_slope_actuators.py\n?? scripts/build_go2_proprioceptive_checkpoint_lineage.py\n?? scripts/diagnose_go2_complex_terrain_causes.py\n?? scripts/diagnose_go2_high_slope_gait.py\n?? scripts/diagnose_go2_stance_slip_failure_mechanism.py\n?? scripts/evaluate_go2_proprioceptive_acceptance.py\n?? scripts/export_go2_proprio_schema.py\n?? scripts/preflight_go2_proprioceptive_training.py\n?? scripts/preflight_go2_stance_slip_training.py\n?? scripts/screen_go2_proprioceptive_checkpoints.py\n?? scripts/select_go2_proprioceptive_checkpoint.py\n?? scripts/select_go2_stance_slip_checkpoint.py\n?? scripts/train_go2_proprioceptive.py\n?? scripts/train_go2_proprioceptive_safe_action.py\n?? src/tasks/velocity/config/go2/sim2real_safe_action_schema.py\n?? src/tasks/velocity/config/go2/sim2real_schema.py\n?? src/tasks/velocity/evaluation/proprio_acceptance.py\n?? src/tasks/velocity/rl/bounded_action_distribution.py\n?? src/tasks/velocity/rl/teacher_rollout_distillation.py\n?? tests/go2_proprio_history_smoke.cpp\n?? tests/go2_proprio_runtime_safety_smoke.cpp\n?? tests/go2_unitree_mujoco_headless_smoke.cpp\n?? tests/test_go2_action_recovery_counterfactual.py\n?? tests/test_go2_actuator_headroom_causal_coverage.py\n?? tests/test_go2_actuator_headroom_counterfactual.py\n?? tests/test_go2_actuator_headroom_triggered.py\n?? tests/test_go2_actuator_headroom_triplet.py\n?? tests/test_go2_bounded_action_distribution.py\n?? tests/test_go2_complex_terrain_causes.py\n?? tests/test_go2_contact_stabilization_causal.py\n?? tests/test_go2_foot_placement_counterfactual.py\n?? tests/test_go2_friction_contact_causal.py\n?? tests/test_go2_high_slope_actuator_audit.py\n?? tests/test_go2_high_slope_gait.py\n?? tests/test_go2_proprioceptive_acceptance.py\n?? tests/test_go2_proprioceptive_sim2real.py\n?? tests/test_go2_proprioceptive_training_provenance.py\n?? tests/test_go2_safe_action_screening.py\n?? tests/test_go2_safe_action_sim2real.py\n?? tests/test_go2_stance_slip_checkpoint_selection.py\n?? tests/test_go2_stance_slip_failure_mechanism.py\n?? tests/test_go2_stance_slip_reward.py",
+      "status_sha256": "084a139ab277644804da99751ea0d788ac5789ef6a589c25504acb5e8d3a39ae",
+      "tracked_diff_sha256": "f3d25e95e678f910e44325aae3ffbf28e0983f70a062dc3347708098b59b90cc"
+    },
+    "checkpoint": {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_0.pt",
+      "sha256": "b520c1cf4e352b5efac5f6e2218d1165270a777e07f5cb21d576d5fa280ee654"
+    },
+    "evaluator": {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/scripts/select_go2_proprioceptive_checkpoint.py",
+      "sha256": "e355475bb7318516402a7006af3becb387b049343fb516e7017719d2fc51c0da"
+    },
+    "dependencies": {
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_checkpoint_lineage.json": "cb1300431299041bcfcbc6aed23be596f337c5a7573740448afccc0aa1ac8421",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_0.screening.json": "55094878299443ab6a851631733c0fc4db0cf625867612d036497e53bb1b2ada",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_250.screening.json": "747bf23dfc13c6828c8f5d417b013c000fffc6afa0ad34c13a2e73d647a903d6",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_500.screening.json": "62654c288a968b41d57afa2469d8b158a6795bcdbf748a3415aa6c56cd7ee8bd",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_750.screening.json": "0ff61883ede25b673991101d9dce54a6234c4e0ef493b55fd07aaad4ef76bdfd",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1000.screening.json": "6eaf0069d1ca7168a26e78655613c75f11d677e9d60088a46e520152ef81c867",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1250.screening.json": "46514778b11d651d0cae18df83ce1471af9022ecf368fb13914b62860fd49af6",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1500.screening.json": "44b118e20d3349cfb75ae4025f4c49b7fd0778120c17797bd1b4a6d13c91801a",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_1750.screening.json": "af4a5b19e30af90fe494d459b2eb93d732e57c019c8e0610801b08ce4d45779d",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2000.screening.json": "904a24a5be699a9de2c09124a4329ebbb1046de4ef5f5ffa3a3f4f89c22772f6",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2250.screening.json": "ad3338b156ed2d583aa695297abe5ba3ea565191fec8ccb075fa06e9fca448ec",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2500.screening.json": "c26567856d3d6beff0f5dc9c8edc49ad620b62a1c685940d482263f447b23adf",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_2750.screening.json": "e27cb3688c9fbf1dfaa3ec450b1ef152ece6d31c3b76706fc11c5262214e4e43",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3000.screening.json": "548da06c6ff1d41e6ad83f9ca910eb8cd0de237f9ddb521b7100ec351856ca6f",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3250.screening.json": "1744c21e0962f3955b925242ddf3d1c59b0882415288e01ba7eec15cac9ffbfd",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3500.screening.json": "a5f929fc25b41eb4a21591d02b916d3151bfeff6e8118f155ffda60375d8addb",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3750.screening.json": "2486492f26778cee0a8926b4078690ad384cba5083878a5944c29127114b9f73",
+      "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3999.screening.json": "28938effb5b701744ba8b939fb9fca67594166a785c5f51e17c97fc1e24dfd22"
+    },
+    "source_manifest": {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/provenance/go2_safe_action_v2_source_manifest_aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e.json",
+      "sha256": "aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e"
+    },
+    "checkpoint_embedded_source_manifest_sha256": "aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e"
+  }
+}

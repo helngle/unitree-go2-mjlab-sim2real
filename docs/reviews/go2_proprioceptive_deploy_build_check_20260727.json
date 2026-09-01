@@ -1,0 +1,57 @@
+{
+  "artifacts": {
+    "go2_controller_binary_sha256": "e61ea9c68361ddb52be7adbf1bf9f997c5a717ad138abc8b05928de7264ed2f5",
+    "headless_bridge_binary_sha256": "a175a0cc54bc8656d1d3831fe536ae48d82d5958e16a30ad8141eb75b709b26f",
+    "headless_bridge_source": "tests/go2_unitree_mujoco_headless_smoke.cpp",
+    "headless_bridge_source_sha256": "2db3a7084c1c90d8a15f4b0908ea923eea12a8ac34dd6b132f6025dd24c11edd",
+    "runtime_safety_smoke_binary_sha256": "83e72d90c07ab0a401546f8ebbc419f54aee7da8ac8ef4729d28dfe307e577cb",
+    "runtime_safety_smoke_source": "tests/go2_proprio_runtime_safety_smoke.cpp",
+    "runtime_safety_smoke_source_sha256": "a850ea8e58eb5dddb809030e3d0d675635096ff682999454de21311f1b7234a5",
+    "scene_sha256": "97c7ece37cb37666f2767abb4449c3a8a6a2a0e90716d14940e09423f5d426ef",
+    "unitree_mujoco_binary_sha256": "572c46907328274062dc213efb6babeef3d7bebdd6834a04b06379acf2245759"
+  },
+  "build_environment": {
+    "cmake": "3.28.3",
+    "compiler": "g++ 13.3.0",
+    "isolated_prefix": "/tmp/go2-sdk2-RIALJj/install",
+    "workspace_modified_by_dependency_install": false
+  },
+  "dependencies": {
+    "eigen_commit": "d53ac33805ba0a23fa139adaf24227fb6707e6fa",
+    "glfw_commit": "463cf73610d911e8eff95ae345143137cf610be4",
+    "spdlog_commit": "989d28dd768adef702538634857942db24e1058a",
+    "unitree_sdk2_commit": "21d0a3b2c46ee48c8fdf2783becb6be3beb0a59b",
+    "yaml_cpp_commit": "356643ba267039367d87fa70ce3d8f87144f55e9"
+  },
+  "finite": true,
+  "go2_controller_build": "PASS",
+  "runtime_safety_fault_injection": "PASS",
+  "graphical_runtime": {
+    "result": "NOT_RUN_HEADLESS_SESSION",
+    "reason": "GLFW could not create a window in the noninteractive session"
+  },
+  "headless_bridge": {
+    "dds_domain": 97,
+    "interface": "lo",
+    "motor_count": 12,
+    "steps": 10,
+    "checks": {
+      "actuator_control_finite": true,
+      "imu_finite": true,
+      "lowstate_tick_advanced": true,
+      "motor_state_finite": true,
+      "sensor_data_finite": true
+    },
+    "result": "PASS"
+  },
+  "schema_version": 1,
+  "runtime_safety_contract": {
+    "action_manager_synchronized": true,
+    "explicit_measured_position_hold_before_first_action": true,
+    "first_valid_action_required_before_publish": true,
+    "processed_joint_limits_checked": true,
+    "quaternion_normalized_before_gravity_projection": true,
+    "trained_policy_closed_loop": "POST_TRAINING_PENDING"
+  },
+  "unitree_mujoco_build": "PASS"
+}

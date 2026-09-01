@@ -1,0 +1,64 @@
+{
+  "behavior_loss": 0.23959273099899292,
+  "candidate_checkpoint_written": false,
+  "device": "cuda:0",
+  "dimensions": {
+    "action": 12,
+    "actor": 425,
+    "critic": 261,
+    "teacher": 234
+  },
+  "finite": {
+    "actions": true,
+    "observations": true,
+    "onnx": true,
+    "ppo_actor_critic": true,
+    "rewards_and_extras": true
+  },
+  "gpu_peak_memory_bytes": {
+    "allocated": 326579712,
+    "reserved": 367001600
+  },
+  "learn_called": false,
+  "num_envs": 2048,
+  "onnx": {
+    "input_count": 1,
+    "input_name": "actor",
+    "input_shape": [
+      1,
+      425
+    ],
+    "max_abs_action_error": 4.842877388000488e-08,
+    "schema_metadata_match": true,
+    "temporary_artifact_removed": true
+  },
+  "optimizer_step_called": false,
+  "ppo_observation_groups": [
+    "actor",
+    "critic"
+  ],
+  "reset_count": {
+    "distillation": 0,
+    "ppo": 0
+  },
+  "schema_version": 1,
+  "seed": 42,
+  "steps": 8,
+  "strict_teacher_load": true,
+  "student_gradient_finite": true,
+  "student_schema_sha256": "379d982c61c839286fe7a566fee40160f599831752041250dbd804709a6e4b10",
+  "task_ids": {
+    "distillation": "Unitree-Go2-Rough-Sim2Real-Proprio-V1-Distill",
+    "ppo": "Unitree-Go2-Rough-Sim2Real-Proprio-V1"
+  },
+  "teacher_checkpoint": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-14_11-29-13_go2_rough_v7_explicit_modes_focus_probe_2048env_500iter/model_13600.pt",
+  "teacher_deterministic_bitwise": true,
+  "teacher_frozen": true,
+  "teacher_gradient_absent": true,
+  "teacher_loaded": true,
+  "teacher_normalizer_count": 423247872.0,
+  "teacher_rollout_action_match": true,
+  "teacher_sha256": "73f68beb29ed23f561fd3364e476e32167269c8a9f88078a7344db4d504f2dff",
+  "teacher_state_key_count": 13,
+  "teacher_state_unchanged": true
+}

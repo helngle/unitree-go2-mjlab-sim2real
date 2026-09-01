@@ -36,6 +36,7 @@ from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
   ACTION_ACCELERATION_DEFINITION,
   ACTIVE_SAMPLE_DEFINITION,
   OnlineTerrainRolloutMetrics,
+  OnlineTerrainTangentSlipMetrics,
   action_acceleration,
   contact_any,
   foot_contact_any,
@@ -43,7 +44,19 @@ from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
 )
 
 
-RANDOMIZATION_EVENTS = ("foot_friction", "encoder_bias", "base_com", "base_payload", "motor_strength")
+from src.tasks.velocity.evaluation.proprio_acceptance import (
+  SIM2REAL_RANDOMIZATION_EVENTS,
+  TerrainTangentTelemetry,
+  actuator_effort_and_power,
+  base_pitch_absolute,
+  configure_sim2real_profile,
+  formal_evaluation_provenance,
+  install_sim2real_randomization_contract,
+  normalized_action_safety,
+)
+
+
+RANDOMIZATION_EVENTS = SIM2REAL_RANDOMIZATION_EVENTS
 PROFILE_NAMES = ("clean", "dynamics", "randomized")
 CONTINUOUS_NCONMAX = 128
 
@@ -152,6 +165,9 @@ def _column_terrain_names(generator_cfg) -> list[str]:
 def _configure_profile(env_cfg: Any, profile: str) -> dict[str, Any]:
   if profile not in PROFILE_NAMES:
     raise ValueError(f"profile must be one of {PROFILE_NAMES}, got {profile!r}")
+  if profile in {"clean", "randomized"}:
+    return configure_sim2real_profile(env_cfg, profile)
+  install_sim2real_randomization_contract(env_cfg)
   if profile == "clean":
     env_cfg.observations["actor"].enable_corruption = False
     for name in RANDOMIZATION_EVENTS + ("push_robot",):
@@ -525,6 +541,12 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
     cfg.steps,
     device=device,
     dtype=robot.data.root_link_pos_w.dtype,
+    control_dt_s=float(profile_settings["control_dt"]),
+  )
+  tangent_telemetry = TerrainTangentTelemetry(env)
+  tangent_metrics = OnlineTerrainTangentSlipMetrics(
+    num_envs, cfg.steps, tangent_telemetry.num_feet,
+    device=device, dtype=robot.data.root_link_pos_w.dtype,
   )
   termination_counts = {name: torch.zeros(num_envs, device=device) for name in env.termination_manager.active_terms}
   try:
@@ -624,6 +646,10 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       env.action_manager.prev_prev_action,
     )
     action_acc_sum += action_acc * sample.float()
+    actuator_effort, mechanical_power = actuator_effort_and_power(robot)
+    action_abs_max, action_fault = normalized_action_safety(
+      env.action_manager.action
+    )
     rollout_metrics.update(
       sample_mask=sample,
       action_acceleration=action_acc,
@@ -636,6 +662,19 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
         "calf": _sensor_contact(env, "calf_ground_contact", num_envs),
       },
       catastrophic_termination=_catastrophic_termination(env, num_envs),
+      base_pitch=base_pitch_absolute(robot),
+      actuator_effort_abs=actuator_effort,
+      mechanical_power_abs=mechanical_power,
+      normalized_action_abs_max=action_abs_max,
+      action_safety_fault=action_fault,
+    )
+    tangent_cost, tangent_slip, loaded, ray_valid, normal_force = (
+      tangent_telemetry.sample()
+    )
+    tangent_metrics.update(
+      sample_mask=sample, cost=tangent_cost,
+      slip_velocity=tangent_slip, loaded=loaded, ray_valid=ray_valid,
+      normal_force=normal_force,
     )
     for index in torch.where(lifecycle.completed_now | lifecycle.failed_now)[0].tolist():
       if first_reason[index] is None:
@@ -663,6 +702,7 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
     if cross_distribution.numel() == 0 or heading_distribution.numel() == 0:
       raise RuntimeError("finished straight attempt has no retained path samples")
     terrain_metrics = rollout_metrics.result(index)
+    tangent_result = tangent_metrics.result(index)
     if terrain_metrics["active_control_step_samples"] != int(sample_count[index]):
       raise RuntimeError("terrain metric sample mask diverged from route lifecycle")
     action_distribution = terrain_metrics["action_acceleration"]
@@ -718,6 +758,8 @@ def _evaluate_checkpoint(checkpoint: Path, cfg: RouteConfig) -> dict[str, Any]:
       "calf_contact_count": body_contacts["calf"]["non_terminating_count"],
       "calf_contact_rate": body_contacts["calf"]["non_terminating_rate"],
       "terrain_rollout_metrics": terrain_metrics,
+      "terrain_tangent_stance_slip_mean": tangent_result["slip_velocity"]["mean"],
+      "terrain_tangent_loaded_stance": tangent_result,
       "route_start_xy": [float(value) for value in route_start[index]],
       "route_endpoint_xy": [float(value) for value in endpoint[index]],
       "initial_position_xy": [float(value) for value in initial_position[index]],
@@ -892,6 +934,15 @@ def main() -> None:
   configure_torch_backends()
   cfg = tyro.cli(RouteConfig)
   results = [_evaluate_checkpoint(Path(path).expanduser().resolve(), cfg) for path in cfg.checkpoints]
+  for result in results:
+    result["provenance"] = formal_evaluation_provenance(
+      result["checkpoint"], __file__,
+      (
+        Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/proprio_acceptance.py",
+        Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/terrain_rollout_metrics.py",
+        Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/routes.py",
+      ),
+    )
   config_output = asdict(cfg)
   config_output["route_length"] = _resolve_route_contract(cfg)[0]
   output = {"config": config_output, "results": results}

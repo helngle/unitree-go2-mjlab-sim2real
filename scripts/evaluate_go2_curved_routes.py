@@ -49,17 +49,25 @@ from src.tasks.velocity.evaluation.transient_metrics import (
   OnlineCommandTransientMetrics,
   TransientMetricConfig,
 )
+from src.tasks.velocity.evaluation.proprio_acceptance import (
+  SIM2REAL_RANDOMIZATION_EVENTS,
+  configure_sim2real_profile,
+  install_sim2real_randomization_contract,
+)
 
 
 PATCH_SIZE = (16.0, 16.0)
 ROUTE_START_LOCAL = (2.0, 8.0)
-RANDOMIZATION_EVENTS = ("foot_friction", "encoder_bias", "base_com", "base_payload", "motor_strength")
+RANDOMIZATION_EVENTS = SIM2REAL_RANDOMIZATION_EVENTS
 PROFILE_NAMES = ("clean", "dynamics", "randomized")
 
 
 def _configure_profile(env_cfg: Any, profile: str) -> dict[str, Any]:
   if profile not in PROFILE_NAMES:
     raise ValueError(f"profile must be one of {PROFILE_NAMES}")
+  if profile in {"clean", "randomized"}:
+    return configure_sim2real_profile(env_cfg, profile)
+  install_sim2real_randomization_contract(env_cfg)
   if profile == "clean":
     env_cfg.observations["actor"].enable_corruption = False
     for name in RANDOMIZATION_EVENTS + ("push_robot",):

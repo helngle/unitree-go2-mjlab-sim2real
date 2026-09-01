@@ -27,13 +27,14 @@ COMMAND_CASES = {
   "yaw_right": (0.0, 0.0, -0.5),
 }
 
-RANDOMIZATION_EVENTS = (
-  "foot_friction",
-  "encoder_bias",
-  "base_com",
-  "base_payload",
-  "motor_strength",
+from src.tasks.velocity.evaluation.proprio_acceptance import (
+  SIM2REAL_RANDOMIZATION_EVENTS,
+  configure_sim2real_profile,
+  install_sim2real_randomization_contract,
 )
+
+
+RANDOMIZATION_EVENTS = SIM2REAL_RANDOMIZATION_EVENTS
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,10 @@ def _configure_profile(env_cfg, profile: str) -> None:
       f"Unknown profile {profile!r}; expected clean, dynamics, or randomized."
     )
 
+  if profile in {"clean", "randomized"}:
+    configure_sim2real_profile(env_cfg, profile)
+    return
+  install_sim2real_randomization_contract(env_cfg)
   if profile == "clean":
     env_cfg.observations["actor"].enable_corruption = False
     env_cfg.events.pop("push_robot", None)

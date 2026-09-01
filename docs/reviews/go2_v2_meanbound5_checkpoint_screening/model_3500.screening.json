@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "policy_contract": {
+    "task_id": "Unitree-Go2-Rough-Sim2Real-Proprio-V2-SafeAction",
+    "schema_version": "go2-sim2real-proprio-v2-safe-action",
+    "schema_sha256": "2c6da479c6c833f127c672b774e877e0fc6b14967e39b06ff2333dd241b87c3f",
+    "action_interface": "bounded_asymmetric_per_joint_v2",
+    "action_output_semantics": "applied_normalized_action",
+    "action_mean_bound": 5.0
+  },
+  "checkpoint": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3500.pt",
+    "sha256": "e2f98d1749b07309ad053af09da7c7ad77a002777d9f5f17fccc64e973a9cf3c"
+  },
+  "checkpoint_iteration": 3500,
+  "source_manifest": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/provenance/go2_safe_action_v2_source_manifest_aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e.json",
+    "sha256": "aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e"
+  },
+  "screening_onnx": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_checkpoint_screening/model_3500/policy.screening.onnx",
+    "sha256": "a4a27845f8cccbe943e2063c3debe6c1b46a1232478ade665cf2071622a8c897"
+  },
+  "lifecycle_valid": true,
+  "provenance_valid": true,
+  "recursive_finite": true,
+  "schema_425_valid": true,
+  "onnx_single_input": true,
+  "onnx_no_privileged_inputs": true,
+  "onnx_action_contract_valid": true,
+  "onnx_max_abs_error": 5.0067901611328125e-06,
+  "no_reset_storm": true,
+  "placement_valid": true,
+  "action_limits_valid": true,
+  "screening_action_fault_count": 0,
+  "screening_input_count": 16
+}

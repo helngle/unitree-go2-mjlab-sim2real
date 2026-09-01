@@ -24,6 +24,7 @@ from src.tasks.velocity.evaluation.matched_route_metrics import (
   DYNAMICS_EVENTS,
   OBSERVATION_EVENTS,
   PROFILES,
+  RANDOMIZATION_EVENTS,
   ROUTE_KINDS,
   MatchedRouteContract,
   OnlineMatchedRouteMetrics,
@@ -132,7 +133,7 @@ class MatchedProfileAcceptanceTest(unittest.TestCase):
       "push_only": (False, (), True),
       "full_randomized": (
         True,
-        DYNAMICS_EVENTS + OBSERVATION_EVENTS,
+        RANDOMIZATION_EVENTS,
         True,
       ),
     }

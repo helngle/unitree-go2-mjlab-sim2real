@@ -68,6 +68,18 @@ from src.tasks.velocity.evaluation.transient_metrics import (
   OnlineCommandTransientMetrics,
   TransientMetricConfig,
 )
+from src.tasks.velocity.evaluation.proprio_acceptance import (
+  TerrainTangentTelemetry,
+  actuator_effort_and_power,
+  base_pitch_absolute,
+  formal_evaluation_provenance,
+  normalized_action_safety,
+  processed_joint_target_safety,
+)
+from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
+  OnlineTerrainRolloutMetrics,
+  OnlineTerrainTangentSlipMetrics,
+)
 
 
 @dataclass(frozen=True)
@@ -305,6 +317,11 @@ def _evaluate_route_kind(
     num_envs, cfg.steps, device=device,
     dtype=robot.data.root_link_pos_w.dtype,
   )
+  terrain_metrics = OnlineTerrainRolloutMetrics(
+    num_envs, cfg.steps, device=device,
+    dtype=robot.data.root_link_pos_w.dtype,
+    control_dt_s=float(episode_settings["control_dt"]),
+  )
   transient_metrics = OnlineCommandTransientMetrics(
     num_envs, device=device, dtype=robot.data.root_link_pos_w.dtype,
     config=TransientMetricConfig(
@@ -316,7 +333,12 @@ def _evaluate_route_kind(
     feet_sensor = env.scene["feet_ground_contact"]
   except KeyError:
     feet_sensor = None
-  foot_ids, _ = robot.find_sites(("FR", "FL", "RR", "RL"))
+  tangent_telemetry = TerrainTangentTelemetry(env)
+  foot_ids = tangent_telemetry.foot_ids
+  tangent_metrics = OnlineTerrainTangentSlipMetrics(
+    num_envs, cfg.steps, tangent_telemetry.num_feet,
+    device=device, dtype=robot.data.root_link_pos_w.dtype,
+  )
   observation = wrapped.get_observations()
   try:
     for step_index in range(cfg.steps):
@@ -439,6 +461,43 @@ def _evaluate_route_kind(
         slip_velocity=slip, velocity_error=velocity_error,
         cross_axis_velocity=cross_axis,
       )
+      catastrophic = torch.zeros(
+        num_envs, dtype=torch.bool, device=device
+      )
+      for name in env.termination_manager.active_terms:
+        if not env.termination_manager.get_term_cfg(name).time_out:
+          catastrophic |= env.termination_manager.get_term(name).bool()
+      actuator_effort, mechanical_power = actuator_effort_and_power(robot)
+      action_abs_max, action_fault = normalized_action_safety(
+        env.action_manager.action
+      )
+      terrain_metrics.update(
+        sample_mask=sample,
+        action_acceleration=action_acc,
+        foot_slip_velocity=slip,
+        body_contacts={
+          "base": _contact_found(env, "base_ground_contact", num_envs),
+          "upper_leg": _contact_found(
+            env, "upper_leg_ground_contact", num_envs
+          ),
+          "calf": _contact_found(env, "calf_ground_contact", num_envs),
+        },
+        catastrophic_termination=catastrophic,
+        base_pitch=base_pitch_absolute(robot),
+        actuator_effort_abs=actuator_effort,
+        mechanical_power_abs=mechanical_power,
+        normalized_action_abs_max=action_abs_max,
+        action_safety_fault=action_fault,
+        joint_target_safety_fault=processed_joint_target_safety(env),
+      )
+      tangent_cost, tangent_slip, loaded, ray_valid, normal_force = (
+        tangent_telemetry.sample()
+      )
+      tangent_metrics.update(
+        sample_mask=sample, cost=tangent_cost,
+        slip_velocity=tangent_slip, loaded=loaded, ray_valid=ray_valid,
+        normal_force=normal_force,
+      )
       for name in termination_counts:
         termination_counts[name] += (
           env.termination_manager.get_term(name).float() * sample_f
@@ -492,6 +551,8 @@ def _evaluate_route_kind(
       local_bounds[0] - 0.8, local_bounds[1] + 0.8,
       local_bounds[2] - 0.8, local_bounds[3] + 0.8,
     )
+    rollout_result = terrain_metrics.result(index)
+    tangent_result = tangent_metrics.result(index)
     outputs.append({
       **scenario,
       "route_kind": route_kind,
@@ -529,6 +590,9 @@ def _evaluate_route_kind(
       "actual_velocity_mean": [float(x) for x in actual_mean],
       "response_gain": transient_metrics.result(index),
       "sample_metrics": distribution_metrics.result(index),
+      "terrain_rollout_metrics": rollout_result,
+      "terrain_tangent_stance_slip_mean": tangent_result["slip_velocity"]["mean"],
+      "terrain_tangent_loaded_stance": tangent_result,
       "controller_saturation_fraction": float(
         saturation_count[index] / denom[index]
       ),
@@ -622,10 +686,18 @@ def main() -> None:
   configure_torch_backends()
   cfg = tyro.cli(MatchedRouteConfig)
   result = evaluate(cfg)
+  result["provenance"] = formal_evaluation_provenance(
+    cfg.checkpoint, __file__,
+    (
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/proprio_acceptance.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/terrain_rollout_metrics.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/matched_route_metrics.py",
+    ),
+  )
   output = Path(cfg.output_file)
   output.parent.mkdir(parents=True, exist_ok=True)
-  output.write_text(json.dumps(result, indent=2) + "\n")
-  print(json.dumps(result, indent=2))
+  output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+  print(json.dumps(result, indent=2, allow_nan=False))
   print(f"[INFO] Wrote matched route evaluation to {output}")
 
 

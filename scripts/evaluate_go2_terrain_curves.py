@@ -29,6 +29,8 @@ from scripts.evaluate_go2_curved_routes import CurvedRouteConfig
 from src.tasks.velocity.evaluation.terrain_curved_routes import (
   DEFAULT_CORRIDOR_HALF_WIDTH,
   PATCH_SIZE,
+  PROPRIO_TERRAIN_CURVE_KINDS,
+  PROPRIO_TERRAIN_KIND_TO_TYPE,
   ROUTE_START_LOCAL,
   TERRAIN_CURVE_KINDS,
   TERRAIN_KIND_TO_TYPE,
@@ -45,10 +47,20 @@ from src.tasks.velocity.evaluation.terrain_rollout_metrics import (
   ACTION_ACCELERATION_DEFINITION,
   ACTIVE_SAMPLE_DEFINITION,
   OnlineTerrainRolloutMetrics,
+  OnlineTerrainTangentSlipMetrics,
   action_acceleration,
   contact_any,
   foot_contact_any,
   foot_slip_velocity,
+)
+from src.tasks.velocity.evaluation.proprio_acceptance import (
+  TerrainTangentTelemetry,
+  actuator_effort_and_power,
+  base_pitch_absolute,
+  formal_evaluation_provenance,
+  environment_control_dt,
+  normalized_action_safety,
+  processed_joint_target_safety,
 )
 
 
@@ -57,6 +69,8 @@ TERRAIN_KEYS: dict[TerrainCurveKind, str] = {
   "slope_down": "hf_pyramid_slope",
   "random_rough": "random_rough",
   "discrete_obstacle": "discrete_obstacles",
+  "stairs_up": "pyramid_stairs_inv",
+  "stairs_down": "pyramid_stairs",
 }
 
 
@@ -102,7 +116,7 @@ def _validate_config(cfg: TerrainCurvedRouteConfig) -> None:
   flat_curves._validate_config(_base_config(cfg))
   if not cfg.terrain_kinds:
     raise ValueError("terrain_kinds must not be empty")
-  unknown = set(cfg.terrain_kinds) - set(TERRAIN_CURVE_KINDS)
+  unknown = set(cfg.terrain_kinds) - set(PROPRIO_TERRAIN_CURVE_KINDS)
   if unknown:
     raise ValueError(f"unsupported terrain curve kinds: {sorted(unknown)}")
   if not cfg.terrain_levels or any(level not in (0, 1) for level in cfg.terrain_levels):
@@ -184,7 +198,14 @@ def _terrain_assignment(
     device=device,
   )
   types = torch.tensor(
-    [TERRAIN_KIND_TO_TYPE[scenario["terrain_kind"]] for scenario in scenarios],
+    [
+      (
+        PROPRIO_TERRAIN_KIND_TO_TYPE
+        if any(item["terrain_kind"].startswith("stairs") for item in scenarios)
+        else TERRAIN_KIND_TO_TYPE
+      )[scenario["terrain_kind"]]
+      for scenario in scenarios
+    ],
     dtype=torch.long,
     device=device,
   )
@@ -321,7 +342,10 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
   original_transient_metrics = flat_curves.OnlineCommandTransientMetrics
 
   def generator(seed: int):
-    return make_terrain_curve_generator(seed)
+    return make_terrain_curve_generator(
+      seed,
+      include_stairs=any(kind.startswith("stairs") for kind in cfg.terrain_kinds),
+    )
 
   def placement(
     env: ManagerBasedRlEnv,
@@ -354,8 +378,15 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
         cfg.steps,
         device=self._env.device,
         dtype=robot.data.root_link_pos_w.dtype,
+        control_dt_s=environment_control_dt(self._env),
+      )
+      self._tangent_telemetry = TerrainTangentTelemetry(self._env)
+      self._tangent_metrics = OnlineTerrainTangentSlipMetrics(
+        num_envs, cfg.steps, self._tangent_telemetry.num_feet,
+        device=self._env.device, dtype=robot.data.root_link_pos_w.dtype,
       )
       capture["rollout_metrics"] = self._metrics
+      capture["tangent_metrics"] = self._tangent_metrics
 
     def update(self, *args: Any, **kwargs: Any) -> None:
       self._delegate.update(*args, **kwargs)
@@ -375,6 +406,10 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
         slip = foot_slip_velocity(
           robot.data.site_lin_vel_w[:, self._foot_ids, :2], foot_contact
         )
+      actuator_effort, mechanical_power = actuator_effort_and_power(robot)
+      action_abs_max, action_fault = normalized_action_safety(
+        self._env.action_manager.action
+      )
       self._metrics.update(
         sample_mask=sample_mask,
         action_acceleration=action_acceleration(
@@ -397,6 +432,20 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
         catastrophic_termination=_catastrophic_termination(
           self._env, num_envs
         ),
+        base_pitch=base_pitch_absolute(robot),
+        actuator_effort_abs=actuator_effort,
+        mechanical_power_abs=mechanical_power,
+        normalized_action_abs_max=action_abs_max,
+        action_safety_fault=action_fault,
+        joint_target_safety_fault=processed_joint_target_safety(env),
+      )
+      tangent_cost, tangent_slip, loaded, ray_valid, normal_force = (
+        self._tangent_telemetry.sample()
+      )
+      self._tangent_metrics.update(
+        sample_mask=sample_mask, cost=tangent_cost,
+        slip_velocity=tangent_slip, loaded=loaded, ray_valid=ray_valid,
+        normal_force=normal_force,
       )
 
     def result(self, env_index: int) -> dict[str, Any]:
@@ -419,6 +468,9 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
   rollout_metrics = capture.get("rollout_metrics")
   if not isinstance(rollout_metrics, OnlineTerrainRolloutMetrics):
     raise RuntimeError("terrain rollout metrics hook was not initialized")
+  tangent_metrics = capture.get("tangent_metrics")
+  if not isinstance(tangent_metrics, OnlineTerrainTangentSlipMetrics):
+    raise RuntimeError("terrain tangent metrics hook was not initialized")
 
   outputs = raw["scenarios"]
   for index, (scenario, output) in enumerate(zip(scenarios, outputs, strict=True)):
@@ -431,12 +483,16 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
       corridor_half_width=cfg.corridor_half_width,
     )
     terrain_metrics = rollout_metrics.result(index)
+    tangent_result = tangent_metrics.result(index)
     if terrain_metrics["active_control_step_samples"] != output["steps_sampled"]:
       raise RuntimeError(
         "terrain metric sample mask diverged from the reused route rollout"
       )
     action_distribution = terrain_metrics["action_acceleration"]
     slip_distribution = terrain_metrics["foot_slip_velocity"]
+    pitch_distribution = terrain_metrics["base_pitch_absolute"]
+    effort_distribution = terrain_metrics["actuator_effort_abs"]
+    power_distribution = terrain_metrics["mechanical_power_abs"]
     body_contacts = terrain_metrics["body_contacts"]
     output.update({
       "terrain_type": TERRAIN_KEYS[kind],
@@ -470,6 +526,14 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
       "slip_velocity_mean": slip_distribution["mean"],
       "slip_velocity_p95": slip_distribution["p95"],
       "slip_velocity_max": slip_distribution["max"],
+      "base_pitch_absolute_mean": pitch_distribution["mean"],
+      "base_pitch_absolute_p95": pitch_distribution["p95"],
+      "actuator_effort_abs_mean": effort_distribution["mean"],
+      "actuator_effort_abs_p95": effort_distribution["p95"],
+      "mechanical_power_abs_mean": power_distribution["mean"],
+      "mechanical_power_abs_p95": power_distribution["p95"],
+      "terrain_tangent_stance_slip_mean": tangent_result["slip_velocity"]["mean"],
+      "terrain_tangent_loaded_stance": tangent_result,
       "base_contact_count": body_contacts["base"]["non_terminating_count"],
       "base_contact_rate": body_contacts["base"]["non_terminating_rate"],
       "upper_leg_contact_count": body_contacts["upper_leg"][
@@ -509,7 +573,7 @@ def evaluate(cfg: TerrainCurvedRouteConfig) -> dict[str, Any]:
       "random_rough_curves": "random_rough" in cfg.terrain_kinds,
       "discrete_obstacle_curves": "discrete_obstacle" in cfg.terrain_kinds,
       "continuous_approach_feature_exit": continuous_transition_coverage(),
-      "stairs_curves": False,
+      "stairs_curves": any(kind.startswith("stairs") for kind in cfg.terrain_kinds),
     },
     "metric_invariants": {
       "sample_denominator": ACTIVE_SAMPLE_DEFINITION,
@@ -536,6 +600,14 @@ def main() -> None:
   configure_torch_backends()
   cfg = tyro.cli(TerrainCurvedRouteConfig)
   result = evaluate(cfg)
+  result["provenance"] = formal_evaluation_provenance(
+    cfg.checkpoint, __file__,
+    (
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/proprio_acceptance.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/terrain_rollout_metrics.py",
+      Path(__file__).resolve().parents[1] / "src/tasks/velocity/evaluation/terrain_curved_routes.py",
+    ),
+  )
   output = Path(cfg.output_file)
   output.parent.mkdir(parents=True, exist_ok=True)
   output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")

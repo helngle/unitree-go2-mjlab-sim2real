@@ -1,0 +1,1017 @@
+{
+  "schema_version": 1,
+  "plan": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_resume3_plan.json",
+    "sha256": "6f3556dfc464704a44654e21e28187167d746ce840dcd239b566aab5ea07e7e2"
+  },
+  "artifacts": [
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/high_slope_matched.json",
+      "sha256": "de275320d2047b2f34d174d91d2f3f2a5aa08a0a1ad97564d671a4e6085395f6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/flat_matched_routes.json",
+      "sha256": "32dcda988e3fba3caada031ca94a6dc3cfd32dd444d3e424d9d3880034f3564a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/continuous_retained_clean.json",
+      "sha256": "87a5b96cad9a31f86e3621adec7a3d04c8f6d0e5bbc1e219bee164d036a1b244"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/terrain_curves_arc_clean.json",
+      "sha256": "6452b3cc6b85f8127ea35a1beb4018a7914740cbbbc11393d70771e8b4abc8ff"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/terrain_curves_s_curve_clean.json",
+      "sha256": "e9fe39bbc4963b0428be5b88f0b83b6b0898c5ad53dddd72106c8a0d430f2157"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/stairs_level9_seed42_clean.json",
+      "sha256": "13a2843fb4f4b578366f412f9dc1b01cc245e4182a3e94bbe48fd6f298566dde"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/stairs_level9_seed43_clean.json",
+      "sha256": "fd0cca7a781c3109242ba4c1b318a58db1f403f6aa8227aee20e748ffd1f4843"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/stairs_level9_seed44_clean.json",
+      "sha256": "4fb8433d7e918cdd56a1a0323266472ff3025971bd66e4f1a7cf196370bf8bfe"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/continuous_retained_randomized.json",
+      "sha256": "908a0abdd1fe867a343b5ff24e358d07cf521a1c1e9552c923823d73a4101fbb"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/terrain_curves_arc_randomized.json",
+      "sha256": "031e066799faa0e60b95542152e1e17a45b7496a60ee5953ba73d198fac9dc2d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/terrain_curves_s_curve_randomized.json",
+      "sha256": "0c25ffb52fabaa6146e4c12fddc74889b546ebcec106c3c2ca593f0e6ab2ecdc"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/stairs_level9_seed42_randomized.json",
+      "sha256": "67845274af8b3d92040ce234f26348ae4b31aef879e05462afd3d54fc6169bad"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/stairs_level9_seed43_randomized.json",
+      "sha256": "6ad9e9ae694d5d67b6a6e2ded5023227bb3fe012ea75fb1617a9e6825bffd44b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_13600/stairs_level9_seed44_randomized.json",
+      "sha256": "460f79bc7c11afd6584c12d8fdc035a56c492f13b09f0eeda35db2246956d596"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/high_slope_matched.json",
+      "sha256": "c6c22713838a04a9870c3e866fc07526c43fb60c136447ce29580e5c7a2dfe24"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/flat_matched_routes.json",
+      "sha256": "5cf3b77e42aa49f5c0da02613fb21a2bf8e73c63d7ea1e403739a7e22ce84f35"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/continuous_retained_clean.json",
+      "sha256": "fd43ac58d95dd9a414e78280131c4b971faacfa1656dca75c588c7b80d7250a1"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/terrain_curves_arc_clean.json",
+      "sha256": "6404975ea170c3b66a535d54cfb9a7c417408b3a67cf5572b5efce86d9ee133b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/terrain_curves_s_curve_clean.json",
+      "sha256": "0b54034fcb037df5e323b4ed5259f42ee35f6bed00628212a5300f4ac02276d9"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/stairs_level9_seed42_clean.json",
+      "sha256": "947efee3b9ae09031176438c4231028615f8f59a74a044cd64c17f682df21e6b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/stairs_level9_seed43_clean.json",
+      "sha256": "5dda725b93a16cfbea0b73579655665b57eb81728b00be0014e386608c17faba"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/stairs_level9_seed44_clean.json",
+      "sha256": "d686c712347ff75d1084f241bb59db2fed54fd387ae72519276ba3d92c3124d5"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/continuous_retained_randomized.json",
+      "sha256": "9190ae46d9de65b1fcb20c230923e1eed6bbc158eeef7424d61933c8b8c4acf0"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/terrain_curves_arc_randomized.json",
+      "sha256": "8f671ecc36a401bc32a027fe5d6b188a86eb845566abef79908ef3d960473469"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/terrain_curves_s_curve_randomized.json",
+      "sha256": "c73cad558e48595aec4e838a51c839dacd9bad0f06831cb5143d7bf0a8910f18"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/stairs_level9_seed42_randomized.json",
+      "sha256": "cfecd649b1d757336b9f3bb4d7b606304a00360504bdf3bb060ea4014f1ffec4"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/stairs_level9_seed43_randomized.json",
+      "sha256": "8fd5a84ef7ff11ec6bf6b892ae16599ab1105210c8787e204e184b27fbbcc286"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_0/stairs_level9_seed44_randomized.json",
+      "sha256": "ad47364a5da8bc3898aa9ac27a8fdc6f1e3e21743ef354cb92b7a4e6c3114a2a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/high_slope_matched.json",
+      "sha256": "ca61ea5e56fc9f144c5b09f90ead3bbedefa7f4cb302ce44b76285ceb33f5442"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/flat_matched_routes.json",
+      "sha256": "53fc823b98e6e533b745f15e63930330ae3c113eaa23408973521808098ab30e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/continuous_retained_clean.json",
+      "sha256": "e0fca2fdcca6380f51b105e30f42de22694074057ff5f34b2407e9c5ab9e62fc"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/terrain_curves_arc_clean.json",
+      "sha256": "e41c88fc2fabd8729e5128685a0ba928b6a4cc24109eec4cfe347f94cf8cbd1a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/terrain_curves_s_curve_clean.json",
+      "sha256": "f32c327e4c0db6f0e8fcb95860d0d70ff8ec97e57438afc543e7d60798bdbf3e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/stairs_level9_seed42_clean.json",
+      "sha256": "a5eec5995662a577506ab1ec1a9575c16b65c40775b1dd54fa6ed702775b5d21"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/stairs_level9_seed43_clean.json",
+      "sha256": "846cebd95863693651017e71d799a7c262b8e9aec647c9c8394f5fadabc453ea"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/stairs_level9_seed44_clean.json",
+      "sha256": "44d49543a1fe1a312fc378a504e77025457d5a8b8dad8075ed92ea70410bd521"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/continuous_retained_randomized.json",
+      "sha256": "7a86900d8aee938d849203e57bac9a73c7991ca86e867b550cef3e77655baf11"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/terrain_curves_arc_randomized.json",
+      "sha256": "50a838c4f30e747ba62c051407417a385a2bf8fa1e3acaaf2c90a2e508a636c5"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/terrain_curves_s_curve_randomized.json",
+      "sha256": "1fcf9b52065030fca94ce82795fc7b43676fe68bb476007f0c4ac0881413532b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/stairs_level9_seed42_randomized.json",
+      "sha256": "b961291ea4333545dc7bb5abbd206d73577063cba5f68fcc7e0c74d16ec3fac0"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/stairs_level9_seed43_randomized.json",
+      "sha256": "3b1c1d6031b7821a5a1247be1316cf6ad153b48174fc553224f2ee98a3a7e651"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_250/stairs_level9_seed44_randomized.json",
+      "sha256": "51d74591581957d0d01ddac092ef2beb0f6e06ecbc22c6e26812a91c11da7ec1"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/high_slope_matched.json",
+      "sha256": "2eef36f2155fed21f7c3661a57214361798823850dcfc8db3cca93a4077f0565"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/flat_matched_routes.json",
+      "sha256": "25e5736ab500d53e37532df024b89b87d53cb9364c425d8094262096c66acb4b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/continuous_retained_clean.json",
+      "sha256": "1fa1632c22a0a3a64c4fc0dc3666a0e6609d7fb7af8c3eb84265fa7536a927c9"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/terrain_curves_arc_clean.json",
+      "sha256": "5ec116e83a49e9caf3544218775c215272851c6b88af1e54a4e44d73000866bb"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/terrain_curves_s_curve_clean.json",
+      "sha256": "7822590bfda63f1b86d9a1171ee3aaf1aa1369bcb6b064048a81cc48ba255657"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/stairs_level9_seed42_clean.json",
+      "sha256": "7ebb784c8e3acb538923c509f09d93496f542d77b0206087bfac1efcbdd218cf"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/stairs_level9_seed43_clean.json",
+      "sha256": "8c1e16b2585ecf55cb0fc73da23d405abca3e8463fac2053dc24549cdff21075"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/stairs_level9_seed44_clean.json",
+      "sha256": "084af5591f345e4727fe4abd13e7321aecb836ec818a2c073923ee7dd8d27474"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/continuous_retained_randomized.json",
+      "sha256": "523e863523f00112ac2923a47814d0a5b9df1822cd3dabd212084c1aaa790280"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/terrain_curves_arc_randomized.json",
+      "sha256": "f0af73c148496820a1b4ba1def80b0666a834a7dd21935010dfc949ae8039b08"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/terrain_curves_s_curve_randomized.json",
+      "sha256": "7957c40f11e45a02d68c0ef40e92009178231a3d1cf6de222e29e8aab1ec9142"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/stairs_level9_seed42_randomized.json",
+      "sha256": "d5f9c970b14142ff1e540c1616827f07c1b709b521b0f07e3bbbf6a416814080"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/stairs_level9_seed43_randomized.json",
+      "sha256": "44d54f42b975ae1341eaad7753cba0737cf83c471fd9fe4540b99f8ea015b6c0"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_500/stairs_level9_seed44_randomized.json",
+      "sha256": "296f537ee4b0f2962245e4262b6e37f08e1f4611eb9e05c2edf76905b9d3869d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/high_slope_matched.json",
+      "sha256": "6c04b86f78174142b0ebe268a8849fba3aa52dae79053a40a9b06efec94e57e9"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/flat_matched_routes.json",
+      "sha256": "72d074ca032519f22f8ca612c56e366aadb6af95193a814526931a4ac782229b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/continuous_retained_clean.json",
+      "sha256": "d35ede12cb6e27a0bf3d4469d0828afaa3d4e2e0f6f6bff553dcee39e682aec6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/terrain_curves_arc_clean.json",
+      "sha256": "02408efa5273f52ca3d301413da7af6ada0863c3ad7a370b5696b6cd5e9af8b6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/terrain_curves_s_curve_clean.json",
+      "sha256": "c51bd87e3b9e7243e2a2ebfef1917e98df35fb914c16c9b837c170b4083c7f01"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/stairs_level9_seed42_clean.json",
+      "sha256": "eaa3875ec56238ed6a4641ae03af7c7292372d8bffb270f82ad9f066fef734bd"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/stairs_level9_seed43_clean.json",
+      "sha256": "8f51d3c6ae9aa253295cae38d8844530133d9bf83449aa27f4ce54a78b5dadee"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/stairs_level9_seed44_clean.json",
+      "sha256": "e4d3fab5b262cdec6fc2ec10a3de51880f8e6677e1ddfa84a022097d394358c5"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/continuous_retained_randomized.json",
+      "sha256": "3d603b68ffbb0c9efb7ad2a8aae4153c274473ea92103d2024dc93c339a77f89"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/terrain_curves_arc_randomized.json",
+      "sha256": "5971bf0e4e36ab73bb1e33eb4007425cfc828db6bcf1bcea979daa05b9937be6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/terrain_curves_s_curve_randomized.json",
+      "sha256": "f282f0ce672704bfdf34f36b073ca9e396b636179a4a397904978555d07255e6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/stairs_level9_seed42_randomized.json",
+      "sha256": "713d90fcd86aa46cf33dffa5162ed96825604015989851d9e62974885a944162"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/stairs_level9_seed43_randomized.json",
+      "sha256": "0f5882b918bcb282c18ad66c17f7e3fa836ed42ead2088c190ea60118be1116f"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_750/stairs_level9_seed44_randomized.json",
+      "sha256": "25e5ed0acaf10da4983f5708e1bfc12095f9993d3925548e0859598d911cdd12"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/high_slope_matched.json",
+      "sha256": "95b32f72ac51990230cf5bf9dd17425eabaf27df829cce21a09ad63640d6b39b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/flat_matched_routes.json",
+      "sha256": "ad960cacecb60a4c6b2236d13364ebd9ac6de18f32de3dff3eb8ad392051288a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/continuous_retained_clean.json",
+      "sha256": "0a3ea2e6c7105c00b6b6ae12b73dd7596400ad072c197e73adb9cce67ce3fc97"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/terrain_curves_arc_clean.json",
+      "sha256": "0b8d35bffbad2d4c63dc5f77e75261caf1664e189774eb45f28d62fab885a590"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/terrain_curves_s_curve_clean.json",
+      "sha256": "7e5e5ec1756e91d4ef69424d47bc7d45dd3323b49d3046fdd2521a6ddb444431"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/stairs_level9_seed42_clean.json",
+      "sha256": "e6b14eeed532310d225d605c79f393329f31aa62dafe9e0426b26f1e9e4d3ae7"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/stairs_level9_seed43_clean.json",
+      "sha256": "50b80880efd1be14a0433700349221daa234a3e89763a84665c6eb690bf4c3a6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/stairs_level9_seed44_clean.json",
+      "sha256": "f36daf74b64f1371bbb1ce3877eeba805ffb05a1efab7689904bc99e749f5b1a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/continuous_retained_randomized.json",
+      "sha256": "9df7a428ad7271c4b847cca15364ec673340bc27f53106da25a5994188f2443d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/terrain_curves_arc_randomized.json",
+      "sha256": "b55ca2b33e7fdc497e19b9e59ff289f499fa5cce7afc1e06fef8428606e21a8a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/terrain_curves_s_curve_randomized.json",
+      "sha256": "aa7a12517d8da4a9a7926b3c2bbf0d866d8da15b68f880eaf4df639ed91b0bf3"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/stairs_level9_seed42_randomized.json",
+      "sha256": "3d6343a2a50bf515c234e1f952ac388e94ab1978073d9e1cf229bf8c7067183c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/stairs_level9_seed43_randomized.json",
+      "sha256": "96a1c0a00293bd9493cef83c7cae4cafbbff053789ab80c291cf762476ad9688"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1000/stairs_level9_seed44_randomized.json",
+      "sha256": "40e0276aa662fed2bdc8b7628cf43e2cc7d5799f0853169d5761974912f1c68e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/high_slope_matched.json",
+      "sha256": "c267f197e84d95a3b676a7f8acdc3e49ae2a3e07cb9d447ba5c2ebe44fa19dab"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/flat_matched_routes.json",
+      "sha256": "ac0d1b3a7e918f08013d398d59cea3ccdda38d22538e6b32106f86e57ad2d275"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/continuous_retained_clean.json",
+      "sha256": "6ac5bea3d07f64d46617c3363fb4e1097c4e745f7d8b57be5e8d031832a8107c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/terrain_curves_arc_clean.json",
+      "sha256": "be625a9bb022bc56424d561abd3b0f86401a83ee16f29c1703d00871208b17ad"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/terrain_curves_s_curve_clean.json",
+      "sha256": "6d11f25c10b7f333d864770fd8b8d911518cc93f5c4f7b9ed77f446f3d4dd606"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/stairs_level9_seed42_clean.json",
+      "sha256": "f2b486eda189ed838061d35a6f64b8370fba7f3b7805c224b47a4d6defe73e01"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/stairs_level9_seed43_clean.json",
+      "sha256": "3f8776d21b219cf890012464813f7d15fa170d9aa125fc391e79ff32dfa29f68"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/stairs_level9_seed44_clean.json",
+      "sha256": "3aebe5d889ce2d3600ee84a655b03422438fd99fe68dccd047a06987fea69016"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/continuous_retained_randomized.json",
+      "sha256": "090ec50547a8b80bf63eea7e6e9e65462129d5762ea8177c795f33f9a7b809aa"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/terrain_curves_arc_randomized.json",
+      "sha256": "bffec7e61a40c46f2b50560752d2b5cc4abbe49bee6cf3072f11ccade6d49666"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/terrain_curves_s_curve_randomized.json",
+      "sha256": "6e5bc20f89fdf5aee9ab34fe1a73c69113103c8f7197425ea51aa20c3e4d0249"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/stairs_level9_seed42_randomized.json",
+      "sha256": "0c92efd9f72afe3c56c67801d202944144fa67fd2326c225859afaf965bc4c02"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/stairs_level9_seed43_randomized.json",
+      "sha256": "d2260f4f65a14a31355b7f1244fffeb352f453be85fc580ed9520124a9b54290"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1250/stairs_level9_seed44_randomized.json",
+      "sha256": "ae1d828c87fac58fd615ccfd69a83e356572b1f76b211a536e18db4784181318"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/high_slope_matched.json",
+      "sha256": "b677dcce274f0a3b218c5d7c623a9e57c8adefcbe157d542d0b5f161970857ad"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/flat_matched_routes.json",
+      "sha256": "a01aaa82f466a4efb7bbe4194844ce77c3e852879086d4ed88e83bcc423798c8"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/continuous_retained_clean.json",
+      "sha256": "2b1ab3ca33baab0eb1c593243ff116106e37874bf1f847d5e294f590d6f556fc"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/terrain_curves_arc_clean.json",
+      "sha256": "48ff6b18e639a887942fa11969b4fb8f77f33bab421130a992bc4f085f1c80b4"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/terrain_curves_s_curve_clean.json",
+      "sha256": "5b72a7d1b32843cefe4cf2270d3527a444bb09662baeba37b1ec5007ec990bdf"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/stairs_level9_seed42_clean.json",
+      "sha256": "3146a1a3505180ccc6ada6b75409dc0c0248024ba4436331454ae281713094f8"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/stairs_level9_seed43_clean.json",
+      "sha256": "a5c6ea9afb165ff181ac4738a8a0aca5e74b3e5b4783a35ea0352ae507a54929"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/stairs_level9_seed44_clean.json",
+      "sha256": "01015eb0315f347b8ab9fef827bb33ccc0de8602fd9d010ef9e7165e479fbb7e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/continuous_retained_randomized.json",
+      "sha256": "ddb09f068f7b4ea2d102d99d567747eb75f925b50ad0f067c1ec938ab9b6fabd"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/terrain_curves_arc_randomized.json",
+      "sha256": "9e9746c890864249434dd084b9cc89c88b6518495f6254f45f50156b453b54c7"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/terrain_curves_s_curve_randomized.json",
+      "sha256": "12550d88a7f8fb978fe8af0ceab5114e127dee135ebe2f649cf183ebcf69d42c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/stairs_level9_seed42_randomized.json",
+      "sha256": "3ad5810a07064d615227bd5a9cd24cae99e5edffa80f0b6ab42ce58c113634f3"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/stairs_level9_seed43_randomized.json",
+      "sha256": "2a1ca30dc5dbab97c3872f86f5cab62016bccc527c3e030fe5bf5a72e286d657"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1500/stairs_level9_seed44_randomized.json",
+      "sha256": "615d5782889dd337e9e637a04a753dd22a50f0f24eea0f0809ebf40545c659e4"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/high_slope_matched.json",
+      "sha256": "52eff73c96950d67f667513c1832bab2887edcef63560b62d91ef8cbc7c7cd54"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/flat_matched_routes.json",
+      "sha256": "092c5d9ea17190396865dcd14be313c3b25e5d7ecd711b745426fbc2a431cabe"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/continuous_retained_clean.json",
+      "sha256": "9b1e499fdb968cc55cd95b1052f054164298d28f27cc8260005ecb5b3b287bfa"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/terrain_curves_arc_clean.json",
+      "sha256": "52c84ae069e089d25a36cd6a289c43bc516ac45facacbbe7ff1fec31e0e8e305"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/terrain_curves_s_curve_clean.json",
+      "sha256": "37befea5b81404ed50038aa9eff9f6edf96ab2b417d2f597d000933cdcde256b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/stairs_level9_seed42_clean.json",
+      "sha256": "1da156479785166745aa8b701964b778255f7c19c96ee07fdbfcc63f8b1786b0"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/stairs_level9_seed43_clean.json",
+      "sha256": "a538699d4b36116b5bec147494744063590ec674ca229e4b78ee166d729a3969"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/stairs_level9_seed44_clean.json",
+      "sha256": "3a3be048a26ea4676a2ec6ce4ec77b4f08385b61ef798fb045ee5ad0b340f815"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/continuous_retained_randomized.json",
+      "sha256": "ab37ea82a9f3d1ba557d46e02406d39632bdc09507fae5a2f281936ede3222aa"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/terrain_curves_arc_randomized.json",
+      "sha256": "83f283804911b3e25d4ba770a52ba7a96bc469c66ff83eb0a94e296d34a5ce6c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/terrain_curves_s_curve_randomized.json",
+      "sha256": "7ff122f73340182ed8bd7cc284b557b47b83eabb805f18522865e133fb913506"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/stairs_level9_seed42_randomized.json",
+      "sha256": "3cdfd7a07adda95ad768b8309f3dd5af466771b09c48b2cd22f350e862ca65c4"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/stairs_level9_seed43_randomized.json",
+      "sha256": "acdf273dc6ce130ca5aa8415c17abad71c41d635d8a0a7bc8e5459ac3239949a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_1750/stairs_level9_seed44_randomized.json",
+      "sha256": "7bdd8eb2f9dab9763a1d2d48188118a93000022783a464171a6a3807b0d51f81"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/high_slope_matched.json",
+      "sha256": "b98e785b92176d59b9fb58f731d923a2f2bb31b0606fb85a0cc704375934f316"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/flat_matched_routes.json",
+      "sha256": "2bd1b1916361d265f716aba4e26e6ed3306913d3170af4efc6ffd609e99937b8"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/continuous_retained_clean.json",
+      "sha256": "10ad3e5c753f7ea3762cd0f18d20f024a5e9adce4f3a56e7dbb8e6541992fefa"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/terrain_curves_arc_clean.json",
+      "sha256": "726abda5ce67ec756bac48dd7ff650fc2b83c39bd86419b0b5cebd83abd3ffab"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/terrain_curves_s_curve_clean.json",
+      "sha256": "6320af8d09f9d43e79595b1db099ccd65c405d2ad33cfbc948a11b59f1ac57dc"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/stairs_level9_seed42_clean.json",
+      "sha256": "3ebca569c48c2f8080c623011ba34674549f3fa5de7d395ebea91a77aafc51eb"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/stairs_level9_seed43_clean.json",
+      "sha256": "343c50f4125a6bf289c78d96e5cbac83a2f2d332a6d5022404bc042e0e6af63c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/stairs_level9_seed44_clean.json",
+      "sha256": "eed71ec6a66cb472353e90f063b0af5157a6ab84841214b32beecf872b321747"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/continuous_retained_randomized.json",
+      "sha256": "ac0e20843c6a995b4a659e9af32ea1e9c7c86c54022c6a25309003a9ff5c199d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/terrain_curves_arc_randomized.json",
+      "sha256": "44906f0cd5a76b692cb957e3003262437cda5d052aa512b01cca3eee510fbf47"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/terrain_curves_s_curve_randomized.json",
+      "sha256": "d8a3cc061437199d4f32de94e9560eb8997e3a25bcbc63233a90e87e638491a0"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/stairs_level9_seed42_randomized.json",
+      "sha256": "ecf76dfc6b7db92667b2d187da58e96b3b7d59de2bad6e5a90a64a7f4d868748"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/stairs_level9_seed43_randomized.json",
+      "sha256": "d024f1d41db22417f5f62caae0abffb68c8fa6e4462f592d39fd74873dedc432"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2000/stairs_level9_seed44_randomized.json",
+      "sha256": "0f384af4eaccf6a6039963376bef191533a655fc26d60042e40a89e5455c0918"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/high_slope_matched.json",
+      "sha256": "73369a37d55e8d608f6859a715546a24de95f8633e5673b67bb3b2209a5a27bc"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/flat_matched_routes.json",
+      "sha256": "a25da3200babab79c9e10bc344a499eb69e012eef985617bcb94e2f45763cca6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/continuous_retained_clean.json",
+      "sha256": "1a7726010e8ac35b845b5c4ca02afa179713e851941100510167e2d03abfea21"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/terrain_curves_arc_clean.json",
+      "sha256": "950cc3f656ad9be2fd13a1e620ee1b19269091f2d5bbc05a0811e9b5bbd36651"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/terrain_curves_s_curve_clean.json",
+      "sha256": "3fddc000ed7161b6fe2e240f541305961cee6d3d38bdb412bc77fdca30a528b4"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/stairs_level9_seed42_clean.json",
+      "sha256": "53c91b0309416c714052c2d22d7e03873eb21f9e787718c04eaeab52565e8769"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/stairs_level9_seed43_clean.json",
+      "sha256": "77f4a321d14e746a67cb633759ab6e1f73d4222ad2060d0830dfcba0929152e7"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/stairs_level9_seed44_clean.json",
+      "sha256": "8b3e18a861a139fa2125455da4e47e5f366e0102763956bbcdfb680a791e154a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/continuous_retained_randomized.json",
+      "sha256": "5fbcd6bfb2d5c85c865bab04f627da5d5c01df8eba946fe21e86049cba970809"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/terrain_curves_arc_randomized.json",
+      "sha256": "351370674a340faa6c9b012673df698d4c7bf879e1719ba1e7398c8de220cb83"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/terrain_curves_s_curve_randomized.json",
+      "sha256": "c03212f4e384c02190321ac38f52e3b72b869c2e6ae0be38f61f813b077f8f3a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/stairs_level9_seed42_randomized.json",
+      "sha256": "f005be4428ec32356f39117acf8e5abafd35ad4be46a2a880c3e3aa4c1e7edb2"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/stairs_level9_seed43_randomized.json",
+      "sha256": "03b990f2fae84bb9441011ec99ee903e4ded76a224bd0072a7dc2de46145ea4d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2250/stairs_level9_seed44_randomized.json",
+      "sha256": "a43e4fdc4e1e6f0d564b1189f3072e28e432dc0101ffdc2a161c7baa0caf054b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/high_slope_matched.json",
+      "sha256": "5b089d664e75d53f66d12e6358ccd38e0cffeaeec0a2d700133497668e13d88a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/flat_matched_routes.json",
+      "sha256": "ee90ec1a670a4e425de906181218cbb0e8b1bb0ecbe2667ab82c20aaa563c4a8"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/continuous_retained_clean.json",
+      "sha256": "29ffaa71e06373ddf52325b818acdba76d55b29313cbfb4441b8494119d9ae97"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/terrain_curves_arc_clean.json",
+      "sha256": "faaa8c062cb1f152089e1dc0e5b4f4f49859e142aee7509de169438a5a4e1cf5"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/terrain_curves_s_curve_clean.json",
+      "sha256": "f1e0bd3c73b46dc907f8dfa71be53301aac41dfdb7ad302478b5bf2614d24a98"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/stairs_level9_seed42_clean.json",
+      "sha256": "fb759ef0cdd4e7e17f507e4f039c0f46350c69d3f183b4ce9d2bcc877eb2acaf"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/stairs_level9_seed43_clean.json",
+      "sha256": "f7b1e718e7bf506901066ce2919c585d09d8444c962dc2e39d229bf518526712"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/stairs_level9_seed44_clean.json",
+      "sha256": "4bfe1b793e71c5b042b98addd6816e1245222d429a22f419582d83c325827a6c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/continuous_retained_randomized.json",
+      "sha256": "a58a63592df0e7d825a3bc67da05f6de5528a52a0b3949f98ab23d9a943c8b76"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/terrain_curves_arc_randomized.json",
+      "sha256": "416f434a57a6baece639b04300562ae5a9bdc075c83e3e939865b4444ff4c9d9"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/terrain_curves_s_curve_randomized.json",
+      "sha256": "fea0d11f4b4e2fd703e88fc0c91f9a228cf3b815d15c7730fc75437d623433ae"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/stairs_level9_seed42_randomized.json",
+      "sha256": "aafd430ac498e7bb419b24c1b7837be7340b946acc5be52c63e36192dc4bbdae"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/stairs_level9_seed43_randomized.json",
+      "sha256": "04b620c0a3f2e8f7884f7d8507bf54411541ced8d15747644d79fb746f5be2ed"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2500/stairs_level9_seed44_randomized.json",
+      "sha256": "8b9007b1f89afb059897f5a84e4fce272961cc05cfbd60e984c1cc249c2e9a06"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/high_slope_matched.json",
+      "sha256": "49aa1b058d17e72ff9d3129815dda7203912975eb753892051488461686e1add"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/flat_matched_routes.json",
+      "sha256": "229fcbb1cd913dd5734722979e1b503fd327fb4ce8771996fc15c400e4c57644"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/continuous_retained_clean.json",
+      "sha256": "c2f375fa0eacf1accc84d05157185804f935a6a8c35a2d1306ba0df7ece94f6e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/terrain_curves_arc_clean.json",
+      "sha256": "dd0574aeeda1150827943e8a36d3a5af103126d71aae8dd2f7abe37865a3cfd6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/terrain_curves_s_curve_clean.json",
+      "sha256": "8f6a7a847873490f40a30f81c39d06693f440a476dc09fe857fab4b01d7f2c56"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/stairs_level9_seed42_clean.json",
+      "sha256": "e37fafc84a6d74bf8a0701fcaab80e8fdcb503a41c128e88f6c5ea77ee45835f"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/stairs_level9_seed43_clean.json",
+      "sha256": "0e235f95893af60bc7e0459eda5e1318884c5998f558df2ba6594d73572a9fd8"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/stairs_level9_seed44_clean.json",
+      "sha256": "896d42de4526f46a98754e9f5b3c7a18a5a49cd5e44a19d946600eff9f6c1504"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/continuous_retained_randomized.json",
+      "sha256": "8aeafa61a04eaa8b0922b4105c1b021692c8570fd41543bacee12e0dbe185052"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/terrain_curves_arc_randomized.json",
+      "sha256": "6f7ae7825656d187d7ce356ba18c363ff3aaf66a1e5e381cccfd1e80a2561729"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/terrain_curves_s_curve_randomized.json",
+      "sha256": "eb2a05d48ffa6048e8f14f8c9550ac7c2322d1a339d3149094cdc6a77577ff43"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/stairs_level9_seed42_randomized.json",
+      "sha256": "d8f0830c960d8e5b4c49ed8bd065511f74cc06ce374de05af99446bbb3405a30"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/stairs_level9_seed43_randomized.json",
+      "sha256": "17c9403793f5895ab8a70dca12938735f02f6d31cc369c81fdf849bbcda7272e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_2750/stairs_level9_seed44_randomized.json",
+      "sha256": "9318e896df1fb1a33bc8ce797084b06141873636179e6b2047fd846985f702d7"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/high_slope_matched.json",
+      "sha256": "2ea07f08daaf4a5dc8b1fd2a70407846f73ce3b08f19b36c99ea73446dc98725"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/flat_matched_routes.json",
+      "sha256": "5d1ee8d19b0af952044b151919544d063c186c573981d803e9b0674b07900e8e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/continuous_retained_clean.json",
+      "sha256": "4e23d8ea475301cbef922c74e75753fb3ab1931b3796b4304e02f74068deb5a3"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/terrain_curves_arc_clean.json",
+      "sha256": "96fbc36cc4d96fe750e7f993bfc246f0af5bd45237e77439904df7eca338fd83"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/terrain_curves_s_curve_clean.json",
+      "sha256": "f8581e15bf707f99aa314f1843f403e2c9ff00517fbc0a0e9fe3a95b6a4c3039"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/stairs_level9_seed42_clean.json",
+      "sha256": "827b7937295b669143640fc04d11cd8d1572bc792b5c262beb17c6b3b0edb2a0"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/stairs_level9_seed43_clean.json",
+      "sha256": "902745350bc67a52325237dfdd8b35ce9e6d862efa1f6e8cd226e61d3cbb0eb5"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/stairs_level9_seed44_clean.json",
+      "sha256": "db83acb5634cad3067b3408df2aee724cff2724c73a3ce7057502944d13770a2"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/continuous_retained_randomized.json",
+      "sha256": "246c7c20fe2c15e9327e20a0ef1dffd85a99d55cc8ae86909a3f6fd816b859bf"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/terrain_curves_arc_randomized.json",
+      "sha256": "8fa4426c24424eca056a1a5823aa7288c226369109ea7c28a7780127c92f81f2"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/terrain_curves_s_curve_randomized.json",
+      "sha256": "c2d65c191ea078126b91312856e3d8afddea7e82d8f274fe069a875e15a701ca"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/stairs_level9_seed42_randomized.json",
+      "sha256": "7cbdaa6ebd35fa769883c0a606f4a86d0d78c6fca4c5d1f1172497cd2cc71570"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/stairs_level9_seed43_randomized.json",
+      "sha256": "7fc3574e92e9efabb20b05cc92121b09e262dd50bf3a8b7a35e9dafb17f66c62"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3000/stairs_level9_seed44_randomized.json",
+      "sha256": "215f600f1a384175fe2437d83a87d32179b9272cac0f68de384898ea68a8bd74"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/high_slope_matched.json",
+      "sha256": "c14b72a1297b7f79406b2fc383f05ac975aa60e00d1d1fd0ad6b4030062e9b77"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/flat_matched_routes.json",
+      "sha256": "9416ad5bf3ec5a6bd94271e22a693b9f1fe37d80d7968665b9db90f455271195"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/continuous_retained_clean.json",
+      "sha256": "99bb8fbf65a636e1e91f7368276ae8cd3efef4e1351c6a2e1f3b30e8bf2a6f22"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/terrain_curves_arc_clean.json",
+      "sha256": "97d0564ff2398f840cf910603a5752c0a699d4f204ec40b2ecd0d644808003af"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/terrain_curves_s_curve_clean.json",
+      "sha256": "7dc7126270ca4634056476f961a4fc77d0cdb9dde751b68bf2a3d32fd4026bc4"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/stairs_level9_seed42_clean.json",
+      "sha256": "c24b81f8f79f1bfd2838838a08e5acdbd688da3be7a85d7d09560397525a3714"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/stairs_level9_seed43_clean.json",
+      "sha256": "cff429254c77e231d579326fcf553c88e8ccd67f56dca3a0eca4b4d2210fc435"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/stairs_level9_seed44_clean.json",
+      "sha256": "71e720e1ef5d2da16dd9ebf6671108cdae22b153ba40906ef40333247bcabb4a"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/continuous_retained_randomized.json",
+      "sha256": "bac9acd7b29b45e3831297aae926e844ab1b3bce89189d900bc9ffb4620ac29b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/terrain_curves_arc_randomized.json",
+      "sha256": "010513e88cb8dad7ec886f7a02e2abd959953afc4bcb91610a6cba475f40a9cc"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/terrain_curves_s_curve_randomized.json",
+      "sha256": "30e290ef3fe687acdbc0f2a10da92321826a93ab38a682f350ad6f768db097c3"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/stairs_level9_seed42_randomized.json",
+      "sha256": "f59d0481a0c11851ec091379f6a3c4a56726ecfb154f94492f7fd2a3268f4758"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/stairs_level9_seed43_randomized.json",
+      "sha256": "e23afd13ccd9262c9e8d54f9d43fb95b6290fe48981babbf0e56f9429d0140c2"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3250/stairs_level9_seed44_randomized.json",
+      "sha256": "262234b29338a6b21e5d829515061d6c27f60f52558a3afa0eb6c82bb86dfd7b"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/high_slope_matched.json",
+      "sha256": "cdf17cfedc52d4095ca0e4377480488ea7379b350539ffb18885e64866c9e74c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/flat_matched_routes.json",
+      "sha256": "0c9958c7cc45eb0074a6d5a25d5349414bff8ec53f62f052668cc378365f600e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/continuous_retained_clean.json",
+      "sha256": "d5e8403b98ac0f22a2e7b5fe36ccbe010abb5e2d9b8f9e5a18c600ded7a4846d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/terrain_curves_arc_clean.json",
+      "sha256": "53ddfaf842b5e5fc40ef1bbfab43f2156a81bc0712770767b13dd9514e251b04"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/terrain_curves_s_curve_clean.json",
+      "sha256": "12518a293dcb41034fed19b4541ff1a9fd5a5a6d47f3bfe5ddcaa10cd7d450a6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/stairs_level9_seed42_clean.json",
+      "sha256": "6e5439c77253951366a7f4916da5952c5283eb405934516e464dfbe66b7fa013"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/stairs_level9_seed43_clean.json",
+      "sha256": "7b2ac9109c3d98dd0606bab9a20811d32392f217b5d37702ac9d18277f576ffe"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/stairs_level9_seed44_clean.json",
+      "sha256": "84554112d0305dd4cd1fc0011f2cd79d7873be25e22e15b4ccefef1fb12308f7"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/continuous_retained_randomized.json",
+      "sha256": "9d9f8651b4d3ee0ece5d2f4a9dc7dc9d90e77b1066d2ee4f56b43f58467fc2d8"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/terrain_curves_arc_randomized.json",
+      "sha256": "06f9112bc6fb39c1e5460b013db7e93e6d58a30c38c030524037d09732dbebfd"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/terrain_curves_s_curve_randomized.json",
+      "sha256": "1f0024ca6731ae8ce9105b50700e949ca5931ebe0331e19034aa50461e40aa92"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/stairs_level9_seed42_randomized.json",
+      "sha256": "ac7073415d7ec8fde010849928fcbd4c34047aae5541bdf3bd5656617925b30e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/stairs_level9_seed43_randomized.json",
+      "sha256": "0d5379e49f850369c9886bebec60b83c3eb4892df7cee6aa5a7cb769b9a44ea5"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3500/stairs_level9_seed44_randomized.json",
+      "sha256": "8f08ac9102f4aafa2d5606f7ab26a672297e0b271e6acca55aca5e0e5e400296"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/high_slope_matched.json",
+      "sha256": "23b98bdabe95e03f77fa63b8ef0912dfb1d5c2995056db03161840b8b0cbc84f"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/flat_matched_routes.json",
+      "sha256": "36f9d5a9ad7ce31b26aa8ccd5f7ac2d73d617bb1df69eae957014ab51f29a760"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/continuous_retained_clean.json",
+      "sha256": "e77aa512603d3732d5e5a45c6b111130e96e3e57dcaafb9db7ceb56867e37d5d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/terrain_curves_arc_clean.json",
+      "sha256": "e76b13ec27e930974ab6a2f13ea59486c9e7761a0abf0db8f649ed3dc982e34e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/terrain_curves_s_curve_clean.json",
+      "sha256": "ac06030cb002552f11de624cf53f5b76d6cf0ddbdb49da0184027d3d4effcb84"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/stairs_level9_seed42_clean.json",
+      "sha256": "9d5bbc784160b129a69d23639d2bfce0d79ddffc19cbf002c67d52e85011fc39"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/stairs_level9_seed43_clean.json",
+      "sha256": "2b8ae838e8416f5a32a5bac3e98f26dbd17985ba9fda1c0770dd05fd8ed32e3d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/stairs_level9_seed44_clean.json",
+      "sha256": "75f58e12c4d3c0dc1582bfe8f8a4924c89ed73d49ad934d833fc978f0134ef6c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/continuous_retained_randomized.json",
+      "sha256": "fd542e04db51d47874fb560fbcf3d2b58a37dee94d03d960afdff90bd44d4d2f"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/terrain_curves_arc_randomized.json",
+      "sha256": "a5daf5f2206aa1675ef2231c25841a125802f2cc9dfc4b4803757d9d87f37939"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/terrain_curves_s_curve_randomized.json",
+      "sha256": "01df05c973b212835411c4f77c91d5201778a7c9549f9f442e80c6b73b959518"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/stairs_level9_seed42_randomized.json",
+      "sha256": "83cce60c3b8d9e2d32fdd5d6f9aed2b07090c2468ce28f10e00d63013a470723"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/stairs_level9_seed43_randomized.json",
+      "sha256": "8f1511000d732884eca0c479bd81c70b411888727bf2f6388fbfbb863e57422c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3750/stairs_level9_seed44_randomized.json",
+      "sha256": "33b8a01faf55d80d46ee5ec362ba378ce67033b93244b8e7e071ec4f87ef4cb6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/high_slope_matched.json",
+      "sha256": "6869db77488288af7048cb0857a3f0c9e5103069a7f88493b36aa970e5a2ada6"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/flat_matched_routes.json",
+      "sha256": "02ba4adddb225d76da952a4658b632e836a36e1a0408ca06b52e3d91e917822d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/continuous_retained_clean.json",
+      "sha256": "c997e67ffabc150e2fcd7fc803cc0dd050ef42da8be9b57c1202dca23302b814"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/terrain_curves_arc_clean.json",
+      "sha256": "2ab1ddd15d981f97e6aaf7fe18935282634d0012e71563619da41fc1a7e9bab9"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/terrain_curves_s_curve_clean.json",
+      "sha256": "22ee0e7d414e29248923b6d8f084d30ab8265b40682b857efb67cc1857bbdd31"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/stairs_level9_seed42_clean.json",
+      "sha256": "2685ef68d11833d0ee9fcf1f70b16e11711ebac1b25e220b441d8b9410a56044"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/stairs_level9_seed43_clean.json",
+      "sha256": "5735f8b48bd24050b2a5cee34df5a41eda28ec01654191461e657c57484b2630"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/stairs_level9_seed44_clean.json",
+      "sha256": "2a7348e40073da4b6253f31f3cc7dfc46a40aa92bc9e427e1b957d996dd4d213"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/continuous_retained_randomized.json",
+      "sha256": "08ecdaa4306460b4d05b89a3dac2ef8a387d54f2b25142691c983270c3ab296e"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/terrain_curves_arc_randomized.json",
+      "sha256": "374333a2e1d110ecc5e01bc5ccbb8bac0e330c48b9850b1dcd002f06a9b9657d"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/terrain_curves_s_curve_randomized.json",
+      "sha256": "b1d467d8eb570a353c14ad3024f31eb435a50aacee6310c9a8675d6c777aacb8"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/stairs_level9_seed42_randomized.json",
+      "sha256": "93e40cf68f3815c091aa29f2da18834cdad11a4ffcd6a751fc42bed06ee5b52c"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/stairs_level9_seed43_randomized.json",
+      "sha256": "88061c11cfbb424d7543151a2b474b5e5a108004acfe0329b0db2db9a46baba7"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/docs/reviews/go2_v2_meanbound5_formal_acceptance_raw/model_3999/stairs_level9_seed44_randomized.json",
+      "sha256": "6a1a54ae90b76b02cca8dae5cd54e796c04ebc6c75c797f40b10b4adbbdf2ece"
+    }
+  ]
+}

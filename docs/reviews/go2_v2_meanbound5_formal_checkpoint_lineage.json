@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "evaluation_suite": "go2_proprioceptive_checkpoint_lineage",
+  "execution_mode": "monolithic",
+  "source_manifest": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/provenance/go2_safe_action_v2_source_manifest_aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e.json",
+    "sha256": "aa2c147e24fa1d692f0c2775233660580a8eb7997b73013b99e93030d6c1279e"
+  },
+  "run": {
+    "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter"
+  },
+  "excluded_technical_runs": [
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_10-59-52_go2_sim2real_proprio_v2_safe_action_ppo_2048env_4000iter",
+      "reason": "excluded technical resume branch; not part of formal lineage"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_11-21-28_go2_sim2real_proprio_v2_safe_action_ppo_2048env_3749iter_exact_resume_251_3999",
+      "reason": "excluded technical resume branch; not part of formal lineage"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_11-39-47_go2_sim2real_proprio_v2_safe_action_cuda_assert_diagnostic_resume251_396",
+      "reason": "excluded technical resume branch; not part of formal lineage"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_11-46-49_go2_sim2real_proprio_v2_safe_action_cuda_assert_capture_resume251_326",
+      "reason": "excluded technical resume branch; not part of formal lineage"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_11-48-13_go2_safe_action_v2_cuda_assert_diagnostic_from_251_to_395",
+      "reason": "excluded technical resume branch; not part of formal lineage"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_11-53-02_go2_sim2real_proprio_v2_safe_action_cuda_assert_capture_single_resume251_326",
+      "reason": "excluded technical resume branch; not part of formal lineage"
+    },
+    {
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-01-05_go2_sim2real_proprio_v2_safe_action_cuda_assert_capture_single_resume327_396_retry",
+      "reason": "excluded technical resume branch; not part of formal lineage"
+    }
+  ],
+  "checkpoints": [
+    {
+      "iteration": 0,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_0.pt",
+      "sha256": "b520c1cf4e352b5efac5f6e2218d1165270a777e07f5cb21d576d5fa280ee654"
+    },
+    {
+      "iteration": 250,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_250.pt",
+      "sha256": "e7b35dc44232a641b0096f55b6bd42b54a202cc3a92c7a60c856ea3c45ba5cbc"
+    },
+    {
+      "iteration": 500,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_500.pt",
+      "sha256": "3c17cf1670b0b7835b88bda25c7c87ad65a059aebc97dfd3e146231d40ddaa02"
+    },
+    {
+      "iteration": 750,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_750.pt",
+      "sha256": "4ac8be3ff7249c97affb9ddddf5da0372c04cb40c5625680d25d195f8b9d93c7"
+    },
+    {
+      "iteration": 1000,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1000.pt",
+      "sha256": "b3881f0ddfabad6b403c3c86b63870748bbc081db8cc92560d3175edb1c0f43c"
+    },
+    {
+      "iteration": 1250,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1250.pt",
+      "sha256": "6901f8341767f7514b6ef19e0eac3de7abab91e14891ec7a8ca3c139504e86aa"
+    },
+    {
+      "iteration": 1500,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1500.pt",
+      "sha256": "7571a1c18b437f8e49dabcfe29eb7b0d9539ded21f2b57677a15ccbea700ce77"
+    },
+    {
+      "iteration": 1750,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_1750.pt",
+      "sha256": "614422649f7abc897ae682db9c6146107e439a02c97121a2a477664681f4aec5"
+    },
+    {
+      "iteration": 2000,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2000.pt",
+      "sha256": "ce4eb8ffc402ebd09a2d9c69b31284c224d7dd72273353ee998a71c4dc5acd79"
+    },
+    {
+      "iteration": 2250,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2250.pt",
+      "sha256": "7a87d33f73c3a867abac092ca2664029ef8deb029fc866a0100ee82f69c93074"
+    },
+    {
+      "iteration": 2500,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2500.pt",
+      "sha256": "bc46ab29cc1fecaf9e89471815f03a4a0987751c3239bdbd776c4be46fe18d33"
+    },
+    {
+      "iteration": 2750,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_2750.pt",
+      "sha256": "044cf04803a9a3335903387f0ea3e4d1be098fef948b028785eea7303f00a9d0"
+    },
+    {
+      "iteration": 3000,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3000.pt",
+      "sha256": "90f38c65f111dcf73acb0d1784372bd105934abb769dbfe56a915385694dcac3"
+    },
+    {
+      "iteration": 3250,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3250.pt",
+      "sha256": "87f4e0905443ed3f431bead417f0af4557823b7e8efc76909dadde00ad7034d0"
+    },
+    {
+      "iteration": 3500,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3500.pt",
+      "sha256": "e2f98d1749b07309ad053af09da7c7ad77a002777d9f5f17fccc64e973a9cf3c"
+    },
+    {
+      "iteration": 3750,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3750.pt",
+      "sha256": "bbb1c4f5a0e9f50bb4d910fcdd42569d032dd3b191a1f59b7d04257f02c2674a"
+    },
+    {
+      "iteration": 3999,
+      "path": "/home/jensen/projects/unitree_rl_mjlab/logs/rsl_rl/go2_velocity/2026-07-30_12-32-20_go2_sim2real_proprio_v2_safe_action_meanbound5_ppo_2048env_4000iter/model_3999.pt",
+      "sha256": "1d4e8502ed13b40197bc5e6c00a95aa8a7cf8f955d05d280eea11ea6324cd28b"
+    }
+  ]
+}

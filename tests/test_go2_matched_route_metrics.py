@@ -17,6 +17,7 @@ from src.tasks.velocity.evaluation.matched_route_metrics import (
   OnlineMatchedRouteMetrics,
   PROFILE_NAMES,
   PROFILES,
+  RANDOMIZATION_EVENTS,
   ROUTE_KINDS,
   action_acceleration,
   assert_recursive_finite,
@@ -56,7 +57,7 @@ class MatchedProfileTests(unittest.TestCase):
       "observation_only": (True, OBSERVATION_EVENTS, False),
       "push_only": (False, (), True),
       "full_randomized": (
-        True, DYNAMICS_EVENTS + OBSERVATION_EVENTS, True
+        True, RANDOMIZATION_EVENTS, True
       ),
     }
     self.assertEqual(tuple(PROFILES), PROFILE_NAMES)
@@ -77,11 +78,14 @@ class MatchedProfileTests(unittest.TestCase):
         profile.startup_events,
       )
 
-  def test_missing_required_event_is_rejected(self) -> None:
+  def test_missing_target_event_is_restored_from_frozen_contract(self) -> None:
     cfg = _Cfg()
     cfg.events.pop("base_payload")
-    with self.assertRaisesRegex(ValueError, "base_payload"):
-      configure_matched_profile(cfg, "dynamics_only")
+    settings = configure_matched_profile(cfg, "dynamics_only")
+    self.assertIn("base_payload", cfg.events)
+    self.assertEqual(
+      tuple(settings["startup_randomization_events"]), DYNAMICS_EVENTS
+    )
 
   def test_unknown_profile_is_rejected(self) -> None:
     with self.assertRaisesRegex(ValueError, "profile must be one of"):
